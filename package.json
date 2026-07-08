@@ -1,0 +1,33 @@
+{
+  "name": "levelmoment-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Client SDKs for Level Moment — educational ad breaks for games. Build root for the @levelmoment/* npm packages.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/levelmomentorg/sdk.git"
+  },
+  "homepage": "https://github.com/levelmomentorg/sdk#readme",
+  "bugs": {
+    "url": "https://github.com/levelmomentorg/sdk/issues"
+  },
+  "workspaces": [
+    "sdk/core",
+    "sdk/web",
+    "sdk/react-native"
+  ],
+  "comment:scripts": "Build only. tsup's DTS emit type-checks each package during build. Ordered core-first so web/react-native resolve @levelmoment/sdk-core's built dist.",
+  "scripts": {
+    "build": "npm run build -w sdk/core && npm run build -w sdk/web && npm run build -w sdk/react-native"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "comment:devDependencies": "Build-time only. The @levelmoment/sdk-react-native tsup DTS build needs react + react-native types resolvable from the workspace root. react is pinned to 18.2.0 to match react-native 0.74.7's EXACT peer so a clean install resolves without --legacy-peer-deps. When bumping react-native, bump react to the new RN release's exact peer in lockstep. They live at the workspace root so individual packages don't pin a conflicting react.",
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "react": "18.2.0",
+    "react-native": "0.74.7"
+  }
+}

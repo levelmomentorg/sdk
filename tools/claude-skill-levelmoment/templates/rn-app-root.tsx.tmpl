@@ -1,0 +1,17 @@
+// === LevelMoment integration — App root ===
+// Drop <LevelMomentAdModal /> at the top of your component tree. It renders
+// the question UI in a fullscreen <Modal>. Add it ONCE, not per screen.
+
+import { LevelMomentAdModal } from "@levelmoment/sdk-react-native";
+
+// In your root component's return:
+//
+//   return (
+//     <>
+//       {/* your existing app */}
+//       <LevelMomentAdModal />
+//     </>
+//   );
+//
+// If you use react-navigation, place it as a sibling of <NavigationContainer>,
+// not inside a screen.
