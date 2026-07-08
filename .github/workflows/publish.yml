@@ -1,0 +1,76 @@
+# Publish — Level Moment SDK packages to npm (@levelmoment)
+#
+# Publishes the @levelmoment/* SDK packages to npm via TRUSTED PUBLISHING (OIDC):
+# no long-lived npm token. GitHub Actions mints a short-lived OIDC identity, npm
+# verifies it against the trusted publisher configured for each package, and the
+# publish proceeds. Provenance is generated automatically (no --provenance flag).
+#
+# DORMANT until explicitly triggered — no `push: branches:` trigger, so ordinary
+# pushes to `main` never publish. It runs only when:
+#   1. an `sdk-v*` tag is pushed (e.g. `git tag sdk-v0.1.0 && git push origin sdk-v0.1.0`), or
+#   2. it is started manually via the "Run workflow" button (workflow_dispatch).
+#
+# One-time setup (per package, on npmjs.com → package → Settings → Trusted
+# Publisher): organization/user = levelmomentorg, repository = sdk, workflow =
+# publish.yml (no environment). Do this for @levelmoment/sdk-core, sdk-web, and
+# sdk-react-native. OIDC needs npm >= 11.5.1, so the workflow upgrades npm first.
+#
+# To cut a release: bump the version in each sdk/<pkg>/package.json (keep the
+# `^x.y.z` cross-dependency in web/react-native in step with sdk-core), then
+# push an `sdk-v<version>` tag.
+
+name: Publish — SDK packages
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "sdk-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish @levelmoment/sdk-* to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for OIDC trusted publishing (+ provenance)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # NOTE: do NOT set `registry-url` here. It makes setup-node write an
+      # .npmrc with `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`; with
+      # the token removed that becomes an empty token, so npm attempts token auth
+      # and never falls back to OIDC (E404). npm defaults to the npmjs registry.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Trusted publishing (OIDC) requires npm >= 11.5.1; Node 20 ships an older npm.
+      - name: Upgrade npm for OIDC support
+        run: npm install -g npm@latest
+
+      # No lockfile is committed to this repo, so use `npm install` (not `npm ci`).
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      # Ordered build: sdk-core first so its dist/types exist before web and
+      # react-native build against the `@levelmoment/sdk-core` workspace symlink.
+      - name: Build SDK packages
+        run: npm run build
+
+      # Publish in dependency order: sdk-core first so the `^x.y.z` cross-dependency
+      # in sdk-web and sdk-react-native resolves against a registry-published version.
+      # No NODE_AUTH_TOKEN and no --provenance: trusted publishing handles auth via
+      # OIDC and attaches provenance automatically.
+      - name: Publish @levelmoment/sdk-core
+        run: npm publish -w sdk/core --access public
+
+      - name: Publish @levelmoment/sdk-web
+        run: npm publish -w sdk/web --access public
+
+      - name: Publish @levelmoment/sdk-react-native
+        run: npm publish -w sdk/react-native --access public

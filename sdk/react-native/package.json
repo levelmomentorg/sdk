@@ -1,0 +1,66 @@
+{
+  "name": "@levelmoment/sdk-react-native",
+  "version": "0.1.1",
+  "description": "LevelMoment SDK for React Native — educational question breaks that replace rewarded ads. Mirrors react-native-google-mobile-ads.",
+  "keywords": [
+    "levelmoment",
+    "education",
+    "ads",
+    "rewarded-ads",
+    "react-native",
+    "expo"
+  ],
+  "homepage": "https://github.com/levelmomentorg/sdk/tree/main/sdk/react-native#readme",
+  "bugs": {
+    "url": "https://github.com/levelmomentorg/sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/levelmomentorg/sdk.git",
+    "directory": "sdk/react-native"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "claude"
+  ],
+  "bin": {
+    "install-skill": "./bin/install-skill.cjs"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src --max-warnings=0",
+    "type-check": "tsc --noEmit",
+    "prepack": "node ../../tools/claude-skill-levelmoment/scripts/bundle-into.mjs .",
+    "postpack": "rm -rf claude"
+  },
+  "dependencies": {
+    "@levelmoment/sdk-core": "^0.1.0"
+  },
+  "devDependencies": {
+    "react-native-webview": "^13.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "5.4.5"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-native": ">=0.72.0",
+    "react-native-webview": ">=13.0.0"
+  }
+}

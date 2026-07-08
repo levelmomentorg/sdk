@@ -1,0 +1,23 @@
+{
+  "name": "com.levelmoment.sdk",
+  "version": "0.1.1",
+  "displayName": "LevelMoment Ads SDK",
+  "description": "Drop-in replacement for the Unity Ads SDK. Shows educational questions instead of video ads — same Load/Show API, zero rewiring.",
+  "unity": "2022.1",
+  "unityRelease": "0f1",
+  "documentationUrl": "https://github.com/levelmomentorg/sdk/tree/main/sdk/unity",
+  "changelogUrl": "https://github.com/levelmomentorg/sdk/blob/main/sdk/unity/CHANGELOG.md",
+  "licensesUrl": "https://github.com/levelmomentorg/sdk/blob/main/LICENSE",
+  "dependencies": {},
+  "keywords": [
+    "ads",
+    "education",
+    "rewarded",
+    "coppa"
+  ],
+  "author": {
+    "name": "LevelMoment",
+    "email": "sdk@levelmoment.com",
+    "url": "https://levelmoment.com"
+  }
+}

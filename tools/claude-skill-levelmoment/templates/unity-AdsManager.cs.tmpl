@@ -1,0 +1,86 @@
+// === LevelMoment integration — AdsManager.cs ===
+// Attach this to a GameObject in your first scene.
+
+using System;
+using LevelMoment;
+using UnityEngine;
+
+public class AdsManager : MonoBehaviour,
+    ILevelMomentLoadListener,
+    ILevelMomentShowListener
+{
+    private const string PlacementId = "{{PLACEMENT_ID}}";
+    private const string ApiUrl = "{{API_URL}}";
+
+    private Question _currentQuestion;
+    public static AdsManager Instance { get; private set; }
+
+    public event Action<bool> OnAdComplete; // bool = rewarded
+
+    void Awake()
+    {
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+
+        LevelMomentAds.Initialize(new LevelMomentConfig
+        {
+            ApiUrl       = ApiUrl,
+            PlacementId  = PlacementId,
+            StudentToken = GetTokenFromUrl(),
+        });
+        LevelMomentAds.Load(PlacementId, this);
+    }
+
+    public void ShowAd()
+    {
+        if (!LevelMomentAds.IsReady(PlacementId)) return;
+        _currentQuestion = LevelMomentAds.Show(PlacementId, this);
+        if (_currentQuestion != null) RenderQuestion(_currentQuestion);
+    }
+
+    // LEVELMOMENT_TODO: implement question rendering with your UI framework
+    private void RenderQuestion(Question q) { }
+
+    // Wire this to your question UI button handlers.
+    public void OnAnswer(int selectedIndex)
+    {
+        if (_currentQuestion == null) return;
+        bool correct = selectedIndex == _currentQuestion.meta.correctIndex;
+        LevelMomentAds.NotifyAnswer(PlacementId, selectedIndex, correct, this);
+    }
+
+    // ----- ILevelMomentLoadListener -----
+    public void OnLevelMomentAdLoaded(string placementId) { }
+    public void OnLevelMomentAdFailedToLoad(string placementId, LevelMomentLoadError error, string message)
+    {
+        Debug.LogWarning($"[LevelMoment] load failed: {error} {message}");
+    }
+
+    // ----- ILevelMomentShowListener -----
+    public void OnLevelMomentShowStart(string placementId) { Time.timeScale = 0f; }
+    public void OnLevelMomentShowComplete(string placementId, LevelMomentShowCompletionState state)
+    {
+        Time.timeScale = 1f;
+        bool rewarded = state == LevelMomentShowCompletionState.Completed;
+        OnAdComplete?.Invoke(rewarded);
+        LevelMomentAds.Load(PlacementId, this); // preload next
+    }
+    public void OnLevelMomentShowFailure(string placementId, LevelMomentShowError error, string message)
+    {
+        Time.timeScale = 1f;
+        Debug.LogWarning($"[LevelMoment] show failed: {error} {message}");
+    }
+
+    private string GetTokenFromUrl()
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        var uri = new Uri(Application.absoluteURL);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        return query["token"] ?? string.Empty;
+#else
+        // LEVELMOMENT_TODO: read token from your deep-link handler on native builds
+        return string.Empty;
+#endif
+    }
+}
