@@ -1,0 +1,50 @@
+{
+  "name": "@levelmoment/sdk-core",
+  "version": "0.1.0",
+  "description": "Platform-agnostic core of the LevelMoment SDK. Consumed by @levelmoment/sdk-web and @levelmoment/sdk-react-native.",
+  "keywords": [
+    "levelmoment",
+    "education",
+    "ads",
+    "rewarded-ads"
+  ],
+  "homepage": "https://github.com/levelmomentorg/sdk/tree/main/sdk/core#readme",
+  "bugs": {
+    "url": "https://github.com/levelmomentorg/sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/levelmomentorg/sdk.git",
+    "directory": "sdk/core"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint src --max-warnings=0",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "5.4.5"
+  }
+}

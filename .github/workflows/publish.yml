@@ -1,0 +1,68 @@
+# Publish — Level Moment SDK packages to npm (@levelmoment)
+#
+# Publishes the @levelmoment/* SDK packages to npm. DORMANT until explicitly
+# triggered: it has no `push: branches:` trigger, so ordinary pushes to `main`
+# never publish. It runs only when:
+#   1. an `sdk-v*` tag is pushed (e.g. `git tag sdk-v0.1.0 && git push origin sdk-v0.1.0`), or
+#   2. it is started manually via the "Run workflow" button (workflow_dispatch).
+#
+# It requires the `NPM_TOKEN` repo secret (an npm automation token scoped to the
+# @levelmoment org). Without it, `npm publish` fails to authenticate.
+#
+# To cut a release: bump the version in each sdk/<pkg>/package.json (keep the
+# `^x.y.z` cross-dependency in web/react-native in step with sdk-core), then
+# push an `sdk-v<version>` tag.
+
+name: Publish — SDK packages
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "sdk-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish @levelmoment/sdk-* to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for npm provenance (--provenance)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      # No lockfile is committed to this repo, so use `npm install` (not `npm ci`)
+      # and skip setup-node's npm cache (which requires a lockfile).
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      # Ordered build: sdk-core first so its dist/types exist before web and
+      # react-native build against the `@levelmoment/sdk-core` workspace symlink.
+      - name: Build SDK packages
+        run: npm run build
+
+      # Publish in dependency order: sdk-core first so the `^0.1.0` cross-dependency
+      # in sdk-web and sdk-react-native resolves against a registry-published version.
+      - name: Publish @levelmoment/sdk-core
+        run: npm publish -w sdk/core --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @levelmoment/sdk-web
+        run: npm publish -w sdk/web --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @levelmoment/sdk-react-native
+        run: npm publish -w sdk/react-native --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
