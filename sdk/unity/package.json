@@ -1,0 +1,25 @@
+{
+  "name": "com.levelmoment.sdk",
+  "version": "0.1.2",
+  "displayName": "LevelMoment Ads SDK",
+  "description": "Drop-in replacement for AdMob / Unity Ads rewarded ads. Opens the hosted LevelMoment educational break page in a WebView instead of a video ad — same Load/Show API. Requires a WebView provider (gree/unity-webview).",
+  "unity": "2021.3",
+  "unityRelease": "0f1",
+  "documentationUrl": "https://github.com/levelmomentorg/sdk/tree/main/sdk/unity",
+  "changelogUrl": "https://github.com/levelmomentorg/sdk/blob/main/sdk/unity/CHANGELOG.md",
+  "licensesUrl": "https://github.com/levelmomentorg/sdk/blob/main/LICENSE",
+  "dependencies": {
+    "com.unity.modules.jsonserialize": "1.0.0"
+  },
+  "keywords": [
+    "ads",
+    "education",
+    "rewarded",
+    "coppa"
+  ],
+  "author": {
+    "name": "LevelMoment",
+    "email": "sdk@levelmoment.com",
+    "url": "https://levelmoment.com"
+  }
+}

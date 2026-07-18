@@ -1,0 +1,69 @@
+// === LevelMoment integration — useAdBreak hook ===
+// Wrap your game pause-point logic in this hook. Call showAdBreak()
+// at level complete, lives lost, etc.
+
+import { useEffect, useRef, useState } from "react";
+import { LevelMomentAd } from "@levelmoment/sdk-react-native";
+import { Linking } from "react-native";
+
+async function getTokenFromUrl(): Promise<string> {
+  const url = await Linking.getInitialURL();
+  if (!url) return "";
+  try {
+    const params = new URL(url).searchParams;
+    return params.get("token") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function useLevelMomentAdBreak(opts?: {
+  onReward?: () => void;
+  onResume?: () => void;
+}) {
+  const adRef = useRef<ReturnType<typeof LevelMomentAd.createForAdRequest> | null>(
+    null,
+  );
+  // Keep the latest callbacks in a ref so the ad listeners (set up once)
+  // always call through to whatever the parent passed on the most recent
+  // render, without needing to tear down and rebuild the ad on every render.
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
+
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const token = await getTokenFromUrl();
+      if (cancelled) return;
+      const ad = LevelMomentAd.createForAdRequest("{{PLACEMENT_ID}}", {
+        breakUrl: "{{BREAK_URL}}", // REQUIRED — where the hosted /break page lives
+        apiUrl: "{{API_URL}}",
+        studentToken: token,
+      });
+      adRef.current = ad;
+      ad.addAdEventListener("loaded", () => setLoaded(true));
+      ad.addAdEventListener("earnedReward", (reward) => {
+        if (reward.amount === 1) optsRef.current?.onReward?.();
+      });
+      ad.addAdEventListener("closed", () => {
+        setLoaded(false);
+        optsRef.current?.onResume?.();
+        ad.load();
+      });
+      ad.load();
+    })();
+    return () => {
+      cancelled = true;
+      adRef.current?.dispose();
+    };
+  }, []);
+
+  return {
+    loaded,
+    showAdBreak: () => {
+      if (loaded && adRef.current) adRef.current.show();
+    },
+  };
+}

@@ -1,0 +1,54 @@
+{
+  "name": "@levelmoment/mcp",
+  "version": "0.1.0",
+  "description": "stdio MCP server for Level Moment — exposes read-only tools against the public API for AI coding assistants and Claude Desktop.",
+  "keywords": [
+    "levelmoment",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "education"
+  ],
+  "homepage": "https://github.com/levelmomentorg/sdk/tree/main/sdk/mcp#readme",
+  "bugs": {
+    "url": "https://github.com/levelmomentorg/sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/levelmomentorg/sdk.git",
+    "directory": "sdk/mcp"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "bin": {
+    "levelmoment-mcp": "./dist/server.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint src --max-warnings=0",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.12.3"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

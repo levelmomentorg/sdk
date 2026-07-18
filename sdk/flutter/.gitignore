@@ -1,0 +1,7 @@
+# Dart/Flutter tooling output. This package is a library: pubspec.lock is
+# intentionally untracked (consumers resolve their own versions).
+.dart_tool/
+build/
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
