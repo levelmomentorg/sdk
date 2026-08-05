@@ -1,0 +1,25 @@
+{
+    "name": "LevelMomentSDK.Gree",
+    "rootNamespace": "LevelMoment",
+    "references": [
+        "LevelMomentSDK.Runtime",
+        "unity-webview"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "LEVELMOMENT_GREE_WEBVIEW"
+    ],
+    "versionDefines": [
+        {
+            "name": "net.gree.unity-webview",
+            "expression": "",
+            "define": "LEVELMOMENT_GREE_UPM"
+        }
+    ],
+    "noEngineReferences": false
+}

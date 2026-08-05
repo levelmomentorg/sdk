@@ -1,0 +1,55 @@
+// === LevelMoment integration — lib/levelmoment/ad_break.dart ===
+// Call await showAdBreak(context) at natural pause points.
+
+import 'package:flutter/material.dart';
+import 'package:levelmoment_ads/levelmoment_ads.dart';
+
+const _placementId = '{{PLACEMENT_ID}}';
+
+LevelMomentRewardedAd? _pendingAd;
+
+Future<void> _loadNextAd() async {
+  LevelMomentRewardedAd.load(
+    placementId: _placementId,
+    studentToken: await _getTokenFromUrl(),
+    adLoadCallback: LevelMomentAdLoadCallback(
+      onAdLoaded: (ad) {
+        _pendingAd = ad;
+        _pendingAd!.fullScreenContentCallback = LevelMomentFullScreenContentCallback(
+          onAdDismissedFullScreenContent: (ad) {
+            ad.dispose();
+            _pendingAd = null;
+            _loadNextAd();
+          },
+        );
+      },
+      onAdFailedToLoad: (err) => debugPrint('LevelMoment load failed: $err'),
+    ),
+  );
+}
+
+Future<String> _getTokenFromUrl() async {
+  // LEVELMOMENT_TODO: source the student token from your deep-link / backend.
+  // The parent portal embeds it in the game launch URL.
+  return '';
+}
+
+Future<bool> showAdBreak(
+  BuildContext context, {
+  VoidCallback? onReward,
+}) async {
+  final ad = _pendingAd;
+  if (ad == null) return false;
+  ad.show(
+    context: context,
+    onUserEarnedReward: (ad, reward) {
+      if (reward.amount == 1) onReward?.call();
+    },
+  );
+  return true;
+}
+
+// Call once from main() to start preloading.
+void initLevelMomentPreload() {
+  _loadNextAd();
+}

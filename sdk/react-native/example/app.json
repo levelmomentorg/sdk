@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "LevelMoment Sample",
+    "slug": "levelmoment-sample",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "platforms": ["ios", "android"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.levelmoment.sample"
+    },
+    "android": {
+      "package": "com.levelmoment.sample"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+// === LevelMoment integration — main.dart ===
+// Initialize once before runApp.
+
+import 'package:flutter/widgets.dart';
+import 'package:levelmoment_ads/levelmoment_ads.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await LevelMomentAds.instance.initialize(
+    apiUrl: '{{API_URL}}',
+    breakUrl: '{{BREAK_URL}}', // REQUIRED — where the hosted /break page lives
+    // mock: true,             // uncomment for a no-API/no-token first integration
+  );
+
+  runApp(const MyApp());
+}

@@ -1,0 +1,8 @@
+<!-- Preserve the Gree adapter from UnityLinker stripping. Nothing references
+     GreeWebViewAutoRegister statically (it self-registers via
+     [RuntimeInitializeOnLoadMethod]), so without this the linker strips it in
+     il2cpp builds and the SDK silently falls back to NoWebViewFallback. -->
+<linker>
+  <assembly fullname="LevelMomentSDK.Gree" preserve="all" />
+  <assembly fullname="LevelMomentSDK.Runtime" preserve="all" />
+</linker>

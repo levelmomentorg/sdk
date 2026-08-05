@@ -1,0 +1,27 @@
+{
+  "name": "@levelmoment/sdk-react-native-example",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Expo example app for @levelmoment/sdk-react-native — runs on iPhone via Expo Go",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo start --ios",
+    "android": "expo start --android",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@levelmoment/sdk-core": "file:../../core",
+    "@levelmoment/sdk-react-native": "file:../",
+    "expo": "~51.0.0",
+    "expo-status-bar": "~1.12.1",
+    "react": "18.2.0",
+    "react-native": "0.74.5",
+    "react-native-webview": "13.8.6"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@types/react": "~18.2.79",
+    "typescript": "5.4.5"
+  }
+}
