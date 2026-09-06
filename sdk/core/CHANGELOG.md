@@ -4,7 +4,29 @@ All notable changes to `@levelmoment/sdk-core` are documented here. Format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
-## [Unreleased]
+## [0.2.0] — 2026-09-05
+
+### Removed — BREAKING
+
+- `subscription_required` is gone from `LevelMomentAdErrorCode`, along with
+  every other entitlement code. A household's subscription state is Level
+  Moment's, not the publisher's: a game that could read it could show its own
+  upsell, and a break refused for billing reasons now surfaces the same way any
+  other refusal does. A game branching on the literal no longer compiles.
+
+### Changed
+
+- Every request that carries a credential refuses redirects. The rule is
+  applied once, in `_withTimeout`, so a redirect fails the request rather than
+  carrying the credential to a host nobody validated.
+- `LevelMomentConfig.studentToken` is optional. A paired device holds its
+  credential on the Level Moment origin, and the shells ask the hosted surface
+  for it. Set it only for a sandbox token or one read from a parent-portal
+  link.
+- `buildAuthHeader()` accepts `string | undefined` and returns no header at all
+  when there is no credential, rather than sending `Bearer undefined`. A load
+  with no credential gets the 401 that routes to the ask-a-parent pairing
+  screen, and skips the device→session exchange it has nothing to send to.
 
 ### Added
 

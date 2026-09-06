@@ -1,94 +1,43 @@
-# `/levelmoment` — Claude Code skill for LevelMoment integration
+# Level Moment partner packet
 
-A Claude Code skill that ports your game from an existing ad SDK (AdMob,
-AppLovin, Unity Ads, google_mobile_ads, AdSense / Ad Manager) onto LevelMoment,
-or scaffolds a fresh integration if you don't have ads yet.
+Use this packet with a partner-supplied SDK artifact and handoff manifest to
+replace one existing rewarded slot with a Level Moment break.
 
-## What it does
+Read [AGENT-INSTRUCTIONS.md](AGENT-INSTRUCTIONS.md) directly in any coding
+agent. It uses only paths inside this packet and does not require an installer.
+The optional `install-skill` executable copies the same packet into a Claude
+Code project and adds `/levelmoment`.
 
-In a single `/levelmoment port` invocation:
+Use [handoff.example.json](handoff.example.json) as the contract for the
+partner's handoff. The example intentionally has no usable artifact, checksum,
+placement ID, target slot, reward action, or command. The partner supplies
+those integration inputs separately. It never carries an endpoint, token, or
+preview secret.
 
-1. **Detects** which ad SDK your project uses (web, React Native, Flutter,
-   Unity).
-2. **Inventories** every load / show / reward / dismiss call site.
-3. **Asks** for your LevelMoment placement ID — or fetches one automatically by
-   calling the LevelMoment API on your behalf.
-4. **Installs** the LevelMoment SDK in your manifest (`package.json`,
-   `pubspec.yaml`, `Packages/manifest.json`).
-5. **Edits** your source: swaps imports, replaces `RewardedAd.load()` /
-   `RewardedAd.show()` calls with the LevelMoment equivalents, wires the
-   modal/overlay component (RN), keeps your reward / dismiss handlers
-   intact.
-6. **Summarises** the diff and prints next steps.
+The packet supports web, React Native, Flutter, and Unity previews at the
+repository's `0.2.0` SDK surface. Do not install the public `0.1.2` release in
+place of a supplied preview artifact.
 
-Optional follow-up commands:
+## Packet layout
 
-- `/levelmoment register <name>` — register a new game and get a placement ID
-- `/levelmoment install [platform]` — install the SDK without changing code
-- `/levelmoment doctor` — diagnose an existing integration
-- `/levelmoment sandbox` — open the LevelMoment sandbox in your browser
+- `AGENT-INSTRUCTIONS.md` contains the shared integration flow.
+- `reference/` contains platform mapping, installation, diagnosis, and preview
+  guidance.
+- `templates/` contains examples with a fresh handle per break, one bonus for
+  the first correct answer, and one game resume per terminal result.
+- `handoff.example.json` describes the required partner inputs.
 
-## Install
+## Verify the packet
 
-### From the LevelMoment SDK packages (recommended)
-
-```bash
-# Web
-npx @levelmoment/sdk-web install-skill
-
-# React Native
-npx @levelmoment/sdk-react-native install-skill
-```
-
-This copies the skill files into `.claude/skills/levelmoment/` and the slash
-command into `.claude/commands/levelmoment.md` in your repo.
-
-### Manual install (Flutter, Unity, or no Node)
+Run the packet tests from the SDK repository root:
 
 ```bash
-mkdir -p .claude/skills/levelmoment .claude/commands
-curl -fsSL https://levelmoment.com/claude-skill.tar.gz | \
-  tar -xzC .claude/skills/levelmoment
-cp .claude/skills/levelmoment/commands/levelmoment.md .claude/commands/levelmoment.md
+node --test tools/claude-skill-levelmoment/test/*.test.mjs
 ```
 
-## Usage
-
-In any Claude Code session inside your game repo:
-
-```
-/levelmoment
-```
-
-Claude will auto-detect what's needed and run the appropriate sub-command.
-Or be explicit:
-
-```
-/levelmoment port
-/levelmoment register My Cool Game
-/levelmoment install
-/levelmoment doctor
-```
-
-## Supported platforms
-
-| Platform     | Ports from                                     | Status |
-| ------------ | ---------------------------------------------- | ------ |
-| Web / HTML5  | AdSense, Google Ad Manager (`googletag`)       | ✅ v1  |
-| React Native | `react-native-google-mobile-ads`, AppLovin Max | ✅ v1  |
-| Flutter      | `google_mobile_ads`, `applovin_max`            | ✅ v1  |
-| Unity        | Unity Ads SDK, AdMob Unity plugin              | ✅ v1  |
-
-## Privacy
-
-The skill runs entirely locally and never contacts LevelMoment's API on your
-behalf. `/levelmoment register` walks you through creating the game yourself in
-the developer portal (`https://app.levelmoment.com/games`) and pastes the
-placement ID you copy back into your project. The skill stores no credentials
-or tokens on disk.
-
-## Reporting issues
-
-The skill is exercised against fixture projects in
-`fixtures/`. If the skill misbehaves on your codebase, open an issue at
-https://github.com/levelmomentorg/sdk/issues with the before-and-after diff.
+The test suite executes the web and React Native templates with mocked SDK
+exports, checks their TypeScript types against the installed SDK packages, and
+checks the bundled packet's entry points. Run `flutter analyze` and `flutter
+test` from `sdk/flutter`, then `tools/unity-compile-check/run.sh`, before
+shipping Flutter or Unity template changes. Those checks compile the native SDK
+surfaces; a Unity editor build and real device run remain separate evidence.

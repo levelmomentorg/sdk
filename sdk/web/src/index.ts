@@ -6,6 +6,12 @@ export type {
   WebAdLoadCallbacks,
   WebAdShowCallbacks,
 } from "./LevelMomentWebAd.js";
-// Re-export core types and LevelMomentAd for advanced use cases
-export { LevelMomentAd } from "@levelmoment/sdk-core";
-export * from "@levelmoment/sdk-core";
+// Re-export the small public contract used by platform adapters.
+export type {
+  BreakFormat,
+  EnsureSignedInResult,
+  LevelMomentAdErrorCode,
+  LevelMomentAdError,
+  RewardItem,
+  UnsafeTestingOptions,
+} from "@levelmoment/sdk-core";

@@ -1,41 +1,15 @@
 # Changelog
 
-All notable changes to `@levelmoment/sdk-react-native` are documented here.
-Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
-versioning follows [Semver](https://semver.org).
+## 0.2.0
 
-## [Unreleased]
+- Added the hosted break loader for iOS and Android games.
+- `LevelMomentAd.createForAdRequest(placementId, {})` uses the standard production service by default.
+- Mount `LevelMomentAdModal` once at the application root.
+- `load` prepares a handle and `show` opens the hosted activity.
+- Reward callbacks report `amount: 1` for a correct answer and `amount: 0` otherwise; optional `rewardId` values are opaque correlation data.
+- Sign-in is available as an optional connected-learning flow.
 
-## [0.1.0] — 2026-05-10
+## Release guidance
 
-First public release. Drop-in replacement for
-`react-native-google-mobile-ads` rewarded ads.
-
-### Added
-
-- `LevelMomentAd.createForAdRequest(placementId, options)` — factory mirroring
-  AdMob's `RewardedAd.createForAdRequest`.
-- `ad.addAdEventListener(event, listener)` returning an unsubscribe
-  function. Event names mirror AdMob:
-  - `"loaded"`, `"opened"`, `"closed"`, `"earnedReward"`, `"error"`.
-- `ad.load()` / `ad.show()` — load and show separation maintained.
-- `ad.dispose()` for cleanup.
-- `<LevelMomentAdModal />` — fullscreen modal + WebView component that renders
-  the question break. Mount once at app root.
-- Peer dependencies: `react-native >= 0.72.0`, `react-native-webview >= 13.0.0`.
-- `bin/install-skill` (run via `npx @levelmoment/sdk-react-native install-skill`)
-  installs the `/levelmoment` Claude Code skill into the user's repo for
-  automatic porting.
-
-### Architecture
-
-The SDK is a thin WebView wrapper around the hosted `/break` page; all
-question-rendering UI lives at `app.levelmoment.com/break`. This keeps the
-native bundle small and ensures all platforms (web, iOS, Android, Unity)
-render identical UI. See ADR-001 in the repository.
-
-### Migration
-
-If migrating from `react-native-google-mobile-ads`, see
-[MIGRATION.md](./MIGRATION.md). Or use the
-[`/levelmoment` Claude Code skill](https://app.levelmoment.com/docs/porting/using-claude-code).
+Use a published package release in production. Test local examples against the
+exact release selected for the game.

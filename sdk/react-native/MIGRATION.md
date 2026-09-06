@@ -1,125 +1,120 @@
-# Migrating from react-native-google-mobile-ads to LevelMoment
+# Migrate a React Native rewarded placement
+
+## Prerequisites
+
+- React Native 0.72 or later
+- The immutable core and React Native 0.2 preview tarballs supplied to you
+
+The public npm package is still 0.1.2. Pin the supplied preview artifacts until
+0.2 is published.
 
 ## 1. Replace the dependency
 
+Install both SDK tarballs and the native peers:
+
 ```bash
-# REMOVE:
-npm uninstall react-native-google-mobile-ads
-
-# ADD:
-npm install @levelmoment/sdk-react-native
+npm install ./PROVIDED_SDK_CORE_TARBALL.tgz ./PROVIDED_SDK_REACT_NATIVE_TARBALL.tgz react-native-webview react-native-keychain
 ```
 
-## 2. Replace the import
+## 2. Mount the modal
+
+Add one modal host at the app root:
+
+```tsx
+import { LevelMomentAdModal } from "@levelmoment/sdk-react-native";
+
+export default function App() {
+  return (
+    <>
+      <YourGame />
+      <LevelMomentAdModal />
+    </>
+  );
+}
+```
+
+**Warning:** Access flows and breaks fail when `LevelMomentAdModal` is not
+mounted.
+
+## 3. Add the access flow
+
+Use the access operations for a player-selected learning feature:
 
 ```ts
-// REMOVE:
-import {
-  RewardedAd,
-  RewardedAdEventType,
-  AdEventType,
-} from "react-native-google-mobile-ads";
+import { checkAccess, ensureAccess } from "@levelmoment/sdk-react-native";
 
-// ADD:
+const options = { placementId: "YOUR_PLACEMENT_ID" };
+
+try {
+  if (!(await checkAccess(options))) {
+    const result = await ensureAccess(options);
+    if (result !== "ready") return;
+  }
+  openLearningMode();
+} catch {
+  showTryAgainLater();
+}
+```
+
+`checkAccess()` rejects on technical failure. `ensureAccess()` resolves
+`ready`, `canceled`, or `technicalFailure`. Keep `ensureSignedIn()` and
+`isSignedIn()` for identity-only features.
+
+## 4. Replace rewarded loading
+
+```ts
 import { LevelMomentAd } from "@levelmoment/sdk-react-native";
+
+const ad = LevelMomentAd.createForAdRequest("YOUR_PLACEMENT_ID");
+let rewardGranted = false;
+ad.addAdEventListener("loaded", () => ad.show());
+ad.addAdEventListener("earnedReward", ({ amount }) => {
+  if (amount === 1 && !rewardGranted) {
+    rewardGranted = true;
+    grantBonus();
+  }
+});
+ad.addAdEventListener("closed", () => {
+  resumeGame();
+  ad.dispose();
+});
+ad.addAdEventListener("error", () => {
+  resumeGame();
+  ad.dispose();
+});
+ad.load();
 ```
 
-## 3. Replace ad creation
+A multi-question break can emit several reward callbacks. Guard the game
+reward so the first correct answer grants it once. Dismissal and failure only
+resume the game.
+
+Production uses fixed service endpoints and managed credentials. Do not pass
+`apiUrl`, `breakUrl`, or `studentToken`.
+
+## 5. Configure sandbox testing
+
+Pass test configuration only through `unsafeTesting`:
 
 ```ts
-// BEFORE:
-const rewardedAd = RewardedAd.createForAdRequest("ca-app-pub-xxx/yyy", {
-  requestNonPersonalizedAdsOnly: true,
-});
-
-// AFTER (identical method name — swap class name, add apiUrl + studentToken):
-const rewardedAd = LevelMomentAd.createForAdRequest("your-game-id", {
-  apiUrl: "https://api.levelmoment.com", // provided by LevelMoment
-  studentToken: getTokenFromUrl(), // from ?token= URL param (new — one extra line)
-});
-```
-
-## 4. Replace event listeners
-
-```ts
-// BEFORE:
-const unsubscribeLoaded = rewardedAd.addAdEventListener(
-  RewardedAdEventType.LOADED,
-  () => setLoaded(true),
-);
-const unsubscribeEarned = rewardedAd.addAdEventListener(
-  RewardedAdEventType.EARNED_REWARD,
-  (reward) => grantBonus(reward),
-);
-const unsubscribeClosed = rewardedAd.addAdEventListener(
-  AdEventType.CLOSED,
-  () => resumeGame(),
-);
-
-// AFTER (identical structure — swap event type constants for strings):
-const unsubscribeLoaded = rewardedAd.addAdEventListener("loaded", () =>
-  setLoaded(true),
-);
-const unsubscribeEarned = rewardedAd.addAdEventListener(
-  "earnedReward",
-  (reward) => {
-    grantBonus(reward);
-    // reward.amount === 1 → correct answer
-    // reward.amount === 0 → skipped / wrong answer
+const options = {
+  placementId: "YOUR_PLACEMENT_ID",
+  unsafeTesting: {
+    apiUrl: "http://YOUR_COMPUTER_IP:8080",
+    breakUrl: "http://YOUR_COMPUTER_IP:3000/break",
+    token: "YOUR_EPLY_SBX_TOKEN",
   },
-);
-const unsubscribeClosed = rewardedAd.addAdEventListener("closed", () =>
-  resumeGame(),
-);
+};
 ```
 
-## 5. load() and show() — unchanged
+**Warning:** Remove `unsafeTesting` from production builds.
 
-```ts
-// BEFORE and AFTER — identical:
-rewardedAd.load();
+## Verify the migration
 
-// later, in an existing rewarded-ad slot:
-if (loaded) {
-  rewardedAd.show();
-}
-```
+1. Run the app's TypeScript check and native build.
+2. Confirm a quiet access check does not show the modal.
+3. Confirm the visible access flow can pair a fresh install.
+4. Complete a break and confirm `closed` resumes the game exactly once.
+5. Confirm a correct answer grants the game reward at most once.
 
-## 6. Render the question
-
-The one genuine difference: LevelMoment returns a **question** your app must render.
-
-```ts
-// Listen for the ad to load, then access the question:
-rewardedAd.addAdEventListener("loaded", () => {
-  setLoaded(true);
-  // The ad handle exposes .question — render it in your UI
-});
-
-// When the player answers, the SDK fires earnedReward automatically.
-// No extra code needed — notifyCorrectAnswer/notifyDismissed are called
-// internally by the SDK when the question UI reports an answer.
-```
-
-## Event name mapping
-
-| react-native-google-mobile-ads      | LevelMoment      |
-| ----------------------------------- | ---------------- |
-| `RewardedAdEventType.LOADED`        | `'loaded'`       |
-| `AdEventType.ERROR`                 | `'error'`        |
-| `AdEventType.OPENED`                | `'opened'`       |
-| `AdEventType.CLOSED`                | `'closed'`       |
-| `RewardedAdEventType.EARNED_REWARD` | `'earnedReward'` |
-
-## Getting a student token
-
-```ts
-import { Linking } from "react-native";
-
-async function getTokenFromUrl(): Promise<string> {
-  const url = await Linking.getInitialURL();
-  if (!url) return "";
-  const params = new URL(url).searchParams;
-  return params.get("token") ?? "";
-}
-```
+Compare the result with the [React Native example](example/App.tsx).

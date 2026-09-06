@@ -1,125 +1,117 @@
-# Migrating from Google AdSense / Ad Manager (web) to LevelMoment
+# Migrate a web rewarded placement
 
-For web and HTML5 games that currently show display or interstitial ads.
+## Prerequisites
 
-## 1. Replace the script tag
+- A placement ID from the Level Moment developer portal
+- The immutable core and web 0.2 preview tarballs supplied to you
 
-```html
-<!-- REMOVE: -->
-<script
-  async
-  src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"
-></script>
+The public npm package is still 0.1.2. Pin the supplied preview artifacts until
+0.2 is published.
 
-<!-- ADD: -->
-<script type="module">
-  import {
-    LevelMomentWebClient,
-    LevelMomentAd,
-  } from "https://cdn.levelmoment.com/sdk-web/latest/index.js";
-  window.LevelMoment = { LevelMomentWebClient, LevelMomentAd };
-</script>
-```
+## 1. Replace the dependency
 
-Or via npm:
+Install both preview tarballs so npm does not resolve the older public core:
 
 ```bash
-npm install @levelmoment/sdk-web
+npm install ./PROVIDED_SDK_CORE_TARBALL.tgz ./PROVIDED_SDK_WEB_TARBALL.tgz
 ```
 
-## 2. Initialize once at game start
+## 2. Replace initialization
+
+Create one client with the placement ID. Production endpoints and player
+credentials are managed by Level Moment:
 
 ```ts
-import { LevelMomentWebClient, LevelMomentAd } from "@levelmoment/sdk-web";
+import { LevelMomentWebClient } from "@levelmoment/sdk-web";
 
 const client = LevelMomentWebClient.initialize({
-  apiUrl: "https://api.levelmoment.com",
-  placementId: "your-game-id", // from LevelMoment developer portal
-  studentToken: new URLSearchParams(location.search).get("token") ?? "",
-  // breakUrl: "https://app.levelmoment.com/break", // only if NOT same-origin — see below
+  placementId: "YOUR_PLACEMENT_ID",
+});
+```
+
+Do not pass `apiUrl`, `breakUrl`, or `studentToken` in production.
+
+## 3. Add the access flow
+
+Use `checkAccess()` for a quiet check and `ensureAccess()` after the player
+chooses learning:
+
+```ts
+try {
+  if (!(await client.checkAccess())) {
+    const result = await client.ensureAccess();
+    if (result !== "ready") return;
+  }
+  openLearningMode();
+} catch {
+  showTryAgainLater();
+}
+```
+
+`false` means the player must take action. A rejected check is a technical
+failure and does not prove that access is unavailable. Keep
+`ensureSignedIn()` or `isSignedIn()` only where the feature needs identity
+without checking access.
+
+## 4. Replace rewarded loading
+
+Keep the existing preload, reward, dismissal, and failure slots:
+
+```ts
+import type { LevelMomentWebAd } from "@levelmoment/sdk-web";
+
+let pending: LevelMomentWebAd | null = null;
+client.loadAd({
+  onAdLoaded: (ad) => (pending = ad),
+  onAdFailedToLoad: () => resumeGame(),
 });
 
-client.start(); // kept-for-compat no-op (the hosted page owns impressions)
-```
+export function showRewardedBreak(): void {
+  const ad = pending;
+  pending = null;
+  if (!ad) return;
 
-### One behavioral migration: the break URL
-
-LevelMoment no longer ships a DOM renderer — `show()` opens the hosted `/break`
-page in a fullscreen iframe (see [ADR-001](../../docs/ADR-001-webview-rendering.md)).
-
-- **Default:** the break URL is `window.location.origin + "/break"`. If your
-  game is served from the **same origin** as the hosted LevelMoment Next app, you
-  don't need to do anything.
-- **Cross-origin:** if your game is served from a different origin, pass
-  `breakUrl` explicitly in
-  `initialize({ ..., breakUrl: "https://app.levelmoment.com/break" })`. The SDK
-  validates that postMessage events come from this origin.
-
-## 3. Preload while the game runs
-
-```ts
-let pendingAd = null;
-
-function preloadNextAd() {
-  client.loadAd({
-    onAdLoaded: (ad) => {
-      pendingAd = ad;
+  let rewardGranted = false;
+  ad.show({
+    onUserEarnedReward: ({ amount }) => {
+      if (amount === 1 && !rewardGranted) {
+        rewardGranted = true;
+        grantBonus();
+      }
     },
-    onAdFailedToLoad: () => {},
-  });
-}
-
-preloadNextAd(); // call at game start
-```
-
-## 4. Show in the existing ad slot
-
-```ts
-// At level complete, lives lost, etc.:
-if (pendingAd?.isLoaded()) {
-  pendingAd.show({
-    onUserEarnedReward: (reward) => grantBonus(reward), // correct answer
-    onAdDismissed: () => {
-      resumeGame();
-      preloadNextAd(); // get the next break ready
-    },
+    onAdDismissed: () => resumeGame(),
+    onAdFailedToShow: () => resumeGame(),
   });
 }
 ```
 
-The hosted `/break` page renders all question UI and owns the impression
-queue — there is no `onAdShowed` / `pendingAd.question` / `client.queue` to
-handle.
+A multi-question break can emit several reward callbacks. Guard the game
+reward so the first correct answer grants it once.
 
-## 5. Robustness: the load-timeout watchdog + dispose() escape hatch
+## 5. Configure sandbox testing
 
-`show()` mounts a fullscreen iframe and a `message` listener that are normally
-torn down when the hosted page posts a terminal `dismissed`/`error`. If the
-hosted page crashes, navigates away, or the network drops it _before it ever
-comes up_, those resources would otherwise leak and the iframe would
-permanently cover your game.
+Put local endpoints and an `eply_sbx_` credential inside `unsafeTesting`:
 
-- **Load-timeout watchdog (automatic).** If the hosted `/break` page does not
-  post `ready` within **15 seconds** of `show()`, the SDK tears down the
-  iframe + listener and calls `onAdDismissed` so your game resumes cleanly —
-  exactly as if the break had been dismissed normally. Override the window
-  with `breakLoadTimeoutMs` in `initialize({...})`:
+```ts
+const client = LevelMomentWebClient.initialize({
+  placementId: "YOUR_PLACEMENT_ID",
+  unsafeTesting: {
+    apiUrl: "http://localhost:8080",
+    breakUrl: "http://localhost:3000/break",
+    token: "YOUR_EPLY_SBX_TOKEN",
+  },
+});
+```
 
-  ```ts
-  LevelMomentWebClient.initialize({
-    apiUrl: "https://api.levelmoment.com",
-    placementId: "your-game-id",
-    studentToken: token,
-    breakLoadTimeoutMs: 10000, // default 15000; 0 (or negative) disables it
-  });
-  ```
+**Warning:** Remove `unsafeTesting` from production builds. Production
+configuration rejects endpoint overrides and explicit player tokens.
 
-  The watchdog **only** guards the pre-`ready` phase. Once the hosted page
-  posts `ready` it owns the lifecycle and is never force-closed — a student
-  legitimately thinking through a quiz must not be interrupted.
+## Verify the migration
 
-- **`dispose()` (explicit escape hatch).** Call `ad.dispose()` on your own
-  abort/pause path (e.g. the player quits to menu mid-break). It synchronously
-  tears down the iframe, removes the `message` listener, and clears the
-  load-timeout timer. Always call it if you abandon a break without waiting
-  for `onAdDismissed`.
+1. Run the game's TypeScript check and production build.
+2. Confirm `checkAccess()` stays invisible.
+3. Confirm `ensureAccess()` opens the hosted flow when action is required.
+4. Complete a break and confirm the game resumes exactly once.
+5. Confirm a multi-question break grants its game reward at most once.
+
+Compare the result with the [web example](example/main.ts).

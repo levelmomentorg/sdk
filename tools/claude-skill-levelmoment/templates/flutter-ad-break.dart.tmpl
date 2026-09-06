@@ -1,55 +1,77 @@
-// === LevelMoment integration — lib/levelmoment/ad_break.dart ===
-// Call await showAdBreak(context) at natural pause points.
-
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:levelmoment_ads/levelmoment_ads.dart';
 
-const _placementId = '{{PLACEMENT_ID}}';
+class RewardedSlotHooks {
+  RewardedSlotHooks({
+    required this.pauseGame,
+    required this.resumeGame,
+    required this.grantChosenBonus,
+    required this.prepareNextSlot,
+  });
 
-LevelMomentRewardedAd? _pendingAd;
+  final void Function() pauseGame;
+  final void Function() resumeGame;
+  final void Function() grantChosenBonus;
+  final void Function() prepareNextSlot;
+}
 
-Future<void> _loadNextAd() async {
-  LevelMomentRewardedAd.load(
-    placementId: _placementId,
-    studentToken: await _getTokenFromUrl(),
+Future<void> showLevelMomentRewardedSlot({
+  required BuildContext context,
+  required String placementId,
+  required RewardedSlotHooks hooks,
+}) async {
+  hooks.pauseGame();
+  var granted = false;
+  var finished = false;
+  void finish() {
+    if (finished) return;
+    finished = true;
+    hooks.resumeGame();
+    hooks.prepareNextSlot();
+  }
+
+  await LevelMomentRewardedAd.load(
+    placementId: placementId,
     adLoadCallback: LevelMomentAdLoadCallback(
       onAdLoaded: (ad) {
-        _pendingAd = ad;
-        _pendingAd!.fullScreenContentCallback = LevelMomentFullScreenContentCallback(
-          onAdDismissedFullScreenContent: (ad) {
-            ad.dispose();
-            _pendingAd = null;
-            _loadNextAd();
+        ad.fullScreenContentCallback = LevelMomentFullScreenContentCallback(
+          onAdDismissedFullScreenContent: (_) => finish(),
+          onAdFailedToShowFullScreenContent: (_, __) => finish(),
+        );
+        ad.show(
+          context: context,
+          onUserEarnedReward: (_, reward) {
+            if (!finished && reward.amount == 1 && !granted) {
+              granted = true;
+              hooks.grantChosenBonus();
+            }
           },
         );
       },
-      onAdFailedToLoad: (err) => debugPrint('LevelMoment load failed: $err'),
+      onAdFailedToLoad: (_) => finish(),
     ),
   );
 }
 
-Future<String> _getTokenFromUrl() async {
-  // LEVELMOMENT_TODO: source the student token from your deep-link / backend.
-  // The parent portal embeds it in the game launch URL.
-  return '';
-}
-
-Future<bool> showAdBreak(
-  BuildContext context, {
-  VoidCallback? onReward,
+Future<void> enableLearningFromPlayerAction({
+  required BuildContext context,
+  required String placementId,
+  required void Function() openLearningChoice,
 }) async {
-  final ad = _pendingAd;
-  if (ad == null) return false;
-  ad.show(
+  if (await LevelMomentAds.instance.ensureAccess(
     context: context,
-    onUserEarnedReward: (ad, reward) {
-      if (reward.amount == 1) onReward?.call();
-    },
-  );
-  return true;
+    placementId: placementId,
+  ) == EnsureSignedInResult.ready) {
+    openLearningChoice();
+  }
 }
 
-// Call once from main() to start preloading.
-void initLevelMomentPreload() {
-  _loadNextAd();
+Future<bool> learningIsAvailable({
+  required BuildContext context,
+  required String placementId,
+}) {
+  return LevelMomentAds.instance.checkAccess(
+    context: context,
+    placementId: placementId,
+  );
 }

@@ -1,6 +1,7 @@
 # Contributing
 
-Thanks for your interest in the Level Moment SDK.
+Thanks for helping improve the Level Moment SDK. The public repository contains
+the standalone packages that game teams integrate into their apps.
 
 ## Issues and pull requests
 
@@ -11,6 +12,12 @@ Thanks for your interest in the Level Moment SDK.
   mind. The maintainers review incoming changes and fold accepted ones into an
   upcoming release; note that a PR may be incorporated as part of a release
   rather than merged directly, and you'll be credited in the changelog.
+
+## Integration changes
+
+When a change affects a platform adapter, run its tests and build before opening
+a pull request. Describe the supported platforms and any preview device
+certification needed to verify the change.
 
 ## Security
 

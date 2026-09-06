@@ -3,9 +3,12 @@
 // Run with `npm start` and scan the QR code with the Expo Go app on your
 // iPhone. See README.md for full instructions.
 //
-// Architecture: <LevelMomentAdModal /> hosts a fullscreen WebView that loads
-// the hosted /break page (platform/web/app/break). All question UI lives
-// there. This app is a thin host that proves the SDK contract.
+// The modal hosts the hosted activity; this sample only wires the public SDK.
+
+// No student token anywhere in this app. "Connect this device" runs
+// ensureSignedIn(), which pairs the device once and stores the resulting
+// credential in the SDK's own keychain; "Show ad break" then opens a break
+// with no credential in its config at all.
 
 import React, { useState } from "react";
 import {
@@ -20,6 +23,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import {
+  ensureAccess,
   LevelMomentAd,
   LevelMomentAdModal,
 } from "@levelmoment/sdk-react-native";
@@ -46,19 +50,37 @@ const FORMATS: { id: BreakFormat; label: string; subtitle: string }[] = [
 export default function App(): React.ReactElement {
   const [mockMode, setMockMode] = useState(true);
   const [breakUrl, setBreakUrl] = useState("http://localhost:3000/break");
-  const [apiUrl, setApiUrl] = useState("https://api.example.com");
-  const [studentToken, setStudentToken] = useState("demo-token");
   const [placementId, setPlacementId] = useState("demo-placement");
   const [format, setFormat] = useState<BreakFormat>("quiz");
   const [status, setStatus] = useState("Ready");
+
+  // Pair this device before enabling gameplay. A device that already holds a
+  // credential in its keychain passes straight through; a new device shows a
+  // pairing code for a parent to approve. No token anywhere in this call.
+  const connectDevice = async (): Promise<void> => {
+    setStatus("Connecting…");
+    const result = await ensureAccess({
+      unsafeTesting: { breakUrl },
+      placementId,
+      mock: mockMode,
+    });
+    setStatus(
+      result === "ready"
+        ? "Connected — ready to show breaks"
+        : result === "canceled"
+          ? // `canceled` covers a closed gate AND a parent's denial. Naming
+            // either one would be a guess, and "declined" reads as the parent
+            // when it is just as often the player tapping Close.
+            "Device not connected — try again"
+          : "Could not connect — try again",
+    );
+  };
 
   const showBreak = (): void => {
     setStatus("Loading…");
 
     const ad = LevelMomentAd.createForAdRequest(placementId, {
-      breakUrl,
-      apiUrl,
-      studentToken,
+      unsafeTesting: { breakUrl },
       format,
       mock: mockMode,
     });
@@ -122,29 +144,10 @@ export default function App(): React.ReactElement {
             placeholder="http://<your-laptop-ip>:3000/break"
           />
           <Text style={styles.helper}>
-            Run `cd platform/web && npm run dev` and use your laptop&apos;s LAN
-            IP.
+            Use a reachable hosted break URL when testing on a physical device.
           </Text>
           {!mockMode ? (
             <>
-              <Text style={styles.label}>API URL</Text>
-              <TextInput
-                style={styles.input}
-                value={apiUrl}
-                onChangeText={setApiUrl}
-                autoCapitalize="none"
-                autoCorrect={false}
-                placeholder="https://api.levelmoment.com"
-              />
-              <Text style={styles.label}>Student session token</Text>
-              <TextInput
-                style={styles.input}
-                value={studentToken}
-                onChangeText={setStudentToken}
-                autoCapitalize="none"
-                autoCorrect={false}
-                secureTextEntry
-              />
               <Text style={styles.label}>Placement ID</Text>
               <TextInput
                 style={styles.input}
@@ -178,6 +181,13 @@ export default function App(): React.ReactElement {
             );
           })}
         </View>
+
+        <TouchableOpacity
+          style={[styles.cta, styles.ctaSecondary]}
+          onPress={() => void connectDevice()}
+        >
+          <Text style={styles.ctaText}>Connect this device</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.cta} onPress={showBreak}>
           <Text style={styles.ctaText}>Show ad break</Text>
@@ -269,6 +279,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 8,
+  },
+  ctaSecondary: {
+    backgroundColor: "#8890B8",
   },
   ctaText: { color: "#fff", fontSize: 17, fontWeight: "600" },
   status: {

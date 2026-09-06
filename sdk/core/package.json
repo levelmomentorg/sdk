@@ -1,6 +1,6 @@
 {
   "name": "@levelmoment/sdk-core",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Platform-agnostic core of the LevelMoment SDK. Consumed by @levelmoment/sdk-web and @levelmoment/sdk-react-native.",
   "keywords": [
     "levelmoment",

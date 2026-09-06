@@ -1,6 +1,6 @@
 {
   "name": "@levelmoment/sdk-web",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "LevelMoment SDK for web and HTML5 games — educational question breaks that replace rewarded ads",
   "keywords": [
     "levelmoment",
@@ -54,7 +54,7 @@
     "postpack": "rm -rf claude"
   },
   "dependencies": {
-    "@levelmoment/sdk-core": "^0.1.0"
+    "@levelmoment/sdk-core": "^0.2.0"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

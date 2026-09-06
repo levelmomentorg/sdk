@@ -1,5 +1,9 @@
 # LevelMoment Sample iPhone App
 
+This app is a testing sample. Its editable hosted URL is passed through
+`unsafeTesting`; production game integrations use the SDK defaults and omit
+that adapter.
+
 **Status: ✅ Scaffolded** — Expo example app for `@levelmoment/sdk-react-native`.
 
 A minimal React Native + Expo app that runs on your iPhone via Expo Go. The SDK opens a fullscreen WebView at the hosted `/break` page; this app proves the SDK contract end-to-end without needing the backend deployed.
@@ -27,7 +31,7 @@ A minimal React Native + Expo app that runs on your iPhone via Expo Go. The SDK 
   │  Next.js dev server :3000              │
   │  /break?placementId=...&format=...     │
   │  &mock=true  ← bundled questions       │
-  │  &apiUrl=... ← live API                │
+  │  hosted service ← default production URL                │
   └────────────────────────────────────────┘
 ```
 
@@ -42,13 +46,9 @@ The phone and laptop must be on the same Wi-Fi (or use Expo's tunnel mode).
 2. **Build the SDK + start the break page** on your laptop:
 
    ```bash
-   # from the repo root
+   # from the repository checkout
    npm install
-   npm run build
 
-   # in one terminal: serve the hosted /break page
-   cd platform/web
-   npm run dev          # serves http://localhost:3000
    ```
 
 3. **Find your laptop's LAN IP** (the iPhone needs to reach it):
@@ -72,7 +72,7 @@ The phone and laptop must be on the same Wi-Fi (or use Expo's tunnel mode).
 
 6. In the app, set **Break page URL** to `http://<your-laptop-ip>:3000/break` (replacing `localhost`). Toggle **Mock mode**, pick a format, tap **Show ad break**.
 
-> If your phone and laptop can't reach each other on Wi-Fi, run `npm start -- --tunnel` to use Expo's tunnel and set the Break URL to a tunneled `https://...ngrok` style URL — or just deploy `platform/web` somewhere public.
+> If your phone cannot reach the configured Break URL, use a reachable HTTPS deployment or your local network address.
 
 ---
 
@@ -88,13 +88,9 @@ In **Mock mode**, every answer is graded as correct so you'll always see the suc
 
 ---
 
-## Connecting to a real backend
+## Connecting to a real service
 
-Toggle **Mock mode** off and fill in:
-
-- **API URL** — your local API (`http://localhost:8080`) or the deployed Fly URL
-- **Student session token** — issue one with `POST /students/{id}/session` (parent JWT required)
-- **Placement ID** — must match a placement registered for one of your games
+Toggle **Mock mode** off and enter a placement ID registered in your developer account. The SDK uses the default production service; set a custom Break URL only when testing a separately hosted page.
 
 The hosted `/break` page hits the real API and uses whatever questions the server returns.
 
@@ -108,7 +104,7 @@ The hosted `/break` page hits the real API and uses whatever questions the serve
 | `metro.config.js` | Lets Metro find workspace packages from the monorepo root.                  |
 | `app.json`        | Expo config (bundle id, name, orientation).                                 |
 
-The SDK's `<LevelMomentAdModal />` (mounted in `App.tsx`) provides the fullscreen WebView. There is no question-rendering code in this app — it all lives in `platform/web/app/break`.
+The SDK's `<LevelMomentAdModal />` (mounted in `App.tsx`) provides the fullscreen WebView and owns the hosted activity UI.
 
 ---
 

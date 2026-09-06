@@ -1,99 +1,73 @@
-// === LevelMoment integration — AdsManager.cs ===
-// Attach this to a GameObject in your first (bootstrap) scene.
-//
-// The SDK is a thin WebView shell (ADR-001): it renders nothing. Show() opens
-// the hosted /break page in a fullscreen WebView and calls back on reward /
-// dismiss. You only preload, show, and resume — never render questions.
-//
-// Requires a WebView provider: install gree/unity-webview and add the
-// LEVELMOMENT_GREE_WEBVIEW scripting define (see the SDK README "Requirements").
-// Without a provider, Show() fails cleanly via OnAdFailedToShow.
-
+using System;
 using LevelMoment;
-using UnityEngine;
 
-public class AdsManager : MonoBehaviour
+public sealed class LevelMomentRewardedSlot
 {
-    private const string ApiUrl = "{{API_URL}}";
-    private const string BreakUrl = "{{BREAK_URL}}";
-    private const string PlacementId = "{{PLACEMENT_ID}}";
+    private readonly string _placementId;
+    private readonly Action _pauseGame;
+    private readonly Action _resumeGame;
+    private readonly Action _grantChosenBonus;
+    private readonly Action _prepareNextSlot;
 
-    public static AdsManager Instance { get; private set; }
-
-    private RewardedAd _rewardedAd;
-
-    void Awake()
+    public LevelMomentRewardedSlot(
+        string placementId,
+        Action pauseGame,
+        Action resumeGame,
+        Action grantChosenBonus,
+        Action prepareNextSlot)
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
-
-        // One-time init. The student session token is read automatically from the
-        // game's launch ?token= URL param (Application.absoluteURL / deep link);
-        // pass one explicitly with RewardedAd.Load(PlacementId, token, callbacks)
-        // if you read it yourself (see unity-get-token.cs.tmpl for native builds).
-        LevelMomentAds.Initialize(new LevelMomentConfig
-        {
-            ApiUrl = ApiUrl,
-            BreakUrl = BreakUrl,
-            // Mock = true,  // bundled demo questions, no API/token
-        });
-
-        LoadNext();
+        _placementId = placementId;
+        _pauseGame = pauseGame;
+        _resumeGame = resumeGame;
+        _grantChosenBonus = grantChosenBonus;
+        _prepareNextSlot = prepareNextSlot;
     }
 
-    // Preload in the background so ShowAd() is instant at the next pause point.
-    private void LoadNext()
+    public void Show()
     {
-        RewardedAd.Load(PlacementId, new RewardedAdLoadCallbacks
+        _pauseGame();
+        var granted = false;
+        var finished = false;
+        Action finish = () =>
         {
-            OnAdLoaded = ad => _rewardedAd = ad,
-            OnAdFailedToLoad = error =>
-            {
-                _rewardedAd = null;
-                Debug.LogWarning($"[LevelMoment] load failed: {error}");
-            },
-        });
-    }
+            if (finished) return;
+            finished = true;
+            _resumeGame();
+            _prepareNextSlot();
+        };
 
-    // Call this from your game's pause-point handlers (level complete, lives
-    // lost, etc.). No-ops cleanly if no break is ready.
-    public void ShowAd()
-    {
-        if (_rewardedAd == null || !_rewardedAd.IsLoaded)
+        RewardedAd.Load(_placementId, new RewardedAdLoadCallbacks
         {
-            Debug.Log("[LevelMoment] No break ready — resuming without one.");
-            return;
-        }
-
-        Time.timeScale = 0f; // pause the game while the break is up
-
-        _rewardedAd.Show(new RewardedAdShowCallbacks
-        {
-            // amount == 1 → correct answer; 0 → wrong/skipped. May fire many times.
-            OnUserEarnedReward = amount =>
+            OnAdLoaded = ad => ad.Show(new RewardedAdShowCallbacks
             {
-                if (amount == 1)
-                    Debug.Log("[LevelMoment] Correct! Grant a bonus here.");
-            },
-            // Fires exactly once when the break ends. ALWAYS resume here.
-            OnAdDismissed = () =>
-            {
-                ResumeGame();
-                LoadNext(); // preload the next break
-            },
-            // Fires instead of OnAdDismissed when the break can't be shown.
-            OnAdFailedToShow = error =>
-            {
-                Debug.LogWarning($"[LevelMoment] show failed: {error}");
-                ResumeGame();
-            },
+                OnUserEarnedReward = amount =>
+                {
+                    if (!finished && amount == 1 && !granted)
+                    {
+                        granted = true;
+                        _grantChosenBonus();
+                    }
+                },
+                OnAdDismissed = finish,
+                OnAdFailedToShow = _ => finish(),
+            }),
+            OnAdFailedToLoad = _ => finish(),
         });
     }
 
-    private void ResumeGame()
+    public void EnableLearningFromPlayerAction(Action openLearningChoice)
     {
-        Time.timeScale = 1f;
-        _rewardedAd = null;
+        LevelMomentAds.EnsureAccess(_placementId, result =>
+        {
+            if (result == EnsureSignedInResult.Ready) openLearningChoice();
+        });
+    }
+
+    public void CheckLearningAccess(Action<bool> onResult, Action<string> onError)
+    {
+        LevelMomentAds.CheckAccess(_placementId, onResult, onError);
     }
 }
+
+// Initialize once in your bootstrap scene.
+// LevelMomentAds.Initialize(new LevelMomentConfig());

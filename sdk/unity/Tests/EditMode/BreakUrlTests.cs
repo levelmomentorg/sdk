@@ -17,39 +17,46 @@ namespace LevelMoment.Tests.EditMode
             {
                 ApiUrl = "https://api.example.com",
                 BreakUrl = "https://app.example.com/break",
+                UnsafeTesting = new UnsafeTesting
+                {
+                    ApiUrl = "https://api.example.com",
+                    BreakUrl = "https://app.example.com/break",
+                },
             };
         }
 
-        // ----- Live mode: placementId + format + apiUrl + token -----
+        // ----- Live mode: placementId + format + apiUrl, and NO credential -----
 
         [Test]
         public void Build_Live_IncludesAllParamsEncoded()
         {
-            var url = BreakUrl.Build(Live(), "place 1", "quiz", "tok 1");
+            var url = BreakUrl.Build(Live(), "place 1", "quiz");
 
             StringAssert.Contains("placementId=place%201", url);
             StringAssert.Contains("format=quiz", url);
             StringAssert.Contains("apiUrl=https%3A%2F%2Fapi.example.com", url);
-            StringAssert.Contains("token=tok%201", url);
             StringAssert.DoesNotContain("mock=true", url);
         }
 
         [Test]
         public void Build_Live_PlacementIdIsFirstParam()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard", "tok");
+            var url = BreakUrl.Build(Live(), "p1", "flashcard");
             StringAssert.Contains("/break?placementId=p1", url);
         }
 
+        // The point of this change: no credential rides on the URL at all,
+        // live or mock. The page asks for one over the bridge instead — see
+        // CredentialBridgeTests.
         [Test]
-        public void Build_Live_MissingToken_OmitsTokenParam()
+        public void Build_NeverIncludesATokenParam()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard", null);
+            var url = BreakUrl.Build(Live(), "p1", "flashcard");
             StringAssert.Contains("apiUrl=https%3A%2F%2Fapi.example.com", url);
             StringAssert.DoesNotContain("token=", url);
         }
 
-        // ----- Mock mode: mock=true, no apiUrl/token -----
+        // ----- Mock mode: mock=true, no apiUrl -----
 
         [Test]
         public void Build_Mock_UsesMockFlagAndOmitsApiUrlAndToken()
@@ -59,32 +66,42 @@ namespace LevelMoment.Tests.EditMode
                 ApiUrl = "https://api.example.com",
                 BreakUrl = "https://app.example.com/break",
                 Mock = true,
+                UnsafeTesting = new UnsafeTesting
+                {
+                    ApiUrl = "https://api.example.com",
+                    BreakUrl = "https://app.example.com/break",
+                },
             };
 
-            var url = BreakUrl.Build(config, "p1", "flashcard", "tok");
+            var url = BreakUrl.Build(config, "p1", "flashcard");
 
             StringAssert.Contains("mock=true", url);
             StringAssert.DoesNotContain("apiUrl=", url);
             StringAssert.DoesNotContain("token=", url);
         }
 
-        // ----- SSV custom data -----
+        // ----- SSV custom data travels in the credential handshake -----
 
         [Test]
-        public void Build_WithCustomData_AppendsEncodedParam()
+        public void Build_WithCustomData_DoesNotAppendCredentialContext()
         {
             var config = new LevelMomentConfig
             {
                 ApiUrl = "https://api.example.com",
                 BreakUrl = "https://app.example.com/break",
                 CustomData = "order/42&x",
+                UnsafeTesting = new UnsafeTesting
+                {
+                    ApiUrl = "https://api.example.com",
+                    BreakUrl = "https://app.example.com/break",
+                },
             };
-            var url = BreakUrl.Build(config, "p1", "flashcard", "tok");
-            StringAssert.Contains("customData=order%2F42%26x", url);
+            var url = BreakUrl.Build(config, "p1", "flashcard");
+            StringAssert.DoesNotContain("customData=", url);
         }
 
         [Test]
-        public void Build_WithCustomData_RidesAlongInMockMode()
+        public void Build_WithCustomData_DoesNotRideAlongInMockMode()
         {
             var config = new LevelMomentConfig
             {
@@ -92,16 +109,21 @@ namespace LevelMoment.Tests.EditMode
                 BreakUrl = "https://app.example.com/break",
                 Mock = true,
                 CustomData = "u42",
+                UnsafeTesting = new UnsafeTesting
+                {
+                    ApiUrl = "https://api.example.com",
+                    BreakUrl = "https://app.example.com/break",
+                },
             };
-            var url = BreakUrl.Build(config, "p1", "flashcard", "tok");
+            var url = BreakUrl.Build(config, "p1", "flashcard");
             StringAssert.Contains("mock=true", url);
-            StringAssert.Contains("customData=u42", url);
+            StringAssert.DoesNotContain("customData=", url);
         }
 
         [Test]
         public void Build_WithoutCustomData_OmitsParam()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard", "tok");
+            var url = BreakUrl.Build(Live(), "p1", "flashcard");
             StringAssert.DoesNotContain("customData=", url);
         }
 
@@ -110,14 +132,14 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Build_EmptyFormat_DefaultsToFlashcard()
         {
-            var url = BreakUrl.Build(Live(), "p1", "", "tok");
+            var url = BreakUrl.Build(Live(), "p1", "");
             StringAssert.Contains("format=flashcard", url);
         }
 
         [Test]
         public void Build_NullFormat_DefaultsToFlashcard()
         {
-            var url = BreakUrl.Build(Live(), "p1", null, "tok");
+            var url = BreakUrl.Build(Live(), "p1", null);
             StringAssert.Contains("format=flashcard", url);
         }
 
@@ -126,20 +148,72 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Build_BreakUrlWithoutQuery_UsesQuestionMark()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard", "tok");
+            var url = BreakUrl.Build(Live(), "p1", "flashcard");
             StringAssert.Contains("/break?placementId=", url);
         }
 
         [Test]
-        public void Build_BreakUrlWithQuery_UsesAmpersand()
+        public void Build_RejectsUnsafeBreakUrlWithQuery()
         {
             var config = new LevelMomentConfig
             {
                 ApiUrl = "https://api.example.com",
                 BreakUrl = "https://app.example.com/break?theme=dark",
+                UnsafeTesting = new UnsafeTesting
+                {
+                    BreakUrl = "https://app.example.com/break?theme=dark",
+                    ApiUrl = "https://api.example.com",
+                },
             };
-            var url = BreakUrl.Build(config, "p1", "flashcard", "tok");
-            StringAssert.Contains("theme=dark&placementId=p1", url);
+            Assert.Throws<ArgumentException>(() =>
+                BreakUrl.Build(config, "p1", "flashcard"));
+        }
+
+        // ----- Capability announcement: an old shell that cannot open a browser
+        // must not be offered the button -----
+
+        [Test]
+        public void Build_AnnouncesOpenExternalCapability()
+        {
+            var url = BreakUrl.Build(Live(), "p1", "flashcard");
+            StringAssert.Contains("caps=openExternal", url);
+        }
+
+        [Test]
+        public void Build_UnsafeTesting_AnnouncesSandboxAndProtocol()
+        {
+            var config = new LevelMomentConfig
+            {
+                UnsafeTesting = new UnsafeTesting
+                {
+                    ApiUrl = "https://api.example.com",
+                    BreakUrl = "https://app.example.com/break",
+                    Token = "eply_sbx_test",
+                },
+            };
+
+            var url = BreakUrl.Build(config, "p1", "flashcard");
+
+            StringAssert.Contains("sandbox=true", url);
+            StringAssert.Contains("protocolVersion=1", url);
+            StringAssert.Contains("sdkVersion=0.2.0", url);
+        }
+
+        [Test]
+        public void BuildGate_AnnouncesOpenExternalCapability()
+        {
+            var url = BreakUrl.BuildGate(Live(), "p1", "gate");
+            StringAssert.Contains("caps=openExternal", url);
+        }
+
+        [Test]
+        public void BuildAccess_DefaultsToCanonicalAccessSurface()
+        {
+            var url = BreakUrl.BuildAccess(new LevelMomentConfig(), "p1", "check");
+
+            StringAssert.StartsWith("https://levelmoment.com/access?", url);
+            StringAssert.Contains("mode=check", url);
+            StringAssert.Contains("apiUrl=https%3A%2F%2Flevelmoment.com%2Fapi", url);
         }
 
         // ----- Input validation -----
@@ -148,22 +222,61 @@ namespace LevelMoment.Tests.EditMode
         public void Build_NullConfig_Throws()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                BreakUrl.Build(null, "p1", "flashcard", "tok"));
+                BreakUrl.Build(null, "p1", "flashcard"));
         }
 
         [Test]
-        public void Build_EmptyBreakUrl_Throws()
+        public void Build_RejectsNoncanonicalLegacyApiUrl()
         {
             var config = new LevelMomentConfig { ApiUrl = "https://api.example.com", BreakUrl = "" };
             Assert.Throws<ArgumentException>(() =>
-                BreakUrl.Build(config, "p1", "flashcard", "tok"));
+                BreakUrl.Build(config, "p1", "flashcard"));
+        }
+
+        [Test]
+        public void Build_DefaultsToCanonicalEndpoints()
+        {
+            var url = BreakUrl.Build(new LevelMomentConfig(), "p1", "flashcard");
+
+            StringAssert.StartsWith("https://levelmoment.com/break?", url);
+            StringAssert.Contains("apiUrl=https%3A%2F%2Flevelmoment.com%2Fapi", url);
         }
 
         [Test]
         public void Build_EmptyPlacementId_Throws()
         {
             Assert.Throws<ArgumentException>(() =>
-                BreakUrl.Build(Live(), "", "flashcard", "tok"));
+                BreakUrl.Build(Live(), "", "flashcard"));
+        }
+
+        [Test]
+        public void Config_UsesCanonicalDefaults()
+        {
+            var config = new LevelMomentConfig();
+
+            config.Validate();
+
+            Assert.AreEqual("https://levelmoment.com/api", config.EffectiveApiUrl);
+            Assert.AreEqual("https://levelmoment.com/break", config.EffectiveBreakUrl);
+        }
+
+        [Test]
+        public void Config_RejectsNoncanonicalProductionEndpoint()
+        {
+            var config = new LevelMomentConfig { BreakUrl = "https://example.test/break" };
+
+            Assert.Throws<ArgumentException>(() => config.Validate());
+        }
+
+        [Test]
+        public void Config_RejectsNonSandboxTestingToken()
+        {
+            var config = new LevelMomentConfig
+            {
+                UnsafeTesting = new UnsafeTesting { Token = "production-token" },
+            };
+
+            Assert.Throws<ArgumentException>(() => config.Validate());
         }
     }
 }

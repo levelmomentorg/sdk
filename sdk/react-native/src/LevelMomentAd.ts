@@ -1,3 +1,8 @@
+import {
+  resolveHostedOptions,
+  addBridgeVersion,
+  type HostedOptions,
+} from "@levelmoment/sdk-core";
 // Mirrors the react-native-google-mobile-ads RewardedAd API for drop-in replacement.
 // See MIGRATION.md for a line-by-line swap guide.
 //
@@ -12,7 +17,16 @@ import type {
   RewardItem,
   BreakFormat,
 } from "@levelmoment/sdk-core";
-import { _hasModalHandler, _triggerModal } from "./LevelMomentAdModal.js";
+import { _hasModalHandler, _triggerModal } from "./modalHost.js";
+import {
+  HOST_CAPABILITIES,
+  HOST_CAPABILITIES_PARAM,
+  type HostMessage,
+} from "./hostMessage.js";
+import {
+  applyCredentialMessage,
+  credentialResponder,
+} from "./credentialBridge.js";
 
 export type LevelMomentAdEvent =
   | "loaded"
@@ -33,31 +47,24 @@ type Listener<E extends LevelMomentAdEvent> = (
   payload: EventPayloadMap[E],
 ) => void;
 
-export interface LevelMomentAdOptions {
-  /** API base URL — required unless `mock: true`. */
-  apiUrl?: string;
-  /** Student session token — required unless `mock: true`. */
-  studentToken?: string;
-  /** Hosted break page URL, e.g. https://app.levelmoment.com/break. */
-  breakUrl: string;
+export interface LevelMomentAdOptions extends HostedOptions {
   /** Break format: flashcard | quiz | deep_dive (default: flashcard). */
   format?: BreakFormat;
   /** Use bundled mock questions instead of the live API. */
   mock?: boolean;
-  /**
-   * SSV-parity custom data (see `LevelMomentConfig.customData` in sdk-core).
-   * Forwarded to the hosted break page as the `customData` query param so the
-   * page stamps it on every impression it records (and the server echoes it on
-   * reward.earned). Omitted from the URL when unset.
-   */
+  /** Opaque game-server context, sent privately with the break handshake. */
   customData?: string;
 }
 
 export class LevelMomentAd {
   private readonly placementId: string;
-  private readonly options: LevelMomentAdOptions;
+  private readonly options: ReturnType<
+    typeof resolveHostedOptions<LevelMomentAdOptions>
+  >;
   private _loaded = false;
   private _shown = false;
+  private _finished = false;
+  private _rewardIds = new Set<string>();
   private _disposed = false;
   private readonly _listeners: Map<
     LevelMomentAdEvent,
@@ -66,12 +73,12 @@ export class LevelMomentAd {
 
   private constructor(placementId: string, options: LevelMomentAdOptions) {
     this.placementId = placementId;
-    this.options = options;
+    this.options = resolveHostedOptions(options);
   }
 
   static createForAdRequest(
     placementId: string,
-    options: LevelMomentAdOptions,
+    options: LevelMomentAdOptions = {},
   ): LevelMomentAd {
     return new LevelMomentAd(placementId, options);
   }
@@ -106,7 +113,7 @@ export class LevelMomentAd {
    * once per answer, then 'closed' fires when the session ends.
    */
   show(): void {
-    if (this._disposed) {
+    if (this._disposed || this._finished) {
       return;
     }
     if (!this._loaded) {
@@ -130,6 +137,13 @@ export class LevelMomentAd {
     _triggerModal({
       url: this._buildUrl(),
       onMessage: (msg) => this._handleMessage(msg),
+      onNeedCredential: credentialResponder(
+        this.placementId,
+        this.options.studentToken,
+        undefined,
+        this.options.customData,
+        !!this.options.unsafeTesting || !!this.options.mock,
+      ),
     });
 
     this._emit("opened", undefined);
@@ -146,35 +160,57 @@ export class LevelMomentAd {
     params.set("format", this.options.format ?? "flashcard");
     if (this.options.mock) {
       params.set("mock", "true");
-    } else {
-      if (this.options.apiUrl) params.set("apiUrl", this.options.apiUrl);
-      if (this.options.studentToken)
-        params.set("token", this.options.studentToken);
+    } else if (this.options.apiUrl) {
+      params.set("apiUrl", this.options.apiUrl);
     }
+    // No credential rides on this URL. The page asks over the bridge
+    // (`needCredential`) and the answer comes from the keychain, so a live
+    // token never reaches a launch URL, a crash report, or a web log.
     // SSV-parity: carry the host-supplied customData to the hosted page in both
     // modes (opaque correlation data, not a credential) so the page stamps it
     // on every impression it records.
-    if (this.options.customData)
-      params.set("customData", this.options.customData);
+    addBridgeVersion(params, !!this.options.unsafeTesting);
+    params.set(HOST_CAPABILITIES_PARAM, HOST_CAPABILITIES);
     const sep = this.options.breakUrl.includes("?") ? "&" : "?";
     return `${this.options.breakUrl}${sep}${params.toString()}`;
   }
 
   private _handleMessage(msg: HostMessage): void {
+    // Keep the keychain in step with the page: store what pairing minted,
+    // forget what the server refused. The host answers `needCredential`
+    // itself — it is the only side that can reach into the WebView.
+    if (
+      !this.options.unsafeTesting &&
+      !this.options.mock &&
+      applyCredentialMessage(msg, this.placementId)
+    )
+      return;
     switch (msg.type) {
       case "ready":
+      case "needCredential":
         return;
       case "earnedReward":
+        if (msg.payload.rewardId) {
+          if (this._rewardIds.has(msg.payload.rewardId)) return;
+          this._rewardIds.add(msg.payload.rewardId);
+        }
         this._emit("earnedReward", {
           type: "question_answered",
           amount: msg.payload.amount,
+          ...(msg.payload.rewardId ? { rewardId: msg.payload.rewardId } : {}),
         });
         return;
+      // `signedIn` belongs to the sign-in gate and never reaches a break. If one
+      // ever arrives the modal has closed, so resume the game rather than
+      // leaving it waiting for a `closed` that will not come.
+      case "signedIn":
       case "dismissed":
         this._shown = false;
+        this._finished = true;
         this._emit("closed", undefined);
         return;
       case "error":
+        this._finished = true;
         this._emit("error", {
           code: (msg.payload.code as LevelMomentAdError["code"]) ?? "unknown",
           message: msg.payload.message,
@@ -193,8 +229,4 @@ export class LevelMomentAd {
   }
 }
 
-export type HostMessage =
-  | { type: "ready" }
-  | { type: "earnedReward"; payload: { amount: 0 | 1 } }
-  | { type: "dismissed" }
-  | { type: "error"; payload: { code: string; message: string } };
+export type { HostMessage } from "./hostMessage.js";

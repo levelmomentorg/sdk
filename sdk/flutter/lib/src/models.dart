@@ -26,7 +26,14 @@ class LevelMomentRewardItem {
   final String type;
   final num amount;
 
-  const LevelMomentRewardItem({required this.type, required this.amount});
+  /// Opaque impression identifier supplied by the hosted break, when present.
+  final String? rewardId;
+
+  const LevelMomentRewardItem({
+    required this.type,
+    required this.amount,
+    this.rewardId,
+  });
 }
 
 /// Mirrors: RewardedAdLoadCallback

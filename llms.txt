@@ -1,0 +1,16 @@
+# Level Moment SDK
+
+Read [AGENTS.md](./AGENTS.md), then the complete integration packet in
+[tools/claude-skill-levelmoment](./tools/claude-skill-levelmoment/).
+
+Use the immutable preview release
+[v0.2.0-preview.1](https://github.com/levelmomentorg/sdk/releases/tag/v0.2.0-preview.1).
+It is not production-certified. The README has anonymous download links for
+the paired core and platform tarballs.
+
+Package guides:
+
+- [Web](./sdk/web/README.md)
+- [React Native](./sdk/react-native/README.md)
+- [Flutter](./sdk/flutter/README.md)
+- [Unity](./sdk/unity/README.md)

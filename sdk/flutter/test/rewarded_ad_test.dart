@@ -8,18 +8,53 @@ import 'package:levelmoment_ads/src/widgets/level_moment_web_view.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('initialization security defaults', () {
+    test('uses the canonical production endpoints by default', () async {
+      await LevelMomentAds.instance.initialize();
+
+      expect(LevelMomentAds.instance.breakUrl, 'https://levelmoment.com/break');
+      expect(LevelMomentAds.instance.apiUrl, 'https://levelmoment.com/api');
+      expect(LevelMomentAds.instance.isUnsafeTesting, isFalse);
+    });
+
+    test('rejects a noncanonical endpoint without unsafeTesting', () async {
+      expect(
+        () => LevelMomentAds.instance.initialize(
+          breakUrl: 'https://example.test/break',
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('unsafe testing requires a sandbox token prefix', () async {
+      expect(
+        () => LevelMomentAds.instance.initialize(
+          unsafeTesting: const UnsafeTesting(
+            breakUrl: 'https://example.test/break',
+            apiUrl: 'https://example.test/api',
+            token: 'production-token',
+          ),
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
   group('LevelMomentRewardedAd.buildUrl', () {
-    test('live mode embeds apiUrl + token + placementId + format', () async {
+    test('live mode embeds apiUrl + placementId + format — never a token',
+        () async {
       await LevelMomentAds.instance.initialize(
-        apiUrl: 'https://api.levelmoment.com',
-        breakUrl: 'https://app.levelmoment.com/break',
+        unsafeTesting: const UnsafeTesting(
+          apiUrl: 'https://api.levelmoment.com',
+          breakUrl: 'https://app.levelmoment.com/break',
+        ),
         mock: false,
       );
 
       late LevelMomentRewardedAd ad;
       await LevelMomentRewardedAd.load(
         placementId: 'game-42',
-        studentToken: 'tok abc/&=',
+        studentToken: 'eply_sbx_abc/&=',
         format: 'quiz',
         adLoadCallback: LevelMomentAdLoadCallback(
           onAdLoaded: (a) => ad = a,
@@ -33,22 +68,54 @@ void main() {
       expect(uri.queryParameters['placementId'], 'game-42');
       expect(uri.queryParameters['format'], 'quiz');
       expect(uri.queryParameters['apiUrl'], 'https://api.levelmoment.com');
-      expect(uri.queryParameters['token'], 'tok abc/&='); // properly encoded
+      // The credential never rides on the URL, even when the game supplied
+      // one to load() — it travels only over the postMessage bridge, as
+      // credentialResponder's explicitToken argument.
+      expect(uri.queryParameters.containsKey('token'), isFalse);
       expect(uri.queryParameters.containsKey('mock'), isFalse);
+      expect(uri.queryParameters['sandbox'], 'true');
+      expect(uri.queryParameters['protocolVersion'], '1');
+      expect(uri.queryParameters['sdkVersion'], '0.2.0');
     });
 
-    test('threads SSV customData onto the URL, encoded, in both modes',
-        () async {
+    test(
+        'announces openExternal support — an old shell that cannot open a '
+        'browser must not be offered the button', () async {
       await LevelMomentAds.instance.initialize(
-        apiUrl: 'https://api.levelmoment.com',
-        breakUrl: 'https://app.levelmoment.com/break',
+        unsafeTesting: const UnsafeTesting(
+          apiUrl: 'https://api.levelmoment.com',
+          breakUrl: 'https://app.levelmoment.com/break',
+        ),
         mock: false,
       );
 
       late LevelMomentRewardedAd ad;
       await LevelMomentRewardedAd.load(
         placementId: 'game-42',
-        studentToken: 'tok',
+        adLoadCallback: LevelMomentAdLoadCallback(
+          onAdLoaded: (a) => ad = a,
+          onAdFailedToLoad: (_) => fail('should not fail to load'),
+        ),
+      );
+
+      final uri = Uri.parse(ad.buildUrl());
+      expect(uri.queryParameters['caps'], 'openExternal');
+    });
+
+    test('keeps SSV customData off the URL for the credential handshake',
+        () async {
+      await LevelMomentAds.instance.initialize(
+        unsafeTesting: const UnsafeTesting(
+          apiUrl: 'https://api.levelmoment.com',
+          breakUrl: 'https://app.levelmoment.com/break',
+        ),
+        mock: false,
+      );
+
+      late LevelMomentRewardedAd ad;
+      await LevelMomentRewardedAd.load(
+        placementId: 'game-42',
+        studentToken: 'eply_sbx_tok',
         customData: 'order/42&x',
         adLoadCallback: LevelMomentAdLoadCallback(
           onAdLoaded: (a) => ad = a,
@@ -57,20 +124,22 @@ void main() {
       );
 
       final uri = Uri.parse(ad.buildUrl());
-      expect(uri.queryParameters['customData'], 'order/42&x'); // decoded
+      expect(uri.queryParameters.containsKey('customData'), isFalse);
     });
 
     test('omits customData from the URL when not provided', () async {
       await LevelMomentAds.instance.initialize(
-        apiUrl: 'https://api.levelmoment.com',
-        breakUrl: 'https://app.levelmoment.com/break',
+        unsafeTesting: const UnsafeTesting(
+          apiUrl: 'https://api.levelmoment.com',
+          breakUrl: 'https://app.levelmoment.com/break',
+        ),
         mock: false,
       );
 
       late LevelMomentRewardedAd ad;
       await LevelMomentRewardedAd.load(
         placementId: 'game-42',
-        studentToken: 'tok',
+        studentToken: 'eply_sbx_tok',
         adLoadCallback: LevelMomentAdLoadCallback(
           onAdLoaded: (a) => ad = a,
           onAdFailedToLoad: (_) => fail('should not fail to load'),
@@ -85,15 +154,17 @@ void main() {
 
     test('mock mode sets mock=true and omits apiUrl/token', () async {
       await LevelMomentAds.instance.initialize(
-        apiUrl: 'https://api.levelmoment.com',
-        breakUrl: 'https://app.levelmoment.com/break',
+        unsafeTesting: const UnsafeTesting(
+          apiUrl: 'https://api.levelmoment.com',
+          breakUrl: 'https://app.levelmoment.com/break',
+        ),
         mock: true,
       );
 
       late LevelMomentRewardedAd ad;
       await LevelMomentRewardedAd.load(
         placementId: 'game-1',
-        studentToken: 'ignored',
+        studentToken: 'eply_sbx_ignored',
         adLoadCallback: LevelMomentAdLoadCallback(
           onAdLoaded: (a) => ad = a,
           onAdFailedToLoad: (_) => fail('should not fail to load'),
@@ -108,17 +179,16 @@ void main() {
       expect(uri.queryParameters.containsKey('token'), isFalse);
     });
 
-    test('appends with & when breakUrl already has a query', () async {
+    test('uses the canonical hosted URL by default', () async {
       await LevelMomentAds.instance.initialize(
-        apiUrl: 'https://api.levelmoment.com',
-        breakUrl: 'https://app.levelmoment.com/break?theme=dark',
+        apiUrl: 'https://levelmoment.com/api',
+        breakUrl: 'https://levelmoment.com/break',
         mock: true,
       );
 
       late LevelMomentRewardedAd ad;
       await LevelMomentRewardedAd.load(
         placementId: 'g',
-        studentToken: 't',
         adLoadCallback: LevelMomentAdLoadCallback(
           onAdLoaded: (a) => ad = a,
           onAdFailedToLoad: (_) => fail('should not fail to load'),
@@ -126,20 +196,21 @@ void main() {
       );
 
       final url = ad.buildUrl();
-      expect(url.startsWith('https://app.levelmoment.com/break?theme=dark&'), isTrue);
-      expect(Uri.parse(url).queryParameters['theme'], 'dark');
+      expect(url.startsWith('https://levelmoment.com/break?'), isTrue);
     });
 
     test('load() marks ready synchronously without network', () async {
       await LevelMomentAds.instance.initialize(
-        apiUrl: 'https://api.levelmoment.com',
-        breakUrl: 'https://app.levelmoment.com/break',
+        unsafeTesting: const UnsafeTesting(
+          apiUrl: 'https://api.levelmoment.com',
+          breakUrl: 'https://app.levelmoment.com/break',
+        ),
       );
 
       var loadedCalled = false;
       await LevelMomentRewardedAd.load(
         placementId: 'g',
-        studentToken: 't',
+        studentToken: 'eply_sbx_t',
         adLoadCallback: LevelMomentAdLoadCallback(
           onAdLoaded: (a) {
             loadedCalled = true;
@@ -150,14 +221,46 @@ void main() {
       );
       expect(loadedCalled, isTrue);
     });
+
+    test('load() works with no studentToken at all — the paired-device path',
+        () async {
+      // The common case now: a device that already paired holds its
+      // credential in the secure store (or the hosted page's own storage),
+      // so nothing needs to flow through load() at all. studentToken exists
+      // only for a sandbox token or a link the game read itself.
+      await LevelMomentAds.instance.initialize(
+        unsafeTesting: const UnsafeTesting(
+          apiUrl: 'https://api.levelmoment.com',
+          breakUrl: 'https://app.levelmoment.com/break',
+        ),
+      );
+
+      late LevelMomentRewardedAd ad;
+      await LevelMomentRewardedAd.load(
+        placementId: 'g',
+        adLoadCallback: LevelMomentAdLoadCallback(
+          onAdLoaded: (a) => ad = a,
+          onAdFailedToLoad: (_) => fail('should not fail to load'),
+        ),
+      );
+
+      expect(ad.isLoaded, isTrue);
+      expect(ad.studentToken, isNull);
+      expect(
+        Uri.parse(ad.buildUrl()).queryParameters.containsKey('token'),
+        isFalse,
+      );
+    });
   });
 
   group('LevelMomentRewardedAd.show before load', () {
     testWidgets('triggers onAdFailedToShowFullScreenContent with not_loaded',
         (tester) async {
       await LevelMomentAds.instance.initialize(
-        apiUrl: 'https://api.levelmoment.com',
-        breakUrl: 'https://app.levelmoment.com/break',
+        unsafeTesting: const UnsafeTesting(
+          apiUrl: 'https://api.levelmoment.com',
+          breakUrl: 'https://app.levelmoment.com/break',
+        ),
       );
 
       // Build an ad instance and force the not-loaded state by disposing it
@@ -165,7 +268,6 @@ void main() {
       late LevelMomentRewardedAd ad;
       await LevelMomentRewardedAd.load(
         placementId: 'g',
-        studentToken: 't',
         adLoadCallback: LevelMomentAdLoadCallback(
           onAdLoaded: (a) => ad = a,
           onAdFailedToLoad: (_) => fail('should not fail'),
@@ -204,10 +306,28 @@ void main() {
       expect(HostMessage.tryParse('{"type":"ready"}'), isA<Ready>());
 
       final reward = HostMessage.tryParse(
-        '{"type":"earnedReward","payload":{"amount":1}}',
+        '{"type":"earnedReward","payload":{"amount":1,"rewardId":"impression-7"}}',
       );
       expect(reward, isA<EarnedReward>());
-      expect((reward as EarnedReward).amount, 1);
+      final earned = reward as EarnedReward;
+      expect(earned.amount, 1);
+      expect(earned.rewardId, 'impression-7');
+      expect(
+        HostMessage.tryParse(
+          '{"type":"earnedReward","payload":{"amount":2}}',
+        ),
+        isNull,
+      );
+      expect(
+        HostMessage.tryParse(
+          '{"type":"earnedReward","payload":{"amount":1,"rewardId":""}}',
+        ),
+        isNull,
+      );
+      expect(
+        HostMessage.tryParse('{"type":"ready","protocolVersion":2}'),
+        isNull,
+      );
 
       expect(HostMessage.tryParse('{"type":"dismissed"}'), isA<Dismissed>());
 
@@ -225,10 +345,9 @@ void main() {
       expect(HostMessage.tryParse('[1,2,3]'), isNull);
     });
 
-    test('earnedReward defaults amount to 0 when missing', () {
+    test('rejects earnedReward without a payload', () {
       final r = HostMessage.tryParse('{"type":"earnedReward"}');
-      expect(r, isA<EarnedReward>());
-      expect((r as EarnedReward).amount, 0);
+      expect(r, isNull);
     });
   });
 
@@ -249,7 +368,7 @@ void main() {
             break;
           case EarnedReward():
             rewards++;
-          case Dismissed():
+          case Dismissed() || SignedIn():
             if (terminal) return;
             terminal = true;
             dismissed++;
@@ -257,6 +376,14 @@ void main() {
             if (terminal) return;
             terminal = true;
             dismissed++;
+          // The credential trio is the show() closure's bookkeeping (handled
+          // by applyCredentialMessage before this switch even runs in the
+          // real code) — not a verdict, so it ends nothing here either.
+          case NeedCredential() ||
+                CredentialIssued() ||
+                CredentialInvalid() ||
+                OpenExternal():
+            break;
         }
       }
 

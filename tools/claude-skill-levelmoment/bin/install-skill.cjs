@@ -87,11 +87,10 @@ copyRecursive(path.join(source, "commands", "levelmoment.md"), targetCommand);
 
 log("");
 log("Done. In your next Claude Code session, you can use:");
-log("  /levelmoment              # port or scaffold");
-log("  /levelmoment register     # create a game");
-log("  /levelmoment install      # install SDK only");
-log("  /levelmoment doctor       # diagnose");
-log("  /levelmoment sandbox      # open preview");
+log("  /levelmoment port         # integrate a supplied handoff");
+log("  /levelmoment install      # install its supplied artifact");
+log("  /levelmoment doctor       # diagnose the target slot");
+log("  /levelmoment sandbox      # run supplied preview checks");
 log("");
 log(
   "If you don't see the command, restart Claude Code so it picks up the new files.",

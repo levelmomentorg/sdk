@@ -1,122 +1,103 @@
 # @levelmoment/sdk-react-native
 
-**Status: 🟢 Verified end to end on the iOS Simulator — real question shown in the WebView modal, answered, reward bridged.**
+Level Moment is a rewarded break for iOS and Android games. This package
+follows the load/show lifecycle used by common rewarded-ad SDKs.
 
-React Native SDK for iOS and Android. Drop-in replacement for `react-native-google-mobile-ads` rewarded ads.
+**Preview:** Validate the hosted break and WebView provider on every target
+device before release. The repository version is `0.2.0`; it is not the
+current public npm release. Use the immutable preview artifact or reference
+supplied for your partner integration.
 
-See [`MIGRATION.md`](MIGRATION.md) for a line-by-line swap guide and [`docs/ADR-001-webview-rendering.md`](../../docs/ADR-001-webview-rendering.md) for the architecture rationale.
+## Install
 
----
+Install the immutable `0.2.0` preview artifact or reference supplied for your
+partner integration. The public npm channel currently provides `0.1.2`, which
+does not necessarily match this preview README. Add `react-native-webview` and,
+when durable native credentials are needed, `react-native-keychain` as peer
+dependencies.
 
-## What's Done
+Use `AGENT-INSTRUCTIONS.md` in the complete partner packet supplied with this
+preview. Give the agent that packet, the immutable artifact or source reference,
+the placement ID, target slot, and reward action.
 
-- **Sample iPhone app** — `example/` is an Expo app you can run on your phone via Expo Go. See [`example/README.md`](example/README.md).
-- **`LevelMomentAd`** — mirrors `RewardedAd` from `react-native-google-mobile-ads`
-  - `LevelMomentAd.createForAdRequest(placementId, { breakUrl, apiUrl?, studentToken?, format?, mock?, customData? })` (`customData` is SSV-parity — stamped onto every impression the hosted page records)
-  - `ad.addAdEventListener(event, listener)` — returns unsubscribe function
-  - `ad.load()` / `ad.show()` — load/show separation preserved
-  - `ad.dispose()` — clears listeners
-- **`LevelMomentAdModal`** — fullscreen `<Modal>` containing a `<WebView>` pointing at the hosted `/break` page. Add once at app root; `ad.show()` drives it.
-- **postMessage bridge** — listens for `ready` / `earnedReward` / `dismissed` / `error` from the page and dispatches them to consumers via the standard event listeners. `earnedReward` fires once per graded answer (`amount` 1 correct / 0 otherwise) — accumulate and apply on `closed`, which fires exactly once.
-- **Pre-`ready` watchdog** — 15 seconds, mirroring `sdk/web` and `sdk/unity`. An unreachable or crashed break page resolves as a clean `closed` instead of covering the game forever. A WebView-level load failure fires `error` with code `network_error`. After `ready` there is no timeout.
+Install `react-native-keychain` when the app needs durable native credential
+storage. Expo Go uses the hosted storage fallback; use a development build for
+native keychain support.
 
-## What's Not Done
+## Use
 
-- [ ] No tests — add Jest tests for URL building + message dispatch
-- [ ] No native pre-warm — `load()` resolves immediately; `show()` triggers the WebView fetch. This adds a small visible delay when the ad slot opens. It could be improved by mounting the WebView hidden during `load()` and revealing it on `show()`.
-- [ ] Image loading inside the page is plain `<img>` — fine, but works only with public URLs
-
----
-
-## Architecture
-
-This SDK does **not** render questions. All UI for the 8 question types and the session flow lives in [`platform/web/app/break`](../../platform/web/app/break). The SDK is a thin wrapper that:
-
-1. Builds a URL with placement / token / format query params
-2. Mounts a fullscreen WebView pointing at that URL
-3. Listens for `window.ReactNativeWebView.postMessage` events from the page
-4. Translates them to the existing `addAdEventListener` events
-
-Net code: ~220 LOC (was ~1700 with the embedded RN renderer).
-
----
-
-## Setup
-
-```bash
-npm install   # from repo root
-
-cd sdk/react-native
-npx tsc --noEmit
-npm run build
-```
-
-`react-native` and `react-native-webview` are peer dependencies — consumers must install both. `react-native-webview` is bundled in Expo Go, so the example app needs no extra setup.
-
----
-
-## Usage
-
-### 1. Add `<LevelMomentAdModal />` once at your app root
+Mount the host once at the application root:
 
 ```tsx
 import { LevelMomentAdModal } from "@levelmoment/sdk-react-native";
 
-export default function App() {
+export function App() {
   return (
     <>
-      <YourGame />
+      <Game />
       <LevelMomentAdModal />
     </>
   );
 }
 ```
 
-### 2. Load and show ads
+Create a break with the default production service:
 
 ```ts
 import { LevelMomentAd } from "@levelmoment/sdk-react-native";
 
-const ad = LevelMomentAd.createForAdRequest("your-placement-id", {
-  breakUrl: "https://app.levelmoment.com/break",
-  apiUrl: "https://api.levelmoment.com",
-  studentToken: getTokenFromDeepLink(),
-  format: "quiz",
-});
+function showBreak() {
+  pauseGame();
+  const ad = LevelMomentAd.createForAdRequest("YOUR_PLACEMENT_ID", {});
+  let granted = false;
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    ad.dispose();
+    resumeGame();
+    prepareNextBreak();
+  };
 
-let reward = 0;
-ad.addAdEventListener("earnedReward", (r) => {
-  reward = Math.max(reward, r.amount);
-});
-ad.addAdEventListener("closed", () => {
-  if (reward === 1) grantBonus();
-  resumeGame();
-});
-
-ad.load();
-// ...later, in an existing rewarded-ad slot:
-ad.show();
+  ad.addAdEventListener("loaded", () => ad.show());
+  ad.addAdEventListener("earnedReward", ({ amount }) => {
+    if (!finished && amount === 1 && !granted) {
+      granted = true;
+      grantBonus();
+    }
+  });
+  ad.addAdEventListener("closed", finish);
+  ad.addAdEventListener("error", finish);
+  ad.load();
+}
 ```
 
----
+`load()` prepares a new handle. The hosted activity loads when `show()` opens,
+so there is no instant-display promise. Create a new handle for each target
+slot, grant on the first correct answer, and resume once after `closed` or an
+error. An optional `rewardId` is an opaque correlation value for server
+callbacks.
 
-## Key Files
+The normal configuration uses the canonical Level Moment hosted service. Use
+`unsafeTesting` only for local or sandbox endpoints and an `eply_sbx_` test
+credential; do not put production URLs or player tokens in the app config.
 
-| File                         | Purpose                                             |
-| ---------------------------- | --------------------------------------------------- |
-| `src/LevelMomentAd.ts`       | Mirrors `RewardedAd`; builds URL, dispatches events |
-| `src/LevelMomentAdModal.tsx` | Fullscreen `<Modal>` + `<WebView>` host (~150 LOC)  |
-| `src/index.ts`               | Public exports                                      |
-| `MIGRATION.md`               | Swap guide from `react-native-google-mobile-ads`    |
+## Optional learning-access flow
 
----
+When a player chooses learning, open the access flow:
 
-## Event Name Mapping
+```ts
+import { ensureAccess } from "@levelmoment/sdk-react-native";
 
-| react-native-google-mobile-ads      | LevelMoment      |
-| ----------------------------------- | ---------------- |
-| `RewardedAdEventType.LOADED`        | `'loaded'`       |
-| `AdEventType.ERROR`                 | `'error'`        |
-| `AdEventType.OPENED`                | `'opened'`       |
-| `AdEventType.CLOSED`                | `'closed'`       |
-| `RewardedAdEventType.EARNED_REWARD` | `'earnedReward'` |
+const result = await ensureAccess({ placementId: "YOUR_PLACEMENT_ID" });
+if (result === "ready") openLearningChoice();
+else resumeGame();
+```
+
+This does not need to block normal game startup. The result is `ready`,
+`canceled`, or `technicalFailure`; preserve gameplay when it is canceled.
+Use `checkAccess({ placementId })` for a noninteractive check: `false` means
+the player needs the access flow, while a technical failure rejects the
+promise.
+
+See [`MIGRATION.md`](MIGRATION.md) and the signed-in [developer documentation](https://levelmoment.com/docs) for more details.

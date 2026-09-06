@@ -3,7 +3,7 @@ description: >
   LevelMoment educational ad replacement SDK for Flutter.
   Drop-in replacement for google_mobile_ads rewarded ads.
   Replaces mobile ad impressions with short educational questions.
-version: 0.1.2
+version: 0.2.0
 homepage: https://github.com/levelmomentorg/sdk/tree/main/sdk/flutter
 repository: https://github.com/levelmomentorg/sdk
 issue_tracker: https://github.com/levelmomentorg/sdk/issues
@@ -15,6 +15,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Keeps the paired device's credential in the platform secure store
+  # (Keychain / EncryptedSharedPreferences) instead of only inside the
+  # WebView, whose data the OS may clear. See lib/src/token_store.dart.
+  flutter_secure_storage: ^9.2.2
+  # Opens the parent approval page in the device's browser instead of inside
+  # the game's WebView. A parent's password must never be typed into a surface
+  # the game hosts. See lib/src/widgets/level_moment_web_view.dart.
+  url_launcher: ^6.3.0
   webview_flutter: ^4.7.0
 
 dev_dependencies:

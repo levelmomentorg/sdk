@@ -23,6 +23,11 @@ name: Publish — SDK packages
 
 on:
   workflow_dispatch:
+    inputs:
+      sdk_version:
+        description: "Version to publish, for example 0.2.0"
+        required: true
+        type: string
   push:
     tags:
       - "sdk-v*"
@@ -42,6 +47,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate release version
+        env:
+          REQUESTED_VERSION: ${{ inputs.sdk_version }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_TYPE" == "tag" && "$RELEASE_TAG" =~ ^sdk-v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Select an immutable sdk-v<major>.<minor>.<patch> tag to publish."; exit 1; }
+          if [[ -n "$REQUESTED_VERSION" && "$REQUESTED_VERSION" != "${RELEASE_TAG#sdk-v}" ]]; then
+            echo "::error::Requested version does not match the release tag."
+            exit 1
+          fi
+          REQUESTED_VERSION="${RELEASE_TAG#sdk-v}"
+          for package in core web react-native; do
+            actual="$(node -p "require('./sdk/$package/package.json').version")"
+            [[ "$actual" == "$REQUESTED_VERSION" ]] || { echo "::error::sdk/$package is $actual, expected $REQUESTED_VERSION"; exit 1; }
+          done
+
       # NOTE: do NOT set `registry-url` here. It makes setup-node write an
       # .npmrc with `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`; with
       # the token removed that becomes an empty token, so npm attempts token auth
@@ -58,9 +80,8 @@ jobs:
           node --version
           npm --version
 
-      # No lockfile is committed to this repo, so use `npm install` (not `npm ci`).
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
       # Ordered build: sdk-core first so its dist/types exist before web and
       # react-native build against the `@levelmoment/sdk-core` workspace symlink.

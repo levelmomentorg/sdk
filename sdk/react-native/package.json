@@ -1,6 +1,6 @@
 {
   "name": "@levelmoment/sdk-react-native",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "LevelMoment SDK for React Native — educational question breaks that replace rewarded ads. Mirrors react-native-google-mobile-ads.",
   "keywords": [
     "levelmoment",
@@ -45,15 +45,18 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "lint": "eslint src --max-warnings=0",
     "type-check": "tsc --noEmit",
     "prepack": "node ../../tools/claude-skill-levelmoment/scripts/bundle-into.mjs .",
     "postpack": "rm -rf claude"
   },
   "dependencies": {
-    "@levelmoment/sdk-core": "^0.1.0"
+    "@levelmoment/sdk-core": "^0.2.0"
   },
   "devDependencies": {
+    "react-native-keychain": "^10.0.0",
     "react-native-webview": "^13.0.0",
     "tsup": "^8.0.0",
     "typescript": "5.4.5"
@@ -61,6 +64,7 @@
   "peerDependencies": {
     "react": ">=18.0.0",
     "react-native": ">=0.72.0",
+    "react-native-keychain": ">=8.0.0",
     "react-native-webview": ">=13.0.0"
   }
 }

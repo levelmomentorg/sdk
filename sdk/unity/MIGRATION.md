@@ -1,125 +1,129 @@
-# Migrating from AdMob (Google Mobile Ads) rewarded ads to LevelMoment
+# Migrate a Unity rewarded placement
 
-LevelMoment mirrors the AdMob Unity plugin's **rewarded ad** API: `Load()` in the
-background, `Show()` in the existing ad slot, grant a bonus in the reward callback,
-resume the game when it closes. The swap is mostly renaming — the load → show →
-resume structure is identical.
+## Prerequisites
 
-**One real difference, called out up front:** AdMob renders a video natively.
-LevelMoment renders its mini-lessons and quizzes in a **WebView**, so you must
-install a WebView provider. See step 1. There is no fallback renderer — without a provider,
-`Show()` fails cleanly via `OnAdFailedToShow` (you just resume the game, exactly
-like AdMob's `OnAdFullScreenContentFailed`).
+- Unity 2021.3 or later
+- The immutable 0.2 preview commit supplied to you
+- A pinned gree Unity WebView provider
 
-## 1. Install a WebView provider (new — no AdMob equivalent)
+## 1. Replace the packages
 
-Unity has no built-in WebView. Add [`gree/unity-webview`](https://github.com/gree/unity-webview)
-and the `LEVELMOMENT_GREE_WEBVIEW` scripting define — see
-[README.md → Requirements](./README.md#requirements). (Prefer another plugin?
-Implement `ILevelMomentWebView` and register it.)
+Add the pinned SDK and WebView packages to `Packages/manifest.json`:
 
-## 2. Replace the namespace import
-
-```csharp
-// REMOVE:
-using GoogleMobileAds.Api;
-
-// ADD:
-using LevelMoment;
+```json
+{
+  "dependencies": {
+    "com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=sdk/unity#PROVIDED_PREVIEW_COMMIT",
+    "net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment#PINNED_GREE_COMMIT",
+    "com.unity.inputsystem": "1.11.2",
+    "com.unity.modules.jsonserialize": "1.0.0"
+  }
+}
 ```
 
-Both plugins expose a type named `RewardedAd`; the namespace swap disambiguates it.
+Do not use a moving branch such as `main`.
 
-## 3. Replace initialization
+Add `LEVELMOMENT_GREE_WEBVIEW` to Scripting Define Symbols and preserve the
+runtime assemblies in `Assets/link.xml`. See `README.md` for the provider
+setup.
+
+## 2. Replace initialization
 
 ```csharp
-// BEFORE (AdMob):
-MobileAds.Initialize(initStatus => { });
+using LevelMoment;
 
-// AFTER (LevelMoment):
+LevelMomentAds.Initialize(new LevelMomentConfig());
+```
+
+Production endpoints and player credentials are managed by Level Moment. Do
+not set `ApiUrl`, `BreakUrl`, or an explicit token.
+
+## 3. Add the access flow
+
+Use `CheckAccess()` for an invisible check and `EnsureAccess()` after the
+player chooses learning:
+
+```csharp
+LevelMomentAds.CheckAccess(
+    "YOUR_PLACEMENT_ID",
+    ready =>
+    {
+        if (ready)
+        {
+            OpenLearningMode();
+            return;
+        }
+        LevelMomentAds.EnsureAccess("YOUR_PLACEMENT_ID", result =>
+        {
+            if (result == EnsureSignedInResult.Ready) OpenLearningMode();
+            else if (result == EnsureSignedInResult.TechnicalFailure) ShowTryAgainLater();
+        });
+    },
+    error => ShowTryAgainLater());
+```
+
+Use `EnsureSignedIn()` or `IsSignedIn()` only for identity-only features.
+
+## 4. Replace rewarded loading
+
+Keep the load and show slots, then map the callbacks:
+
+```csharp
+RewardedAd pending = null;
+RewardedAd.Load("YOUR_PLACEMENT_ID", new RewardedAdLoadCallbacks
+{
+    OnAdLoaded = ad => pending = ad,
+    OnAdFailedToLoad = error => ResumeGame(),
+});
+if (pending == null) return;
+
+bool rewardGranted = false;
+pending.Show(new RewardedAdShowCallbacks
+{
+    OnUserEarnedReward = amount =>
+    {
+        if (amount == 1 && !rewardGranted)
+        {
+            rewardGranted = true;
+            GrantBonus();
+        }
+    },
+    OnAdDismissed = () => ResumeGame(),
+    OnAdFailedToShow = error => ResumeGame(),
+});
+```
+
+A multi-question break can emit several reward callbacks. Guard the game
+reward so the first correct answer grants it once. Dismissal and failure only
+resume the game.
+
+## 5. Configure sandbox testing
+
+Put local endpoints and the sandbox credential inside `UnsafeTesting`:
+
+```csharp
 LevelMomentAds.Initialize(new LevelMomentConfig
 {
-    ApiUrl   = "https://api.levelmoment.com",
-    BreakUrl = "https://app.levelmoment.com/break",   // the hosted break page
+    UnsafeTesting = new UnsafeTesting
+    {
+        ApiUrl = "http://YOUR_COMPUTER_IP:8080",
+        BreakUrl = "http://YOUR_COMPUTER_IP:3000/break",
+        Token = "YOUR_EPLY_SBX_TOKEN",
+    },
 });
 ```
 
-## 4. Replace Load()
+**Warning:** Remove `UnsafeTesting` from production builds. Production
+configuration rejects endpoint overrides and explicit player tokens.
 
-```csharp
-// BEFORE (AdMob):
-RewardedAd _rewardedAd;
-RewardedAd.Load(adUnitId, new AdRequest(), (RewardedAd ad, LoadAdError error) =>
-{
-    if (error != null || ad == null) { Retry(); return; }
-    _rewardedAd = ad;
-});
+## Verify the migration
 
-// AFTER (LevelMoment):
-RewardedAd _rewardedAd;
-RewardedAd.Load("your-placement-id", new RewardedAdLoadCallbacks
-{
-    OnAdLoaded       = ad  => _rewardedAd = ad,
-    OnAdFailedToLoad = err => Retry(),
-});
-```
+1. Compile in the editor and make an il2cpp build.
+2. Confirm `CheckAccess()` stays hidden.
+3. Confirm `EnsureAccess()` opens pairing when action is required.
+4. Complete a break and confirm dismissal resumes the game once.
+5. Remove the provider define in a test branch and confirm the failure callback
+   reports the missing provider.
 
-`Load()` is synchronous (no network) — the hosted page fetches the question when
-`Show()` opens it. There is no `AdRequest`.
-
-## 5. Replace the full-screen callbacks + Show()
-
-AdMob wires `FullScreenContentCallback` handlers on the ad, then calls
-`Show(reward => …)`. LevelMoment passes one `RewardedAdShowCallbacks` bundle to
-`Show()`:
-
-```csharp
-// BEFORE (AdMob):
-_rewardedAd.OnAdFullScreenContentOpened += () => Pause();
-_rewardedAd.OnAdFullScreenContentClosed += () => { Resume(); PreloadNext(); };
-_rewardedAd.OnAdFullScreenContentFailed += (AdError e) => Resume();
-_rewardedAd.Show((Reward reward) =>
-{
-    if (reward.Amount > 0) GrantBonus();
-});
-
-// AFTER (LevelMoment):
-_rewardedAd.Show(new RewardedAdShowCallbacks
-{
-    OnAdShowedFullScreenContent = ()     => Pause(),
-    OnUserEarnedReward          = amount => { if (amount == 1) GrantBonus(); },
-    OnAdDismissed               = ()     => { Resume(); PreloadNext(); },
-    OnAdFailedToShow            = err    => Resume(),
-});
-```
-
-## Event / API mapping
-
-| AdMob (Google Mobile Ads)                             | LevelMoment                                       | Notes                                            |
-| ----------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------ |
-| `MobileAds.Initialize(cb)`                            | `LevelMomentAds.Initialize(config)`               | config = `ApiUrl` + `BreakUrl` (+ `Mock`)        |
-| `RewardedAd.Load(adUnitId, adRequest, cb)`            | `RewardedAd.Load(placementId, callbacks)`         | synchronous; no `AdRequest`                      |
-| `LoadAdError` in the load callback                    | `RewardedAdLoadCallbacks.OnAdFailedToLoad(error)` | `LevelMomentAdError { Code, Message }`           |
-| `rewardedAd.Show(reward => …)`                        | `ad.Show(callbacks)`                              | reward handler moves into the callback bundle    |
-| `Reward.Amount` (`> 0` = earned)                      | `OnUserEarnedReward(int amount)`                  | `1` = correct answer, `0` = wrong/skipped        |
-| `OnAdFullScreenContentOpened`                         | `OnAdShowedFullScreenContent`                     | fires on the page's `ready`                      |
-| `OnAdFullScreenContentClosed`                         | `OnAdDismissed`                                   | fires exactly once; always resume here           |
-| `OnAdFullScreenContentFailed(AdError)`                | `OnAdFailedToShow(LevelMomentAdError)`            | includes the no-WebView-provider case            |
-| `OnAdImpressionRecorded` / `OnAdClicked` / `OnAdPaid` | _(none)_                                          | impressions are recorded server-side by the page |
-| `rewardedAd.Destroy()`                                | `ad.Destroy()`                                    | identical intent                                 |
-| _(native video)_                                      | hosted `/break` WebView                           | **requires a WebView provider** (step 1)         |
-
-## Getting the student token
-
-The parent portal embeds a short-lived session token in the game's launch URL.
-The SDK reads `?token=` from `Application.absoluteURL` (WebGL) / the deep-link URL
-automatically. To supply it yourself, use the explicit-token overload:
-
-```csharp
-RewardedAd.Load("your-placement-id", GetTokenFromUrl(), new RewardedAdLoadCallbacks { /* … */ });
-```
-
-## Full before/after example
-
-See [`Samples~/BasicIntegration/AdBreakExample.cs`](./Samples~/BasicIntegration/AdBreakExample.cs)
-for a complete `Initialize → Load → Show → resume` MonoBehaviour.
+Compare the loading flow with the
+[Unity example](Samples~/BasicIntegration/AdBreakExample.cs).

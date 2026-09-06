@@ -8,5 +8,13 @@
 library levelmoment_ads;
 
 export 'src/levelmoment_ads.dart';
+export 'src/levelmoment_ads.dart' show UnsafeTesting;
 export 'src/rewarded_ad.dart';
 export 'src/models.dart';
+export 'src/gate.dart'
+    show EnsureSignedInResult, LevelMomentSignInCheckError, kSignInCheckTimeout;
+export 'src/widgets/level_moment_web_view.dart' show kBreakLoadTimeout;
+// The secure store the SDK keeps its credential in. Exported so an app that
+// signs a household out can drop it; the SDK manages it otherwise.
+export 'src/token_store.dart'
+    show LevelMomentTokenStore, deviceCredentials, credentialKey;

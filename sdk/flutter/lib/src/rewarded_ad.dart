@@ -26,7 +26,6 @@
 // AFTER (LevelMoment — identical structure, the hosted page renders everything):
 //   LevelMomentRewardedAd.load(
 //     placementId: 'your-game-id',
-//     studentToken: getTokenFromUrl(),
 //     adLoadCallback: LevelMomentAdLoadCallback(
 //       onAdLoaded: (ad) => _rewardedAd = ad,
 //       onAdFailedToLoad: (err) => retry(),
@@ -43,6 +42,8 @@
 
 import 'package:flutter/material.dart';
 
+import 'constants.dart';
+import 'credential_bridge.dart';
 import 'levelmoment_ads.dart';
 import 'models.dart';
 import 'widgets/level_moment_web_view.dart';
@@ -51,13 +52,17 @@ class LevelMomentRewardedAd {
   /// Mirrors: adUnitId — your game's identifier from the LevelMoment developer portal
   final String placementId;
 
-  /// The student session token from the parent portal (?token= URL param)
-  final String studentToken;
+  /// A credential to start from. Normally null: a paired device's credential
+  /// is held by the SDK (platform secure store) and by the hosted page, and
+  /// neither needs the game to supply it. Set it only for a sandbox token
+  /// while you are integrating, or a token you read yourself from a
+  /// parent-portal link. It is handed to the page over the bridge, never on
+  /// the URL.
+  final String? studentToken;
 
   /// SSV-parity custom data (mirrors LevelMomentConfig.customData in sdk-core).
-  /// Forwarded to the hosted break page as the `customData` query param so the
-  /// page stamps it on every impression it records (and the server echoes it on
-  /// reward.earned). Omitted from the URL when null.
+  /// Sent in the credential handshake so the page stamps it on every
+  /// impression it records and echoes it on reward.earned.
   final String? customData;
 
   /// Mirrors: fullScreenContentCallback — set this before calling show()
@@ -70,8 +75,8 @@ class LevelMomentRewardedAd {
 
   LevelMomentRewardedAd._({
     required this.placementId,
-    required this.studentToken,
     required String format,
+    this.studentToken,
     this.customData,
   }) : _format = format;
 
@@ -89,8 +94,8 @@ class LevelMomentRewardedAd {
   /// network).
   static Future<void> load({
     required String placementId,
-    required String studentToken,
     required LevelMomentAdLoadCallback adLoadCallback,
+    String? studentToken,
     String format = 'flashcard',
     String? customData,
   }) async {
@@ -99,9 +104,18 @@ class LevelMomentRewardedAd {
       'Call LevelMomentAds.instance.initialize() before loading ads.',
     );
 
+    String? resolvedToken;
+    try {
+      resolvedToken = LevelMomentAds.instance.resolveStudentToken(studentToken);
+    } catch (err) {
+      adLoadCallback.onAdFailedToLoad(
+        LevelMomentAdError(code: 'invalid_request', message: '$err'),
+      );
+      return;
+    }
     final ad = LevelMomentRewardedAd._(
       placementId: placementId,
-      studentToken: studentToken,
+      studentToken: resolvedToken,
       format: format,
       customData: customData,
     );
@@ -126,7 +140,8 @@ class LevelMomentRewardedAd {
   /// Mirrors: rewardedAd.show(onUserEarnedReward: ...) and LevelMomentAd.show().
   void show({
     required BuildContext context,
-    required void Function(LevelMomentRewardedAd ad, LevelMomentRewardItem reward)
+    required void Function(
+            LevelMomentRewardedAd ad, LevelMomentRewardItem reward)
         onUserEarnedReward,
   }) {
     if (!isLoaded) {
@@ -146,15 +161,40 @@ class LevelMomentRewardedAd {
     var terminal = false;
 
     void handleMessage(HostMessage message) {
+      // Keep the secure store in step with the page: store what pairing
+      // minted, forget what the server refused. The WebView answers
+      // `needCredential` itself — it holds the controller that can inject.
+      if (applyCredentialMessage(
+        message,
+        placementId,
+        useDeviceStore: !LevelMomentAds.instance.mock &&
+            LevelMomentAds.instance.unsafeTesting == null,
+      )) {
+        return;
+      }
       switch (message) {
+        // `openExternal` is launched by the WebView itself; the break carries
+        // on behind the browser.
+        case NeedCredential() ||
+              CredentialIssued() ||
+              CredentialInvalid() ||
+              OpenExternal():
+          return;
         case Ready():
           fullScreenContentCallback?.onAdShowedFullScreenContent?.call(this);
-        case EarnedReward(:final amount):
+        case EarnedReward(:final amount, :final rewardId):
           onUserEarnedReward(
             this,
-            LevelMomentRewardItem(type: 'question_answered', amount: amount),
+            LevelMomentRewardItem(
+              type: 'question_answered',
+              amount: amount,
+              rewardId: rewardId,
+            ),
           );
-        case Dismissed():
+        // SignedIn belongs to the sign-in gate and never reaches a break. If
+        // one ever arrives the surface has closed, so resume the game rather
+        // than leaving it waiting for a dismiss that will not come.
+        case Dismissed() || SignedIn():
           if (terminal) return;
           terminal = true;
           fullScreenContentCallback?.onAdDismissedFullScreenContent?.call(this);
@@ -170,12 +210,22 @@ class LevelMomentRewardedAd {
       }
     }
 
+    final hostedUrl = buildUrl();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => LevelMomentWebView(
-          url: buildUrl(),
+          key: ValueKey(hostedUrl),
+          url: hostedUrl,
           onMessage: handleMessage,
+          onNeedCredential: credentialResponder(
+            placementId: placementId,
+            explicitToken: studentToken,
+            customData: customData,
+            useDeviceStore: !LevelMomentAds.instance.mock &&
+                LevelMomentAds.instance.unsafeTesting == null,
+            origin: levelMomentOrigin(LevelMomentAds.instance.breakUrl),
+          ),
         ),
       ),
     );
@@ -191,7 +241,7 @@ class LevelMomentRewardedAd {
   // URL building — mirrors LevelMomentAd._buildUrl() in the react-native SDK
   // ---------------------------------------------------------------------------
 
-  /// Build the hosted /break page URL with placement / token / format params.
+  /// Build the hosted /break page URL with placement / format params.
   /// Exposed for testing; treat as private elsewhere.
   @visibleForTesting
   String buildUrl() {
@@ -203,13 +253,15 @@ class LevelMomentRewardedAd {
       params['mock'] = 'true';
     } else {
       params['apiUrl'] = LevelMomentAds.instance.apiUrl;
-      params['token'] = studentToken;
     }
-    // SSV-parity: carry the host-supplied customData to the hosted page in both
-    // modes (opaque correlation data, not a credential) so the page stamps it
-    // on every impression it records.
-    if (customData != null) {
-      params['customData'] = customData!;
+    // No credential rides on this URL. The page asks over the bridge
+    // (`needCredential`) and the answer comes from the secure store, so a live
+    // token never reaches a launch URL, a crash report, or a web log.
+    params[kHostCapabilitiesParam] = kHostCapabilities;
+    params['protocolVersion'] = '$kLevelMomentProtocolVersion';
+    params['sdkVersion'] = kLevelMomentSdkVersion;
+    if (LevelMomentAds.instance.isUnsafeTesting) {
+      params['sandbox'] = 'true';
     }
 
     final query = params.entries

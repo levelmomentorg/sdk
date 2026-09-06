@@ -1,107 +1,101 @@
 # @levelmoment/sdk-web
 
-**Status: 🟢 Verified end to end in the browser — real question served through the iframe loader, answered, reward bridged.**
+Level Moment is a rewarded break for browser and HTML5 games. The SDK opens
+the hosted experience in a fullscreen iframe and reports familiar rewarded
+placement events.
 
-JavaScript/TypeScript SDK for web and HTML5 games. Drop-in replacement for Google AdSense / Ad Manager interstitials in browser-based games.
+**Preview:** Validate the hosted break and browser behavior in every target
+browser before release. The repository version is `0.2.0`; it is not the
+current public npm release. Use the immutable preview artifact or reference
+supplied for your partner integration.
 
-Per [ADR-001](../../docs/ADR-001-webview-rendering.md), this SDK is a **thin
-loader**: `show()` opens the hosted `/break` page (`platform/web/app/break`) in
-a fullscreen iframe and bridges its `postMessage` terminal events. It ships
-**no DOM renderer** — all question rendering and the impression queue live in
-the hosted page. Structurally it mirrors `@levelmoment/sdk-react-native` (a WebView
-shell).
+## Install
 
-See [`MIGRATION.md`](MIGRATION.md) for a step-by-step swap guide from AdSense.
+Install the immutable `0.2.0` preview artifact or reference supplied for your
+partner integration. The public npm channel currently provides `0.1.2`, which
+does not necessarily match this preview README.
 
----
+Use `AGENT-INSTRUCTIONS.md` in the complete partner packet supplied with this
+preview. Give the agent that packet, the immutable artifact or source reference,
+the placement ID, target slot, and reward action.
 
-## What's Done
-
-- **`LevelMomentWebAd`** — thin loader ad class; `load()` marks the break ready, `show()` mounts a fullscreen iframe pointed at the hosted `/break` page and bridges its `ready/earnedReward/dismissed/error` postMessage protocol (origin-validated)
-- **`LevelMomentWebClient`** — one-time initialisation + `loadAd()` convenience; resolves the break URL (same-origin `/break` by default, overridable via `breakUrl`). `start()`/`stop()` are kept-for-compat no-ops (the impression flush loop moved into the hosted page)
-- **`WebClientConfig`** — `LevelMomentConfig & { breakUrl?: string; mock?: boolean; breakLoadTimeoutMs?: number }`. `LevelMomentConfig.customData` (SSV-parity) rides onto the `/break` URL and is stamped on every impression the hosted page records
-- **Load-timeout watchdog** — if the hosted `/break` page never posts `ready` within `breakLoadTimeoutMs` (default 15000ms; `0`/negative disables) of `show()`, the iframe + listener + timer are torn down and `onAdDismissed` fires so the game resumes (handles host crash/navigation/network-drop). Only guards the pre-`ready` phase — once `ready` arrives the hosted page owns the lifecycle and is never force-closed. `ad.dispose()` is the explicit escape hatch for game-side abort/pause (tears down iframe + listener + timer)
-- **No DOM renderer shipped** — all 8 question types, session/lesson flow, and the impression queue are rendered/owned by the hosted page (`platform/web/app/break/_renderer/`)
-- **`LevelMomentAd`** (re-exported from `@levelmoment/sdk-core`) — low-level handle for advanced use cases
-- **`MIGRATION.md`** — line-by-line swap guide from AdSense/Ad Manager
-- **Unit tests** — URL building (mock/live, breakUrl default/override, `?`/`&`, SSV `customData`), the postMessage bridge (reward mapping, dismiss/error teardown, origin mismatch ignored), `start()/stop()` no-ops, iframe mounting/teardown, the load-timeout watchdog (fires on host silence, cleared by `ready`/`dispose()`/`dismissed`, custom + `0`-disabled timeout)
-
-## What's Not Done
-
-- [ ] No CDN/UMD build for non-module game frameworks — add a `umd` tsup output for games that use `<script src="...">` tags
-- [ ] Games not served same-origin as the hosted Next app must pass `breakUrl` explicitly (documented in `MIGRATION.md`)
-
----
-
-## Setup
-
-```bash
-npm install   # from repo root
-
-# Run unit tests (Vitest)
-cd sdk/web && npx vitest run
-
-# Run type-check
-npx tsc --noEmit
-
-# Build (ESM + CJS dual bundle)
-npm run build
-```
-
----
-
-## Usage
+## Use
 
 ```ts
-import { LevelMomentWebClient, LevelMomentWebAd } from "@levelmoment/sdk-web";
+import {
+  LevelMomentWebClient,
+  type LevelMomentWebAd,
+} from "@levelmoment/sdk-web";
 
-// 1. Initialise once at game boot
 const client = LevelMomentWebClient.initialize({
-  apiUrl: import.meta.env.VITE_API_URL,
-  placementId: import.meta.env.VITE_GAME_ID,
-  studentToken: new URLSearchParams(location.search).get("token") ?? "",
-});
-client.start();
-
-// 2. Preload while the game runs
-let pendingAd: LevelMomentWebAd | null = null;
-client.loadAd({
-  onAdLoaded: (ad) => {
-    pendingAd = ad;
-  },
-  onAdFailedToLoad: () => {},
+  placementId: "YOUR_PLACEMENT_ID",
 });
 
-// 3. Show in an existing ad slot. The SDK renders everything.
-//    earnedReward fires once per graded answer — accumulate, apply on dismiss.
-let reward = 0;
-pendingAd?.show({
-  onUserEarnedReward: (r) => (reward = Math.max(reward, r.amount)),
-  onAdDismissed: () => {
-    if (reward === 1) grantBonus();
+let nextAd: LevelMomentWebAd | undefined;
+const prepare = () => {
+  client.loadAd({
+    onAdLoaded: (ad) => (nextAd = ad),
+    onAdFailedToLoad: (error) => console.error(error),
+  });
+};
+
+function showBreak() {
+  const ad = nextAd;
+  if (!ad) return;
+  nextAd = undefined;
+  pauseGame();
+
+  let granted = false;
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
     resumeGame();
-  },
-  onAdFailedToShow: () => resumeGame(), // optional; absent → falls back to onAdDismissed
-});
+    prepare();
+  };
+  ad.show({
+    onUserEarnedReward: ({ amount }) => {
+      if (!finished && amount === 1 && !granted) {
+        granted = true;
+        grantBonus();
+      }
+    },
+    onAdDismissed: finish,
+    onAdFailedToShow: finish,
+  });
+}
+
+prepare();
 ```
 
-That's it. `show()` opens the hosted `/break` page, which renders the question
-UI, handles all user interactions, manages session flow (multiple questions,
-summary screen, lesson for deep_dive), owns the impression queue, and posts
-back terminal events that drive your callbacks.
+`loadAd()` prepares an ad handle. The hosted break loads when `show()` opens;
+the SDK does not promise an instant display or preload the activity. Always
+resume the game after dismissal or show failure. An optional `rewardId` is an
+opaque correlation value for server callbacks.
 
-> **Same-origin default.** `loadAd()` defaults the break URL to
-> `window.location.origin + "/break"`. If your game is **not** served
-> same-origin as the hosted Next app, pass `breakUrl` in
-> `initialize({ ..., breakUrl })`. See `MIGRATION.md`.
+The standard production configuration needs only `placementId`; the SDK always
+uses the canonical Level Moment hosted origin. For local or sandbox development,
+pass test endpoints and an `eply_sbx_` credential through `unsafeTesting`. Use
+`mock: true` for local UI work without live questions. Do not set production
+URLs or player tokens in the normal configuration.
 
----
+## Optional learning-access flow
 
-## Key Files
+When a player chooses learning, open the access flow:
 
-| File                      | Purpose                                                                                 |
-| ------------------------- | --------------------------------------------------------------------------------------- |
-| `src/LevelMomentWebAd.ts` | Thin loader ad class — builds the `/break` URL, mounts the iframe, bridges postMessage  |
-| `src/client.ts`           | `LevelMomentWebClient` — init, breakUrl resolution, `loadAd()`; `start()/stop()` no-ops |
-| `src/index.ts`            | Public exports                                                                          |
-| `MIGRATION.md`            | Swap guide from AdSense / Ad Manager                                                    |
+```ts
+const result = await client.ensureAccess();
+if (result === "ready") openLearningChoice();
+else resumeGame();
+```
+
+This does not need to block normal game startup. The flow returns `ready`,
+`canceled`, or `technicalFailure`; preserve gameplay when it is canceled.
+Use `client.checkAccess()` for a noninteractive check: `false` means the
+player needs the access flow, while a technical failure rejects the promise.
+
+See [`MIGRATION.md`](MIGRATION.md) and the signed-in [developer documentation](https://levelmoment.com/docs) for more details.
+
+Create a new handle after every terminal callback. The example grants one game
+bonus on the first correct answer and resumes play once on dismissal or
+failure. An earned bonus survives a later show failure.

@@ -3,7 +3,7 @@
 //
 // Attach to a Manager GameObject in your bootstrap scene. The SDK renders
 // nothing — Show() opens the hosted /break page in a WebView and calls back on
-// reward / dismiss. You only preload, show, and resume.
+// reward / dismiss. You only prepare, show, and resume.
 //
 // Requires a WebView provider: install gree/unity-webview and add the
 // LEVELMOMENT_GREE_WEBVIEW scripting define (see sdk/unity/README.md).
@@ -15,8 +15,6 @@ using LevelMoment;
 public class AdBreakExample : MonoBehaviour
 {
     [Header("LevelMoment Config")]
-    [SerializeField] private string apiUrl = "https://api.levelmoment.com";
-    [SerializeField] private string breakUrl = "https://app.levelmoment.com/break";
     [SerializeField] private string placementId = "your-placement-id";
     [SerializeField] private bool mock = false;
 
@@ -24,17 +22,12 @@ public class AdBreakExample : MonoBehaviour
 
     private void Awake()
     {
-        LevelMomentAds.Initialize(new LevelMomentConfig
-        {
-            ApiUrl = apiUrl,
-            BreakUrl = breakUrl,
-            Mock = mock,
-        });
+        LevelMomentAds.Initialize(new LevelMomentConfig { Mock = mock });
 
         LoadNext();
     }
 
-    // Preload in the background so Show() is instant when the ad slot opens.
+    // Prepare the next break in the background; this marks the shell ready.
     private void LoadNext()
     {
         RewardedAd.Load(placementId, new RewardedAdLoadCallbacks
@@ -74,7 +67,7 @@ public class AdBreakExample : MonoBehaviour
             OnAdDismissed = () =>
             {
                 ResumeGame();
-                LoadNext(); // preload the next break
+                LoadNext(); // prepare the next break
             },
             OnAdFailedToShow = error =>
             {

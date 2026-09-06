@@ -13,23 +13,39 @@ using UnityEngine;
 
 namespace LevelMoment
 {
+    /// <summary>
+    /// Anything with a load watchdog that needs a per-frame nudge: a break, and
+    /// the sign-in gate. Explicitly implemented so the per-frame plumbing stays
+    /// off the public API of either.
+    /// </summary>
+    internal interface ITickable
+    {
+        void Tick();
+    }
+
     internal class LevelMomentRuntime : MonoBehaviour
     {
         private static LevelMomentRuntime _instance;
 
-        private readonly List<RewardedAd> _active = new List<RewardedAd>();
+        // EditMode tests set this true to skip creating the MonoBehaviour
+        // driver; they drive Tick() manually with an injected clock instead.
+        internal static bool SkipDriver;
 
-        public static void Track(RewardedAd ad)
+        private readonly List<ITickable> _active = new List<ITickable>();
+
+        public static void Track(ITickable tickable)
         {
+            if (SkipDriver)
+                return;
             EnsureInstance();
-            if (!_instance._active.Contains(ad))
-                _instance._active.Add(ad);
+            if (!_instance._active.Contains(tickable))
+                _instance._active.Add(tickable);
         }
 
-        public static void Untrack(RewardedAd ad)
+        public static void Untrack(ITickable tickable)
         {
             if (_instance != null)
-                _instance._active.Remove(ad);
+                _instance._active.Remove(tickable);
         }
 
         private static void EnsureInstance()

@@ -10,6 +10,12 @@ using System;
 
 namespace LevelMoment
 {
+    public class LevelMomentRewardItem
+    {
+        public int Amount;
+        public string RewardId;
+    }
+
     /// <summary>
     /// Load-phase callbacks. Mirrors AdMob's <c>RewardedAdLoadCallback</c>.
     /// </summary>
@@ -34,6 +40,9 @@ namespace LevelMoment
         /// <c>OnUserEarnedReward</c> (grant a bonus when amount == 1).
         /// </summary>
         public Action<int> OnUserEarnedReward;
+
+        /// <summary>Answer event with the opaque impression identifier.</summary>
+        public Action<LevelMomentRewardItem> OnUserEarnedRewardItem;
 
         /// <summary>
         /// Fired exactly once when the break ends (any outcome). ALWAYS resume

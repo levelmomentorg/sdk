@@ -42,6 +42,39 @@ namespace LevelMoment
     }
 
     /// <summary>
+    /// A WebView host that can also load a page with nothing on screen. The
+    /// headless credential check (<c>LevelMomentAds.IsSignedIn</c>) has an
+    /// answer to fetch but nothing to show, so a provider that implements this
+    /// keeps the check invisible. Providers that do not implement it still work
+    /// — the check falls back to <see cref="ILevelMomentWebView.Open"/>, which
+    /// briefly shows the surface.
+    /// </summary>
+    public interface ILevelMomentHeadlessWebView : ILevelMomentWebView
+    {
+        /// <summary>Load <paramref name="url"/> without presenting anything.</summary>
+        void OpenHidden(string url);
+    }
+
+    /// <summary>
+    /// A WebView host that can run script inside the loaded page. This is how
+    /// the credential reaches the hosted surface now that it no longer rides on
+    /// the URL: the page posts <c>needCredential</c> and the SDK answers by
+    /// evaluating one line in the page.
+    ///
+    /// Optional. A provider that does not implement it still works — the page
+    /// waits briefly, hears nothing, and uses the credential it stored itself,
+    /// which is where a paired device's credential lives anyway. A game that
+    /// passes an explicit token (sandbox, or one it read from a parent-portal
+    /// link) does need a provider that implements this, or the token has no way
+    /// to reach the page. The bundled gree adapter implements it.
+    /// </summary>
+    public interface ILevelMomentScriptableWebView : ILevelMomentWebView
+    {
+        /// <summary>Run <paramref name="js"/> in the loaded page.</summary>
+        void EvaluateJS(string js);
+    }
+
+    /// <summary>
     /// Registry of the active <see cref="ILevelMomentWebView"/> factory. The gree
     /// adapter self-registers via [RuntimeInitializeOnLoadMethod] when
     /// LEVELMOMENT_GREE_WEBVIEW is set; custom providers call

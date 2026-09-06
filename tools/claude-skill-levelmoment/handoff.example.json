@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "platform": "web",
+  "sdk": {
+    "version": "0.2.0",
+    "platformArtifact": {
+      "packageName": "",
+      "artifactPath": "",
+      "sha256": ""
+    },
+    "requiredArtifacts": [],
+    "nativeSource": {
+      "repository": "",
+      "immutableRef": ""
+    },
+    "peerDependencies": [],
+    "installCommand": ""
+  },
+  "placement": {
+    "placementId": ""
+  },
+  "slot": {
+    "file": "",
+    "symbol": "",
+    "description": "",
+    "preserveOtherAds": true
+  },
+  "reward": {
+    "action": "",
+    "firstCorrectOnly": true,
+    "resumeOnTerminal": true
+  },
+  "verification": {
+    "installCommand": "",
+    "testCommand": "",
+    "buildCommand": ""
+  }
+}

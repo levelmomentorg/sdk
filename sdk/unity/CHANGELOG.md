@@ -4,19 +4,38 @@ All notable changes to `com.levelmoment.sdk` (Unity UPM package) are documented
 here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
-## [Unreleased]
+## [0.2.0] — 2026-09-05
 
-### Changed — BREAKING: rewritten as an ADR-001 WebView shell
+**Preview:** Validate the WebView provider and hosted break on each target
+device before release.
 
-The SDK no longer renders questions in-game. Per
-[ADR-001](../../docs/ADR-001-webview-rendering.md) it is now a thin shell that
-opens the hosted `/break` page in a WebView and bridges its events — the same
-architecture as `sdk/web`, `sdk/react-native`, and `sdk/flutter`. This is a
-full API replacement.
+### Removed — BREAKING
+
+- `subscription_required` is gone from the ad error codes, along with every
+  other entitlement code. A household's subscription state is Level Moment's,
+  not the publisher's: a game that could read it could show its own upsell. A
+  break refused for billing reasons now surfaces the same way any other refusal
+  does.
+
+### Added — the shell says what it can do
+
+- `BreakUrl.Build` and `BreakUrl.BuildGate` append `caps=openExternal`, telling
+  the hosted page this shell can open a link in the system browser. The page
+  offers the parent an "Approve in your browser" button only where something
+  will happen; a page loaded by an older shell shows the QR code and the typed
+  code alone. Upgrading is what turns that button back on.
+- `openExternal` is handled by `ExternalBrowser.Open`, which launches the
+  approval URL only when it belongs to the origin of the page the WebView
+  loaded.
+
+### Changed — BREAKING: hosted WebView shell
+
+The SDK opens the hosted `/break` page in a WebView and bridges its events.
 
 - **New public API** (mirrors AdMob / Unity Ads rewarded ads):
-  - `LevelMomentAds.Initialize(LevelMomentConfig)` — config is `ApiUrl`,
-    `BreakUrl`, `Mock` (no per-request state; no MonoBehaviour singleton).
+  - `LevelMomentAds.Initialize(LevelMomentConfig)` — production uses canonical
+    endpoints; `Mock` previews offline content and `UnsafeTesting` enables
+    sandbox URLs and credentials.
   - `RewardedAd.Load(placementId, callbacks)` — synchronous mark-ready, no
     network. The hosted page fetches when `Show()` opens it.
   - `ad.Show(callbacks)` — opens the hosted `/break` page in a WebView and maps
@@ -30,9 +49,7 @@ full API replacement.
   compiled only when the `LEVELMOMENT_GREE_WEBVIEW` scripting define is set
   (its own `LevelMomentSDK.Gree` assembly, gated by `defineConstraints`).
   Absent a provider, `NoWebViewFallback` fails `Show()` with install guidance.
-- The page now sends messages to Unity via gree's `Unity.call(json)` bridge; the
-  hosted page's postMessage shim (`platform/web/app/break/postToHost.ts`) was
-  extended to cover `window.Unity.call`.
+- The page sends messages to Unity through the configured WebView bridge.
 
 ### Removed — BREAKING
 
@@ -43,15 +60,38 @@ full API replacement.
 - `ImpressionQueue` (PlayerPrefs buffer) and the `/questions` / `/answers` /
   `/impressions` HTTP calls — the hosted page owns fetching, answers, and the
   impression queue.
-- `UrlSafety` and its credential-shaped-query-key denylist. It forbade a
-  `token` query key, which is incompatible with the ADR-001 contract: the
-  student token now legitimately rides in the WebView URL (`?token=`), exactly
-  as the web and Flutter shells do. URL construction moved to the pure,
-  test-covered `BreakUrl.Build`.
+- `UrlSafety` and its credential-shaped-query-key denylist. URL construction
+  moved to the pure, test-covered `BreakUrl.Build`, which never places a
+  credential on the query string — see "Credential bridge" below.
+
+### Added — credential bridge (no more `?token=` on the hosted URL)
+
+- The credential bridge answers the hosted page's `needCredential` message by
+  running script in the page,
+  instead of the credential riding on the `/break` URL. `BreakUrl.Build` /
+  `BreakUrl.BuildGate` never append a `token` param.
+- `studentToken` is now optional everywhere. A paired device needs none: the
+  credential lives in the hosted page's own storage, and `RewardedAd.Load` /
+  `LevelMomentAds.EnsureSignedIn` / `IsSignedIn` answer with an empty token
+  unless the game passes one explicitly (a sandbox token, for integration
+  testing).
+- **Nothing is read from the game's launch URL.** Let the device pair through
+  the hosted flow, or use `UnsafeTesting.Token` for sandbox work.
+- **Secure storage is not implemented in this SDK.** React Native and Flutter
+  keep a second copy of the credential in the device keychain or secure store,
+  so it survives the WebView's site data being cleared. Unity has no such store
+  without a native plugin, and this SDK does not ship one — it never asks for
+  custody of a minted credential, so the credential keeps living in the hosted
+  page's own storage, exactly as before. Pending native plugins.
+- An explicit token reaches the page only through a scriptable WebView provider.
+
+### Deprecated
+
+- Caller supplied URLs and production `studentToken` values are deprecated.
+  Use canonical defaults and `UnsafeTesting` for sandbox work.
 
 ### Notes
 
-- Version intentionally left unchanged here; the release process bumps it.
 - Not yet compiled by the Unity toolchain (no Unity in JS/TS CI). EditMode tests
   (`BreakUrl`, `HostMessage`, `LoadWatchdog`, `RewardedAd`) are written; run them
   plus an on-device smoke before tagging. See README → Verification.

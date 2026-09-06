@@ -1,3 +1,4 @@
+import { resolveHostedOptions, addBridgeVersion } from "@levelmoment/sdk-core";
 // LevelMomentWebAd — thin loader over the hosted /break page (ADR-001).
 //
 // Mirrors the AdMob RewardedAd API: load() in the background, then show() in the ad slot.
@@ -44,17 +45,12 @@ export interface WebAdShowCallbacks {
   onAdFailedToShow?: (error: LevelMomentAdError) => void;
 }
 
-// The terminal-event protocol posted by the hosted /break page. Kept in sync
-// with the HostMessage union documented at the top of
-// platform/web/app/break/page.tsx (and mirrors sdk/react-native's HostMessage).
-export type HostMessage =
-  | { type: "ready" }
-  | { type: "earnedReward"; payload: { amount: 0 | 1 } }
-  | { type: "dismissed" }
-  | { type: "error"; payload: { code: string; message: string } };
-
-/** Default pre-`ready` load-timeout for the hosted /break page (ms). */
-const DEFAULT_LOAD_TIMEOUT_MS = 15000;
+// The iframe + postMessage plumbing (origin validation, pre-`ready` watchdog,
+// once-only teardown) lives in ./breakFrame so the startup gate reuses exactly
+// the same guarantees. HostMessage is re-exported here because it was part of
+// this module's public surface before the split.
+export type { HostMessage } from "./breakFrame.js";
+import { BreakFrame, type HostMessage } from "./breakFrame.js";
 
 interface WebAdSpec {
   placementId: string;
@@ -62,13 +58,9 @@ interface WebAdSpec {
   breakUrl: string;
   apiUrl?: string;
   studentToken?: string;
+  testing?: boolean;
   mock?: boolean;
-  /**
-   * SSV-parity custom data (see `LevelMomentConfig.customData`). Forwarded to
-   * the hosted /break page as the `customData` query param so the page stamps
-   * it on every impression it records (and the server echoes it on
-   * reward.earned). Omitted from the URL when unset.
-   */
+  /** Opaque game-server context, sent through the host handshake. */
   customData?: string;
   /**
    * Pre-`ready` watchdog timeout (ms). Defaults to DEFAULT_LOAD_TIMEOUT_MS
@@ -80,10 +72,10 @@ interface WebAdSpec {
 export class LevelMomentWebAd {
   private _loaded = false;
   private _shown = false;
+  private _consumed = false;
+  private _rewardIds = new Set<string>();
   private _disposed = false;
-  private _iframe: HTMLIFrameElement | null = null;
-  private _messageListener: ((event: MessageEvent) => void) | null = null;
-  private _loadTimer: ReturnType<typeof setTimeout> | null = null;
+  private _frame: BreakFrame | null = null;
 
   private constructor(private readonly _spec: WebAdSpec) {}
 
@@ -98,7 +90,7 @@ export class LevelMomentWebAd {
    */
   static load(
     config: LevelMomentConfig & {
-      breakUrl: string;
+      breakUrl?: string;
       mock?: boolean;
       breakLoadTimeoutMs?: number;
     },
@@ -115,10 +107,12 @@ export class LevelMomentWebAd {
       return;
     }
 
+    config = resolveHostedOptions(config);
     const ad = new LevelMomentWebAd({
       placementId: config.placementId,
       format: options.format ?? "flashcard",
-      breakUrl: config.breakUrl,
+      breakUrl: resolveHostedOptions(config).breakUrl,
+      testing: !!config.unsafeTesting,
       apiUrl: config.apiUrl,
       studentToken: config.studentToken,
       mock: config.mock,
@@ -152,116 +146,92 @@ export class LevelMomentWebAd {
    * once per answer, then 'dismissed' (or 'error') fires when the session ends.
    */
   show(callbacks: WebAdShowCallbacks): void {
-    if (this._disposed || this._shown) return;
+    if (this._disposed || this._consumed) return;
     if (!this._loaded) {
       // Mirrors the old onAdFailedToShow fallback: resume cleanly.
       callbacks.onAdDismissed?.();
       return;
     }
     this._shown = true;
-
-    const url = this._buildUrl();
-    const expectedOrigin = this._expectedOrigin();
+    this._consumed = true;
 
     const teardown = (): void => {
-      if (this._loadTimer !== null) {
-        clearTimeout(this._loadTimer);
-        this._loadTimer = null;
-      }
-      if (this._messageListener) {
-        window.removeEventListener("message", this._messageListener);
-        this._messageListener = null;
-      }
-      if (this._iframe && this._iframe.parentNode) {
-        this._iframe.parentNode.removeChild(this._iframe);
-      }
-      this._iframe = null;
+      this._frame?.close();
+      this._frame = null;
       this._shown = false;
     };
 
-    const listener = (event: MessageEvent): void => {
-      // Validate origin — ignore messages from any other frame/window.
-      if (event.origin !== expectedOrigin) return;
-      const msg = event.data as HostMessage;
-      if (!msg || typeof msg.type !== "string") return;
-      switch (msg.type) {
-        case "ready":
-          // The hosted page is up and now owns the lifecycle — cancel the
-          // pre-`ready` watchdog. There is intentionally NO post-`ready`
-          // timeout: a student legitimately thinking through a quiz must
-          // never be force-closed.
-          if (this._loadTimer !== null) {
-            clearTimeout(this._loadTimer);
-            this._loadTimer = null;
-          }
-          return;
-        case "earnedReward":
-          callbacks.onUserEarnedReward?.({
-            type: "question_answered",
-            amount: msg.payload.amount,
-          });
-          return;
-        case "dismissed":
-          teardown();
-          callbacks.onAdDismissed?.();
-          return;
-        case "error":
-          teardown();
-          if (callbacks.onAdFailedToShow) {
-            callbacks.onAdFailedToShow({
-              code:
-                (msg.payload.code as LevelMomentAdError["code"]) ?? "unknown",
-              message: msg.payload.message,
+    this._frame = BreakFrame.open({
+      url: this._buildUrl(),
+      title: "LevelMoment break",
+      loadTimeoutMs: this._spec.loadTimeoutMs,
+      onMessage: (msg: HostMessage) => {
+        switch (msg.type) {
+          case "earnedReward":
+            if (msg.payload.rewardId) {
+              if (this._rewardIds.has(msg.payload.rewardId)) return;
+              this._rewardIds.add(msg.payload.rewardId);
+            }
+            callbacks.onUserEarnedReward?.({
+              type: "question_answered",
+              amount: msg.payload.amount,
+              ...(msg.payload.rewardId
+                ? { rewardId: msg.payload.rewardId }
+                : {}),
             });
-          } else {
+            return;
+          case "dismissed":
+            teardown();
             callbacks.onAdDismissed?.();
-          }
-          return;
-      }
-    };
-    this._messageListener = listener;
-    window.addEventListener("message", listener);
-
-    const iframe = document.createElement("iframe");
-    iframe.src = url;
-    iframe.setAttribute("title", "LevelMoment break");
-    iframe.style.cssText =
-      "position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647";
-    this._iframe = iframe;
-    document.body.appendChild(iframe);
-
-    // Pre-`ready` load-timeout watchdog. If the hosted page never posts
-    // `ready` (it crashed, navigated away, or the network dropped it) and
-    // the game never calls dispose(), the fullscreen iframe would otherwise
-    // permanently cover the game and the listener would leak. On fire: clean
-    // resume — identical to the not-loaded fallback at the top of show().
-    const timeoutMs = this._spec.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
-    if (timeoutMs > 0) {
-      this._loadTimer = setTimeout(() => {
-        // No-op if we were already torn down/disposed (race with a terminal
-        // message or dispose()): teardown clears _loadTimer, but guard anyway.
-        if (this._disposed || !this._shown) return;
+            return;
+          case "needCredential":
+            // The page is asking rather than reading a token off its URL.
+            // Answer with whatever this game configured — usually nothing,
+            // because a paired device's credential already lives on the hosted
+            // origin. `custody: false`: this adapter has nowhere better to keep
+            // a credential than the hosted origin's own storage, so it never
+            // asks for one back.
+            this._frame?.deliverCredential({
+              token: this._spec.studentToken ?? "",
+              custody: false,
+              customData: this._spec.customData,
+            });
+            return;
+          case "error":
+            teardown();
+            if (callbacks.onAdFailedToShow) {
+              callbacks.onAdFailedToShow({
+                code:
+                  (msg.payload.code as LevelMomentAdError["code"]) ?? "unknown",
+                message: msg.payload.message,
+              });
+            } else {
+              callbacks.onAdDismissed?.();
+            }
+            return;
+          // `ready` cancels the watchdog inside BreakFrame; `signedIn` belongs
+          // to the startup gate and never reaches a break.
+          default:
+            return;
+        }
+      },
+      // The hosted page never posted `ready` (it crashed, navigated away, or
+      // the network dropped it) and the game never called dispose(). Without
+      // this the fullscreen iframe would permanently cover the game. Resume
+      // exactly as the not-loaded fallback at the top of show() does.
+      onLoadTimeout: () => {
+        if (this._disposed) return;
         teardown();
         callbacks.onAdDismissed?.();
-      }, timeoutMs);
-    }
+      },
+    });
   }
 
   /** Release resources: tear down the iframe and remove the message listener. */
   dispose(): void {
     this._disposed = true;
-    if (this._loadTimer !== null) {
-      clearTimeout(this._loadTimer);
-      this._loadTimer = null;
-    }
-    if (this._messageListener) {
-      window.removeEventListener("message", this._messageListener);
-      this._messageListener = null;
-    }
-    if (this._iframe && this._iframe.parentNode) {
-      this._iframe.parentNode.removeChild(this._iframe);
-    }
-    this._iframe = null;
+    this._frame?.close();
+    this._frame = null;
     this._shown = false;
   }
 
@@ -271,24 +241,14 @@ export class LevelMomentWebAd {
     params.set("format", this._spec.format);
     if (this._spec.mock) {
       params.set("mock", "true");
-    } else {
-      if (this._spec.apiUrl) params.set("apiUrl", this._spec.apiUrl);
-      if (this._spec.studentToken) params.set("token", this._spec.studentToken);
+    } else if (this._spec.apiUrl) {
+      params.set("apiUrl", this._spec.apiUrl);
     }
-    // SSV-parity: carry the host-supplied customData to the hosted page in both
-    // modes (it's opaque correlation data, not a credential) so the page can
-    // stamp it on every impression it records.
-    if (this._spec.customData) params.set("customData", this._spec.customData);
+    // No credential rides on this URL. The page asks for one over the bridge
+    // (`needCredential`) and gets it from deliverCredential() above, so a live
+    // token never reaches a game's launch URL, a crash report, or a web log.
+    addBridgeVersion(params, this._spec.testing);
     const sep = this._spec.breakUrl.includes("?") ? "&" : "?";
     return `${this._spec.breakUrl}${sep}${params.toString()}`;
-  }
-
-  // The origin we accept postMessage from. Resolve breakUrl against the
-  // current location so a relative same-origin "/break" yields this page's
-  // origin (matching how the hosted page posts to window.parent).
-  private _expectedOrigin(): string {
-    const base =
-      typeof window !== "undefined" ? window.location.href : undefined;
-    return new URL(this._spec.breakUrl, base).origin;
   }
 }

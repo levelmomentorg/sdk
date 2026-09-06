@@ -16,6 +16,7 @@
 
 #if LEVELMOMENT_GREE_WEBVIEW
 using System;
+using System.Text.RegularExpressions;
 using UnityEngine;
 #if LEVELMOMENT_GREE_UPM
 // The UPM dist packages (net.gree.unity-webview, dist/package*) namespace the
@@ -27,7 +28,7 @@ using Gree.UnityWebView;
 
 namespace LevelMoment
 {
-    internal class GreeWebViewAdapter : ILevelMomentWebView
+    internal class GreeWebViewAdapter : ILevelMomentHeadlessWebView, ILevelMomentScriptableWebView
     {
         // OnClosed is required by the interface. gree surfaces no native "closed"
         // callback (the hosted page posts `dismissed` itself), so it is unused.
@@ -42,6 +43,21 @@ namespace LevelMoment
 
         public void Open(string url)
         {
+            Load(url, true);
+        }
+
+        /// <summary>
+        /// Load the page with nothing on screen, for the headless credential
+        /// check. gree loads and runs an invisible WebView exactly as it would a
+        /// visible one, so the page still reaches the API and posts its verdict.
+        /// </summary>
+        public void OpenHidden(string url)
+        {
+            Load(url, false);
+        }
+
+        private void Load(string url, bool visible)
+        {
             _gameObject = new GameObject("[LevelMomentWebView]");
             _webView = _gameObject.AddComponent<WebViewObject>();
 
@@ -53,8 +69,33 @@ namespace LevelMoment
                 enableWKWebView: true);
 
             _webView.SetMargins(0, 0, 0, 0);
-            _webView.SetVisibility(true);
+            _webView.SetVisibility(visible);
+            // gree applies this allow pattern to every navigation, including
+            // redirects. Keep the hosted origin in the WebView and leave
+            // parent approval links to the explicit openExternal bridge.
+            var parsed = new Uri(url);
+            var authority = Regex.Escape(parsed.GetLeftPart(UriPartial.Authority));
+            // gree defaults unmatched URLs to allowed. A deny-all fallback is
+            // therefore required even with an allow pattern: the allow match
+            // wins, while every other navigation (including redirects) is
+            // rejected. Refuse to load if the provider cannot install the
+            // guard, so a shell is never opened without its origin fence.
+            var patternInstalled = _webView.SetURLPattern(
+                "^" + authority + "(?:/|$)", ".*", "");
+            if (!patternInstalled)
+                throw new InvalidOperationException("The WebView provider could not install the origin allowlist.");
             _webView.LoadURL(url);
+        }
+
+        /// <summary>
+        /// Run script in the loaded page — how the SDK answers the page's
+        /// `needCredential`. gree queues the call until the page is loaded, so
+        /// it is safe to make as soon as the message arrives.
+        /// </summary>
+        public void EvaluateJS(string js)
+        {
+            if (_webView != null)
+                _webView.EvaluateJS(js);
         }
 
         public void Close()
