@@ -4,6 +4,30 @@ All notable changes to `com.levelmoment.sdk` (Unity UPM package) are documented
 here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
+## [Unreleased]
+
+### Added
+
+- `InterstitialAd` / `InterstitialAdLoadCallbacks` / `InterstitialAdShowCallbacks` —
+  a non-rewarded break placement with the same `Load()`/`Show()` lifecycle as
+  `RewardedAd`, for a slot that grants nothing (interstitial is the dominant
+  casual-game ad placement this SDK otherwise has no equivalent for).
+  `InterstitialAdShowCallbacks` carries the dismissed/failed/showed callbacks
+  only — no reward. The shell opens the hosted `/break` page with
+  `kind=interstitial` on the URL (`BreakUrl.Build` gained an optional `kind`
+  parameter; `RewardedAd` still passes none, so its URL is unchanged). The web
+  `/break` page does not yet read this param — see README.md → InterstitialAd.
+- The WebView lifecycle, watchdog, and terminal-once dismiss/error/close
+  collapse that `RewardedAd` and `InterstitialAd` share now live in one place
+  (`BreakSurfaceCore`, internal), so the two placements cannot drift apart.
+  `RewardedAd`'s method/property signatures are unchanged; one-show-per-handle
+  is now enforced (see Fixed, below) where it previously was not.
+
+### Fixed
+
+- A shown break no longer reports `IsLoaded` or reopens; get a fresh handle
+  from `Load()` per break; a second `Show()` reports `not_loaded`.
+
 ## [0.2.0] — 2026-09-05
 
 **Preview:** Validate the WebView provider and hosted break on each target

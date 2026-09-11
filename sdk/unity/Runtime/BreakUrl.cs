@@ -43,11 +43,18 @@ namespace LevelMoment
         /// <summary>
         /// Build the hosted /break URL for a placement. In mock mode the
         /// apiUrl is omitted and <c>mock=true</c> is appended instead.
+        /// <paramref name="kind"/> is the placement kind announced to the
+        /// page — omitted (as every call site but <c>InterstitialAd</c> does)
+        /// for backward compatibility; <c>InterstitialAd</c> passes
+        /// <c>"interstitial"</c> so the hosted page can tell it apart from a
+        /// rewarded break. The web /break page does not yet read this param —
+        /// see sdk/unity/README.md → InterstitialAd.
         /// </summary>
         public static string Build(
             LevelMomentConfig config,
             string placementId,
-            string format)
+            string format,
+            string kind = null)
         {
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
@@ -58,6 +65,8 @@ namespace LevelMoment
             var query = new StringBuilder();
             Append(query, "placementId", placementId);
             Append(query, "format", string.IsNullOrEmpty(format) ? "flashcard" : format);
+            if (!string.IsNullOrEmpty(kind))
+                Append(query, "kind", kind);
 
             if (config.Mock)
             {

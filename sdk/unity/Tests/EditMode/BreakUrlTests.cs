@@ -127,6 +127,29 @@ namespace LevelMoment.Tests.EditMode
             StringAssert.DoesNotContain("customData=", url);
         }
 
+        // ----- Placement kind (InterstitialAd only — RewardedAd passes none) -----
+
+        [Test]
+        public void Build_WithKind_AppendsKindParam()
+        {
+            var url = BreakUrl.Build(Live(), "p1", "flashcard", "interstitial");
+            StringAssert.Contains("kind=interstitial", url);
+        }
+
+        [Test]
+        public void Build_WithoutKind_OmitsKindParam()
+        {
+            var url = BreakUrl.Build(Live(), "p1", "flashcard");
+            StringAssert.DoesNotContain("kind=", url);
+        }
+
+        [Test]
+        public void Build_WithEmptyKind_OmitsKindParam()
+        {
+            var url = BreakUrl.Build(Live(), "p1", "flashcard", "");
+            StringAssert.DoesNotContain("kind=", url);
+        }
+
         // ----- Format defaulting -----
 
         [Test]

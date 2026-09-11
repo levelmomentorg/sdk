@@ -227,6 +227,24 @@ namespace LevelMoment.Tests.EditMode
             Assert.AreEqual("invalid_request", error.Code);
         }
 
+        // BreakSurfaceCore.TryResolveLoad's third guard: ResolveStudentToken
+        // throws for a non-sandbox token even though UnsafeTesting is
+        // configured (this fixture's SetUp does). The throw must not escape
+        // Load() — it becomes an invalid_request callback, like the other two
+        // guards.
+        [Test]
+        public void Load_WithNonSandboxToken_FailsWithInvalidRequestAndDoesNotThrow()
+        {
+            LevelMomentAdError error = null;
+            Assert.DoesNotThrow(() => RewardedAd.Load(
+                "p1",
+                "not-a-sandbox-token",
+                new RewardedAdLoadCallbacks { OnAdFailedToLoad = e => error = e }));
+
+            Assert.IsNotNull(error);
+            Assert.AreEqual("invalid_request", error.Code);
+        }
+
         [Test]
         public void Load_MarksReadySynchronously()
         {
@@ -248,6 +266,21 @@ namespace LevelMoment.Tests.EditMode
 
             Assert.AreEqual(1, fake.OpenCount);
             StringAssert.Contains("placementId=p1", fake.LastUrl);
+        }
+
+        // The URL this placement opens must not change shape: BreakSurfaceCore
+        // (shared with InterstitialAd) passes no `kind` for a rewarded break,
+        // matching the URL before InterstitialAd existed.
+        [Test]
+        public void Show_NeverIncludesAKindParam()
+        {
+            var fake = new FakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+
+            var ad = LoadAd();
+            ad.Show(new RewardedAdShowCallbacks());
+
+            StringAssert.DoesNotContain("kind=", fake.LastUrl);
         }
 
         // A token the game supplied never lands on the URL. It only ever reaches
@@ -304,6 +337,14 @@ namespace LevelMoment.Tests.EditMode
             // window — but with nothing in it.
             Assert.AreEqual(1, fake.EvaluateJSCount);
             StringAssert.Contains("\\\"token\\\":\\\"\\\"", fake.LastJS);
+
+            // Pin the origin check CredentialBridge emits: it must gate on
+            // this break's own hosted origin (https://app.example.com, from
+            // this fixture's BreakUrl), not a hardcoded or wildcard origin —
+            // that is the guard that keeps a wandered-off WebView from
+            // fishing a credential out of this host.
+            StringAssert.Contains(
+                "window.location.origin === \"https://app.example.com\"", fake.LastJS);
         }
 
         [Test]
@@ -317,6 +358,70 @@ namespace LevelMoment.Tests.EditMode
             ad.Show(new RewardedAdShowCallbacks());
 
             Assert.AreEqual(1, fake.OpenCount);
+        }
+
+        // ---- IsLoaded latches once shown (regression: Teardown must not ------
+        // ---- reset `_shown`, or a dismissed break becomes re-showable) -------
+
+        [Test]
+        public void Show_ThenDismissed_IsLoadedStaysFalseAndASecondShowDoesNotOpen()
+        {
+            var fake = new FakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+
+            var ad = LoadAd();
+            ad.Show(new RewardedAdShowCallbacks());
+            fake.EmitMessage(Dismissed);
+
+            Assert.IsFalse(ad.IsLoaded);
+
+            var failedCount = 0;
+            var dismissedCount = 0;
+            LevelMomentAdError failed = null;
+            ad.Show(new RewardedAdShowCallbacks
+            {
+                OnAdFailedToShow = e => { failedCount++; failed = e; },
+                OnAdDismissed = () => dismissedCount++,
+            });
+
+            Assert.AreEqual(1, fake.OpenCount, "a dismissed break must not reopen its WebView");
+            Assert.AreEqual(1, failedCount);
+            Assert.IsNotNull(failed);
+            Assert.AreEqual("not_loaded", failed.Code);
+            Assert.AreEqual(0, dismissedCount);
+        }
+
+        // ---- Destroy() --------------------------------------------------------
+
+        [Test]
+        public void Destroy_ClosesTheWebViewAndFiresNoCallbacks()
+        {
+            var fake = new FakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+
+            var dismissed = 0;
+            LevelMomentAdError failed = null;
+            var ad = LoadAd();
+            ad.Show(new RewardedAdShowCallbacks
+            {
+                OnAdDismissed = () => dismissed++,
+                OnAdFailedToShow = e => failed = e,
+            });
+
+            ad.Destroy();
+
+            Assert.AreEqual(1, fake.CloseCount);
+            Assert.AreEqual(0, dismissed);
+            Assert.IsNull(failed);
+            Assert.IsFalse(ad.IsLoaded);
+
+            // Torn down and terminal: a dismissed message arriving late, and a
+            // watchdog tick, must both be no-ops after Destroy().
+            fake.EmitMessage(Dismissed);
+            _now = 1000;
+            ad.Tick();
+            Assert.AreEqual(0, dismissed);
+            Assert.IsNull(failed);
         }
 
         // ---- Ready ----------------------------------------------------------

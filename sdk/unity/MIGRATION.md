@@ -97,7 +97,31 @@ A multi-question break can emit several reward callbacks. Guard the game
 reward so the first correct answer grants it once. Dismissal and failure only
 resume the game.
 
-## 5. Configure sandbox testing
+## 5. Replace interstitial loading (optional)
+
+`InterstitialAd` swaps in for AdMob's `InterstitialAd` the same way: keep the
+load and show slots, drop the reward callback.
+
+```csharp
+InterstitialAd pending = null;
+InterstitialAd.Load("YOUR_PLACEMENT_ID", new InterstitialAdLoadCallbacks
+{
+    OnAdLoaded = ad => pending = ad,
+    OnAdFailedToLoad = error => ResumeGame(),
+});
+if (pending == null) return;
+
+pending.Show(new InterstitialAdShowCallbacks
+{
+    OnAdDismissed = () => ResumeGame(),
+    OnAdFailedToShow = error => ResumeGame(),
+});
+```
+
+No reward guard is needed — an interstitial break has nothing to grant.
+Dismissal and failure both resume the game, exactly as for a rewarded break.
+
+## 6. Configure sandbox testing
 
 Put local endpoints and the sandbox credential inside `UnsafeTesting`:
 

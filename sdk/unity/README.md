@@ -184,8 +184,9 @@ credentials stay in the hosted bridge and are never supplied in game config.
 - `OnUserEarnedReward(amount)` — fires once per graded answer: `amount == 1` for a correct answer, `0` otherwise. Grant the chosen bonus on the first correct callback only.
 - `OnUserEarnedRewardItem(item)` — optional equivalent answer callback with the opaque impression `RewardId`, when the hosted page supplies one.
 - `OnAdDismissed` — fires **exactly once** when the break ends. Always resume the game here.
-- `OnAdFailedToShow(error)` — fires instead of `OnAdDismissed` when the break can't be shown (not loaded, no WebView provider, page error).
+- `OnAdFailedToShow(error)` — fires instead of `OnAdDismissed` when the break can't be shown (not loaded, no WebView provider, page error, or the ad was already shown — see below).
 - `format` — `flashcard` (default), `quiz`, or `deep_dive`.
+- One `Show()` per handle: once a `RewardedAd`/`InterstitialAd` has been shown, `IsLoaded` is false and a second `Show()` reports `OnAdFailedToShow` with `not_loaded` rather than reopening it — get a fresh handle from `Load()` for each break.
 
 A **15-second pre-`ready` watchdog** guarantees a crashed or unreachable page
 can't cover the game forever — it resolves as a clean `OnAdDismissed`. After
@@ -203,6 +204,33 @@ by the Unity SDK's `EnsureSignedInResult`):
 - `IsSignedIn` is authoritative, not a cached flag — it re-validates the credential against the server every call, because a credential can be revoked between launches. An error means _unknown_, never _signed out_: treat it as "try again", and leave the current state alone.
 - Both methods allow the hosted page 15 seconds to load. `EnsureSignedIn` then waits without a deadline for approval, so pairing takes as long as a parent takes. `IsSignedIn` has no approval step and is bounded end to end: it calls `onError` if the page does not load in 15 seconds, if the page's credential check runs longer than 10 seconds (the page reports `check_timeout`), or if 30 seconds pass with no answer at all.
 - `EnsureAccess` and `CheckAccess` use the same outcome and deadline rules on `/access`; use them when access enablement is a separate publisher flow from identity sign-in.
+
+---
+
+## InterstitialAd
+
+`InterstitialAd` is the same hosted `/break` WebView shell as `RewardedAd` —
+same `Load()`/`Show()` lifecycle, same watchdog and dismiss/failure semantics
+— for a break slot that grants nothing (the placement AdMob calls a plain
+interstitial). `InterstitialAdShowCallbacks` has no reward callbacks; use it
+where the game doesn't want to grant a bonus for the break.
+
+```csharp
+InterstitialAd.Load("YOUR_PLACEMENT_ID", new InterstitialAdLoadCallbacks
+{
+    OnAdLoaded = ad => ad.Show(new InterstitialAdShowCallbacks
+    {
+        OnAdDismissed = ResumeGame,
+        OnAdFailedToShow = _ => ResumeGame(),
+    }),
+    OnAdFailedToLoad = _ => ResumeGame(),
+});
+```
+
+The shell announces `kind=interstitial` on the `/break` URL it opens
+(`RewardedAd` sends no `kind`), so the hosted page can tell which placement it
+is serving. **The hosted `/break` page does not yet read this param** — until
+it does, the page renders the same experience for both kinds.
 
 ---
 

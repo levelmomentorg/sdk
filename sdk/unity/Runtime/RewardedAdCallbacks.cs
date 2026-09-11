@@ -30,9 +30,12 @@ namespace LevelMoment
 
     /// <summary>
     /// Show-phase callbacks. Mirrors AdMob's <c>FullScreenContentCallback</c>
-    /// plus the <c>OnUserEarnedReward</c> handler.
+    /// plus the <c>OnUserEarnedReward</c> handler. The dismissed/failed/showed
+    /// callbacks live on <see cref="BreakShowCallbacksBase"/>, shared with
+    /// <see cref="InterstitialAdShowCallbacks"/>; this class adds only the
+    /// reward callbacks a rewarded break has and an interstitial does not.
     /// </summary>
-    public class RewardedAdShowCallbacks
+    public class RewardedAdShowCallbacks : BreakShowCallbacksBase
     {
         /// <summary>
         /// Fired on each answer: <c>amount</c> is 1 for a correct answer, 0
@@ -43,25 +46,5 @@ namespace LevelMoment
 
         /// <summary>Answer event with the opaque impression identifier.</summary>
         public Action<LevelMomentRewardItem> OnUserEarnedRewardItem;
-
-        /// <summary>
-        /// Fired exactly once when the break ends (any outcome). ALWAYS resume
-        /// your game here. Mirrors <c>OnAdFullScreenContentClosed</c>.
-        /// </summary>
-        public Action OnAdDismissed;
-
-        /// <summary>
-        /// Fired instead of OnAdDismissed when the break could not be shown
-        /// (not loaded, no WebView provider, page error). Resume your game here
-        /// too. Mirrors <c>OnAdFullScreenContentFailed</c>.
-        /// </summary>
-        public Action<LevelMomentAdError> OnAdFailedToShow;
-
-        /// <summary>
-        /// Optional. Fired once when the hosted page reports it is mounted and
-        /// interactive (the page's <c>ready</c> event). Mirrors
-        /// <c>OnAdFullScreenContentOpened</c>.
-        /// </summary>
-        public Action OnAdShowedFullScreenContent;
     }
 }
