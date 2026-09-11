@@ -8,6 +8,18 @@ versioning follows [Semver](https://semver.org).
 
 ### Added
 
+- `LevelMoment.Compat.Max` — an AppLovin MAX-shaped compatibility facade
+  (`Runtime/Compat/`) over the existing `InterstitialAd`/`RewardedAd`: a game
+  whose code calls `MaxSdk.LoadInterstitial(id)` /
+  `MaxSdk.ShowInterstitial(id)` and subscribes to
+  `MaxSdkCallbacks.Interstitial.OnAdLoadedEvent` switches to Level Moment by
+  changing the type prefixes and ad-unit ids, keeping its callback bodies.
+  `LevelMomentMaxSdk`/`LevelMomentMaxSdkCallbacks` have zero dependency on the
+  AppLovin plugin; three shape-compatible stand-in types (`AdInfo`,
+  `ErrorInfo`, `Reward`) live in `MaxCompatTypes.cs`. Facade callbacks are
+  delivered on a later frame, in order, as MAX's are, so calling back into
+  `LoadX`/`ShowX` from a callback is safe. See `sdk/unity/README.md`
+  → "AppLovin MAX compatibility facade".
 - `InterstitialAd` / `InterstitialAdLoadCallbacks` / `InterstitialAdShowCallbacks` —
   a non-rewarded break placement with the same `Load()`/`Show()` lifecycle as
   `RewardedAd`, for a slot that grants nothing (interstitial is the dominant

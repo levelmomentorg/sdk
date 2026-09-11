@@ -234,6 +234,85 @@ it does, the page renders the same experience for both kinds.
 
 ---
 
+## AppLovin MAX compatibility facade
+
+`LevelMoment.Compat.Max` (`Runtime/Compat/`) is a MAX-shaped facade over
+`InterstitialAd`/`RewardedAd`, for a game migrating off AppLovin MAX. Map each
+MAX ad-unit id to a Level Moment placement, then keep the rest of your
+integration unchanged:
+
+```csharp
+using LevelMoment;
+using LevelMoment.Compat.Max;
+
+// LevelMomentAds.Initialize(...) must run before InitializeSdk() —
+// InitializeSdk() does not configure endpoints/credentials itself, and a
+// Load() before Initialize() fails with "not_initialized".
+LevelMomentAds.Initialize(new LevelMomentConfig());
+
+LevelMomentMaxSdk.MapAdUnit("YOUR_MAX_AD_UNIT_ID", "YOUR_PLACEMENT_ID");
+
+// OnSdkInitializedEvent arrives on a later frame, as MAX's does.
+LevelMomentMaxSdkCallbacks.OnSdkInitializedEvent += () =>
+{
+    LevelMomentMaxSdkCallbacks.Interstitial.OnAdLoadedEvent += (adUnitId, adInfo) => { /* unchanged */ };
+    LevelMomentMaxSdk.LoadInterstitial("YOUR_MAX_AD_UNIT_ID");
+};
+LevelMomentMaxSdk.InitializeSdk();
+```
+
+It has **zero dependency on the AppLovin plugin** — `AdInfo`, `ErrorInfo`, and
+`Reward` in `MaxCompatTypes.cs` are Level Moment's own types, shape-compatible
+with MAX's (same member names) but not the same types, so a callback body
+that reads a member MAX has and these stand-ins don't will not compile. See
+that file's header for the exact member list. This facade is a separate
+migration track from `MIGRATION.md`, which covers a direct AdMob/Unity Ads
+port to `RewardedAd`/`InterstitialAd`.
+
+Runtime divergences worth knowing before you rely on this facade:
+
+- **`OnAdReceivedRewardEvent` fires at most once per `ShowRewardedAd`**, on
+  the first graded answer with a positive amount, matching MAX's grant-once
+  shape. The underlying `RewardedAdShowCallbacks.OnUserEarnedRewardItem`
+  still fires once per graded answer (amount 0 for a wrong one) if you need
+  per-answer granularity — it's just not behind the MAX-shaped event.
+- **`Reward.Label` is an opaque impression id**, not MAX's dashboard-configured
+  currency name — do not display it to a player or compare it against a
+  currency string.
+- **`placement`/`customData` on `ShowInterstitial`/`ShowRewardedAd` are
+  accepted and ignored** — there is no per-show placement override, and
+  custom data set this way never reaches the reward webhook. Passing a
+  non-empty value logs a one-time `Debug.LogWarning` so this isn't silent.
+  Configure `LevelMomentConfig.CustomData` at `Initialize()` time instead.
+- **Callbacks arrive on a later frame**, as MAX's do. No facade call raises
+  an event before it returns; events are queued and delivered in order on the
+  SDK's per-frame tick. Calling `LoadInterstitial`/`ShowInterstitial`/etc.
+  from inside a callback is therefore safe, including for the same ad unit:
+  it runs as a fresh call, on the frame that delivered the callback. `ShowX`
+  from inside `OnAdLoadedEvent` and `LoadX` from inside a failure callback
+  both work unchanged. A handler that retries a failing call on every delivery
+  keeps retrying, once per delivery, for as long as the call keeps failing —
+  cap or delay the retry. Two handlers that each retry the same failing call
+  make the backlog grow every frame; the SDK logs one warning once 512
+  callbacks are waiting.
+- **`IsInterstitialReady`/`IsRewardedAdReady` read current state directly**,
+  with no delivery delay. A handle is ready the moment its `Load` succeeds,
+  before `OnAdLoadedEvent` is delivered. Trigger a show from either
+  `OnAdLoadedEvent` or a readiness poll, not both: under MAX the two go true
+  together, here a poll can show first and the `OnAdLoadedEvent` handler's
+  `ShowX` then reports `already_showing`.
+- **Error codes a switch on `ErrorInfo.Code` should know about**:
+  `ShowInterstitial`/`ShowRewardedAd` fail with `not_loaded` when nothing is
+  loaded for that ad unit (call Load first) and with `already_showing` when
+  that ad unit's ad is already on screen (a duplicate Show, not a reload) —
+  two distinct codes for two distinct situations.
+- **A `Load` issued while that ad unit's break is on screen is held**,
+  not run immediately or dropped — it runs once the break ends, so
+  `OnAdLoadedEvent`/`OnAdLoadFailedEvent` for that reload arrive AFTER
+  `OnAdHiddenEvent`, not before or during.
+
+---
+
 ## Preview verification
 
 Automated C# checks do not replace validation in a real Unity editor, an

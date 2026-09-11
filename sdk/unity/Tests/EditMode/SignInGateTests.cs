@@ -163,6 +163,9 @@ namespace LevelMoment.Tests.EditMode
             LevelMomentAds.CheckTimeoutSeconds = 30;
             LevelMomentWebViewRegistry.Reset();
             RewardedAd.SkipRuntimeDriver = true;
+            // The runtime driver's registry is static: drop anything a
+            // previous test left registered.
+            LevelMomentRuntime.ResetForTests();
         }
 
         [TearDown]
@@ -170,6 +173,7 @@ namespace LevelMoment.Tests.EditMode
         {
             LevelMomentWebViewRegistry.Reset();
             RewardedAd.SkipRuntimeDriver = false;
+            LevelMomentRuntime.ResetForTests();
             LevelMomentAds.ResetForTests();
         }
 
