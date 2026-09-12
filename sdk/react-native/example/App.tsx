@@ -31,19 +31,19 @@ import type { BreakFormat } from "@levelmoment/sdk-core";
 
 const FORMATS: { id: BreakFormat; label: string; subtitle: string }[] = [
   {
-    id: "flashcard",
-    label: "Flashcard",
+    id: "quick_question",
+    label: "Quick question",
     subtitle: "Single question — fastest",
   },
   {
-    id: "quiz",
-    label: "Quiz",
+    id: "practice_set",
+    label: "Practice set",
     subtitle: "Multi-question session with summary",
   },
   {
-    id: "deep_dive",
-    label: "Deep Dive",
-    subtitle: "Lesson + quiz with summary",
+    id: "mastery_round",
+    label: "Mastery Round",
+    subtitle: "Lesson + practice set with summary",
   },
 ];
 
@@ -51,7 +51,7 @@ export default function App(): React.ReactElement {
   const [mockMode, setMockMode] = useState(true);
   const [breakUrl, setBreakUrl] = useState("http://localhost:3000/break");
   const [placementId, setPlacementId] = useState("demo-placement");
-  const [format, setFormat] = useState<BreakFormat>("quiz");
+  const [format, setFormat] = useState<BreakFormat>("practice_set");
   const [status, setStatus] = useState("Ready");
 
   // Pair this device before enabling gameplay. A device that already holds a

@@ -110,7 +110,7 @@ to Phase 2.
 - `ad.show(context:, onUserEarnedReward:)` — pushes the `LevelMomentBreakScreen`
   as a full-screen route.
 - `LevelMomentBreakScreen` widget renders all 8 question types + session
-  progression + deep-dive lessons.
+  progression + mastery-round lessons.
 - `SharedPreferences`-backed impression queue with persistence across app
   restarts.
 

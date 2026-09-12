@@ -48,7 +48,7 @@ type Listener<E extends LevelMomentAdEvent> = (
 ) => void;
 
 export interface LevelMomentAdOptions extends HostedOptions {
-  /** Break format: flashcard | quiz | deep_dive (default: flashcard). */
+  /** Break format (default: `quick_question`). */
   format?: BreakFormat;
   /** Use bundled mock questions instead of the live API. */
   mock?: boolean;
@@ -157,7 +157,7 @@ export class LevelMomentAd {
   private _buildUrl(): string {
     const params = new URLSearchParams();
     params.set("placementId", this.placementId);
-    params.set("format", this.options.format ?? "flashcard");
+    params.set("format", this.options.format ?? "quick_question");
     if (this.options.mock) {
       params.set("mock", "true");
     } else if (this.options.apiUrl) {

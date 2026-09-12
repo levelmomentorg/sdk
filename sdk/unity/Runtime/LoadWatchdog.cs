@@ -5,7 +5,7 @@
 // hosted page never posts `ready` (it crashed, navigated away, or the network
 // dropped it), the fullscreen WebView would otherwise cover the game forever.
 // After `ready` there is intentionally NO timeout — a student thinking through
-// a quiz must never be force-closed.
+// a question must never be force-closed.
 //
 // Modelled as a tick-driven state machine with an injectable clock so the
 // EditMode tests can drive it deterministically without Unity time.

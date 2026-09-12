@@ -110,7 +110,7 @@ export class LevelMomentWebAd {
     config = resolveHostedOptions(config);
     const ad = new LevelMomentWebAd({
       placementId: config.placementId,
-      format: options.format ?? "flashcard",
+      format: options.format ?? "quick_question",
       breakUrl: resolveHostedOptions(config).breakUrl,
       testing: !!config.unsafeTesting,
       apiUrl: config.apiUrl,

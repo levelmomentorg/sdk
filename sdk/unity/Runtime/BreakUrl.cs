@@ -64,7 +64,7 @@ namespace LevelMoment
 
             var query = new StringBuilder();
             Append(query, "placementId", placementId);
-            Append(query, "format", string.IsNullOrEmpty(format) ? "flashcard" : format);
+            Append(query, "format", string.IsNullOrEmpty(format) ? "quick_question" : format);
             if (!string.IsNullOrEmpty(kind))
                 Append(query, "kind", kind);
 

@@ -60,7 +60,7 @@ namespace LevelMoment
         public static void Load(
             string placementId,
             RewardedAdLoadCallbacks callbacks,
-            string format = "flashcard")
+            string format = "quick_question")
         {
             Load(placementId, null, callbacks, format);
         }
@@ -75,7 +75,7 @@ namespace LevelMoment
             string placementId,
             string studentToken,
             RewardedAdLoadCallbacks callbacks,
-            string format = "flashcard")
+            string format = "quick_question")
         {
             string resolvedToken;
             LevelMomentAdError error;
@@ -109,7 +109,7 @@ namespace LevelMoment
             get { return _core.IsLoaded; }
         }
 
-        /// <summary>The break format: <c>flashcard</c>, <c>quiz</c>, or <c>deep_dive</c>.</summary>
+        /// <summary>The break format: <c>quick_question</c>, <c>practice_set</c>, <c>mastery_round</c>, or <c>intro_lesson</c>.</summary>
         public string Format
         {
             get { return _core.Format; }

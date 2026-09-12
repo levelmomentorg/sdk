@@ -128,13 +128,13 @@ namespace LevelMoment
             Action<HostMessage> handleEarnedReward)
         {
             _placementId = placementId;
-            _format = string.IsNullOrEmpty(format) ? "flashcard" : format;
+            _format = string.IsNullOrEmpty(format) ? "quick_question" : format;
             _kind = kind;
             _studentToken = studentToken;
             _handleEarnedReward = handleEarnedReward;
         }
 
-        /// <summary>The break format: <c>flashcard</c>, <c>quiz</c>, or <c>deep_dive</c>.</summary>
+        /// <summary>The break format: <c>quick_question</c>, <c>practice_set</c>, <c>mastery_round</c>, or <c>intro_lesson</c>.</summary>
         public string Format
         {
             get { return _format; }

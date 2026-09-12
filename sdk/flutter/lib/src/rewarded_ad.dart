@@ -96,7 +96,7 @@ class LevelMomentRewardedAd {
     required String placementId,
     required LevelMomentAdLoadCallback adLoadCallback,
     String? studentToken,
-    String format = 'flashcard',
+    String format = 'quick_question',
     String? customData,
   }) async {
     assert(
@@ -129,7 +129,8 @@ class LevelMomentRewardedAd {
 
   bool get isLoaded => _loaded && !_disposed;
 
-  /// The break format: 'flashcard', 'quiz', or 'deep_dive'.
+  /// The break format: 'quick_question', 'practice_set', 'mastery_round',
+  /// or 'intro_lesson'.
   String get format => _format;
 
   /// Display the break. No network call here — the hosted page does the fetch.

@@ -44,7 +44,7 @@ export {
 
 // Pre-`ready` watchdog deadline, mirroring sdk/web, sdk/flutter and sdk/unity:
 // a crashed or unreachable hosted page must never cover the game forever. After
-// `ready` there is no timeout — a student thinking through a quiz, or a parent
+// `ready` there is no timeout — a student thinking through a break, or a parent
 // walking to another room to scan a code, is never force-closed.
 const READY_TIMEOUT_MS = 15_000;
 

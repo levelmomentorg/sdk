@@ -131,7 +131,7 @@ export class BreakFrame {
       if (msg.type === "ready") {
         // The hosted page is up and now owns the lifecycle. There is
         // intentionally NO post-`ready` timeout: a student thinking through a
-        // quiz, or a parent walking to another room to scan a code, must never
+        // break, or a parent walking to another room to scan a code, must never
         // be force-closed.
         frame._clearTimer();
       }

@@ -4,6 +4,20 @@ All notable changes to `@levelmoment/sdk-core` are documented here. Format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
+## [Unreleased]
+
+### Changed — BREAKING
+
+- `BreakFormat` is now `quick_question` | `practice_set` | `mastery_round` |
+  `intro_lesson`. The old members `flashcard`, `quiz` and `deep_dive` are gone,
+  so a game that names one no longer compiles: `flashcard` becomes
+  `quick_question`, `quiz` becomes `practice_set`, `deep_dive` becomes
+  `mastery_round`. `intro_lesson` is new — a mastery round that opens on an
+  instruction panel.
+- The service still accepts the three old names on the wire, so an already
+  shipped build keeps working. That alias is a short safety net, not a
+  contract; move to the new names.
+
 ## [0.2.0] — 2026-09-05
 
 ### Removed — BREAKING

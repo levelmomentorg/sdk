@@ -32,7 +32,7 @@ export type WebClientConfig = LevelMomentConfig & {
    * onAdDismissed fires so the game can resume. Default 15000. A value of 0
    * (or negative) disables the watchdog. The watchdog only guards the
    * pre-`ready` phase: once `ready` arrives the hosted page owns the
-   * lifecycle and is never force-closed (a student thinking through a quiz
+   * lifecycle and is never force-closed (a student thinking through a practice set
    * must not be interrupted).
    */
   breakLoadTimeoutMs?: number;

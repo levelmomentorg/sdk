@@ -21,8 +21,8 @@ import '../constants.dart';
 
 /// Pre-`ready` watchdog deadline, mirroring the web, RN, and Unity SDKs: a
 /// crashed or unreachable hosted page must never cover the game forever. After
-/// `ready` there is no timeout — a student thinking through a quiz, or a parent
-/// walking to another room to scan a code, is never force-closed.
+/// `ready` there is no timeout — a student thinking through a question, or a
+/// parent walking to another room to scan a code, is never force-closed.
 const Duration kBreakLoadTimeout = Duration(seconds: 15);
 
 // ---------------------------------------------------------------------------

@@ -186,11 +186,11 @@ namespace LevelMoment.Tests.EditMode
             var fake = new FakeWebView();
             LevelMomentWebViewRegistry.Register(() => fake);
 
-            LevelMomentMaxSdk.MapAdUnit("unit1", "p1", "quiz");
+            LevelMomentMaxSdk.MapAdUnit("unit1", "p1", "practice_set");
             LevelMomentMaxSdk.LoadInterstitial("unit1");
             LevelMomentMaxSdk.ShowInterstitial("unit1");
 
-            StringAssert.Contains("format=quiz", fake.LastUrl);
+            StringAssert.Contains("format=practice_set", fake.LastUrl);
         }
 
         [Test]

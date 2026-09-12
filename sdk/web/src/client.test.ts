@@ -182,7 +182,7 @@ describe("LevelMomentWebClient", () => {
 
 function loadAd(
   config: Parameters<typeof LevelMomentWebAd.load>[0],
-  options?: { format?: "flashcard" | "quiz" | "deep_dive" },
+  options?: { format?: "quick_question" | "practice_set" | "mastery_round" },
 ): Promise<LevelMomentWebAd> {
   return new Promise((resolve, reject) =>
     LevelMomentWebAd.load(
@@ -219,11 +219,11 @@ describe("LevelMomentWebAd", () => {
 
   describe("show — URL building", () => {
     it("builds a live URL with apiUrl but no credential", async () => {
-      const ad = await loadAd(LIVE, { format: "quiz" });
+      const ad = await loadAd(LIVE, { format: "practice_set" });
       ad.show({});
       const url = body.children[0].src;
       expect(url).toContain("placementId=placement-abc");
-      expect(url).toContain("format=quiz");
+      expect(url).toContain("format=practice_set");
       expect(url).toContain("apiUrl=https%3A%2F%2Fapi.test.levelmoment.com");
       expect(url).not.toContain("mock=true");
       // The whole point of the bridge handover: a live credential must not
@@ -270,10 +270,10 @@ describe("LevelMomentWebAd", () => {
       expect(body.children[0].src).not.toContain("customData=");
     });
 
-    it("defaults format to flashcard", async () => {
+    it("defaults format to quick question", async () => {
       const ad = await loadAd(LIVE);
       ad.show({});
-      expect(body.children[0].src).toContain("format=flashcard");
+      expect(body.children[0].src).toContain("format=quick_question");
     });
 
     it("rejects a break URL carrying a query", async () => {

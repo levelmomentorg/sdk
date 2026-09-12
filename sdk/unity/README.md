@@ -8,7 +8,7 @@ Use `AGENT-INSTRUCTIONS.md` in the complete partner packet supplied with this
 preview. Give the agent that packet, the immutable artifact or source reference,
 the placement ID, target slot, and reward action.
 
-Unity Package Manager (UPM) package that integrates LevelMoment into Unity games (iOS, Android, and other WebView-capable platforms). Drop-in replacement for Google AdMob / Unity Ads **rewarded ads**: instead of a video, it shows a Level Moment with a mini-lesson or quiz.
+Unity Package Manager (UPM) package that integrates LevelMoment into Unity games (iOS, Android, and other WebView-capable platforms). Drop-in replacement for Google AdMob / Unity Ads **rewarded ads**: instead of a video, it shows a Level Moment break — a quick question or a practice set.
 
 `Show()` opens the hosted `/break` page in a fullscreen WebView and reports
 answers and completion through C# callbacks. `Load()` prepares the shell; it
@@ -185,12 +185,12 @@ credentials stay in the hosted bridge and are never supplied in game config.
 - `OnUserEarnedRewardItem(item)` — optional equivalent answer callback with the opaque impression `RewardId`, when the hosted page supplies one.
 - `OnAdDismissed` — fires **exactly once** when the break ends. Always resume the game here.
 - `OnAdFailedToShow(error)` — fires instead of `OnAdDismissed` when the break can't be shown (not loaded, no WebView provider, page error, or the ad was already shown — see below).
-- `format` — `flashcard` (default), `quiz`, or `deep_dive`.
+- `format` — `quick_question` (default), `practice_set`, `mastery_round`, or `intro_lesson`. The first two fill a rewarded slot (one question, then a set); the last two fill an interstitial slot (a longer set, and the same set opening on an instruction panel).
 - One `Show()` per handle: once a `RewardedAd`/`InterstitialAd` has been shown, `IsLoaded` is false and a second `Show()` reports `OnAdFailedToShow` with `not_loaded` rather than reopening it — get a fresh handle from `Load()` for each break.
 
 A **15-second pre-`ready` watchdog** guarantees a crashed or unreachable page
 can't cover the game forever — it resolves as a clean `OnAdDismissed`. After
-`ready` there is no timeout (a student thinking through a quiz is never
+`ready` there is no timeout (a student thinking through a question is never
 force-closed).
 
 `Show()` catches WebView-provider startup failures. If the provider factory or `Open()` throws, the SDK reports `webview_error` through `OnAdFailedToShow` and tears down the ad. Exceptions thrown by your own callbacks propagate to you unchanged.

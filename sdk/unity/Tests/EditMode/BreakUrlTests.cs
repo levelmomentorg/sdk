@@ -30,10 +30,10 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Build_Live_IncludesAllParamsEncoded()
         {
-            var url = BreakUrl.Build(Live(), "place 1", "quiz");
+            var url = BreakUrl.Build(Live(), "place 1", "practice_set");
 
             StringAssert.Contains("placementId=place%201", url);
-            StringAssert.Contains("format=quiz", url);
+            StringAssert.Contains("format=practice_set", url);
             StringAssert.Contains("apiUrl=https%3A%2F%2Fapi.example.com", url);
             StringAssert.DoesNotContain("mock=true", url);
         }
@@ -41,7 +41,7 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Build_Live_PlacementIdIsFirstParam()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard");
+            var url = BreakUrl.Build(Live(), "p1", "quick_question");
             StringAssert.Contains("/break?placementId=p1", url);
         }
 
@@ -51,7 +51,7 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Build_NeverIncludesATokenParam()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard");
+            var url = BreakUrl.Build(Live(), "p1", "quick_question");
             StringAssert.Contains("apiUrl=https%3A%2F%2Fapi.example.com", url);
             StringAssert.DoesNotContain("token=", url);
         }
@@ -73,7 +73,7 @@ namespace LevelMoment.Tests.EditMode
                 },
             };
 
-            var url = BreakUrl.Build(config, "p1", "flashcard");
+            var url = BreakUrl.Build(config, "p1", "quick_question");
 
             StringAssert.Contains("mock=true", url);
             StringAssert.DoesNotContain("apiUrl=", url);
@@ -96,7 +96,7 @@ namespace LevelMoment.Tests.EditMode
                     BreakUrl = "https://app.example.com/break",
                 },
             };
-            var url = BreakUrl.Build(config, "p1", "flashcard");
+            var url = BreakUrl.Build(config, "p1", "quick_question");
             StringAssert.DoesNotContain("customData=", url);
         }
 
@@ -115,7 +115,7 @@ namespace LevelMoment.Tests.EditMode
                     BreakUrl = "https://app.example.com/break",
                 },
             };
-            var url = BreakUrl.Build(config, "p1", "flashcard");
+            var url = BreakUrl.Build(config, "p1", "quick_question");
             StringAssert.Contains("mock=true", url);
             StringAssert.DoesNotContain("customData=", url);
         }
@@ -123,7 +123,7 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Build_WithoutCustomData_OmitsParam()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard");
+            var url = BreakUrl.Build(Live(), "p1", "quick_question");
             StringAssert.DoesNotContain("customData=", url);
         }
 
@@ -132,38 +132,38 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Build_WithKind_AppendsKindParam()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard", "interstitial");
+            var url = BreakUrl.Build(Live(), "p1", "quick_question", "interstitial");
             StringAssert.Contains("kind=interstitial", url);
         }
 
         [Test]
         public void Build_WithoutKind_OmitsKindParam()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard");
+            var url = BreakUrl.Build(Live(), "p1", "quick_question");
             StringAssert.DoesNotContain("kind=", url);
         }
 
         [Test]
         public void Build_WithEmptyKind_OmitsKindParam()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard", "");
+            var url = BreakUrl.Build(Live(), "p1", "quick_question", "");
             StringAssert.DoesNotContain("kind=", url);
         }
 
         // ----- Format defaulting -----
 
         [Test]
-        public void Build_EmptyFormat_DefaultsToFlashcard()
+        public void Build_EmptyFormat_DefaultsToQuickQuestion()
         {
             var url = BreakUrl.Build(Live(), "p1", "");
-            StringAssert.Contains("format=flashcard", url);
+            StringAssert.Contains("format=quick_question", url);
         }
 
         [Test]
-        public void Build_NullFormat_DefaultsToFlashcard()
+        public void Build_NullFormat_DefaultsToQuickQuestion()
         {
             var url = BreakUrl.Build(Live(), "p1", null);
-            StringAssert.Contains("format=flashcard", url);
+            StringAssert.Contains("format=quick_question", url);
         }
 
         // ----- Separator selection -----
@@ -171,7 +171,7 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Build_BreakUrlWithoutQuery_UsesQuestionMark()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard");
+            var url = BreakUrl.Build(Live(), "p1", "quick_question");
             StringAssert.Contains("/break?placementId=", url);
         }
 
@@ -189,7 +189,7 @@ namespace LevelMoment.Tests.EditMode
                 },
             };
             Assert.Throws<ArgumentException>(() =>
-                BreakUrl.Build(config, "p1", "flashcard"));
+                BreakUrl.Build(config, "p1", "quick_question"));
         }
 
         // ----- Capability announcement: an old shell that cannot open a browser
@@ -198,7 +198,7 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Build_AnnouncesOpenExternalCapability()
         {
-            var url = BreakUrl.Build(Live(), "p1", "flashcard");
+            var url = BreakUrl.Build(Live(), "p1", "quick_question");
             StringAssert.Contains("caps=openExternal", url);
         }
 
@@ -215,7 +215,7 @@ namespace LevelMoment.Tests.EditMode
                 },
             };
 
-            var url = BreakUrl.Build(config, "p1", "flashcard");
+            var url = BreakUrl.Build(config, "p1", "quick_question");
 
             StringAssert.Contains("sandbox=true", url);
             StringAssert.Contains("protocolVersion=1", url);
@@ -245,7 +245,7 @@ namespace LevelMoment.Tests.EditMode
         public void Build_NullConfig_Throws()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                BreakUrl.Build(null, "p1", "flashcard"));
+                BreakUrl.Build(null, "p1", "quick_question"));
         }
 
         [Test]
@@ -253,13 +253,13 @@ namespace LevelMoment.Tests.EditMode
         {
             var config = new LevelMomentConfig { ApiUrl = "https://api.example.com", BreakUrl = "" };
             Assert.Throws<ArgumentException>(() =>
-                BreakUrl.Build(config, "p1", "flashcard"));
+                BreakUrl.Build(config, "p1", "quick_question"));
         }
 
         [Test]
         public void Build_DefaultsToCanonicalEndpoints()
         {
-            var url = BreakUrl.Build(new LevelMomentConfig(), "p1", "flashcard");
+            var url = BreakUrl.Build(new LevelMomentConfig(), "p1", "quick_question");
 
             StringAssert.StartsWith("https://levelmoment.com/break?", url);
             StringAssert.Contains("apiUrl=https%3A%2F%2Flevelmoment.com%2Fapi", url);
@@ -269,7 +269,7 @@ namespace LevelMoment.Tests.EditMode
         public void Build_EmptyPlacementId_Throws()
         {
             Assert.Throws<ArgumentException>(() =>
-                BreakUrl.Build(Live(), "", "flashcard"));
+                BreakUrl.Build(Live(), "", "quick_question"));
         }
 
         [Test]

@@ -78,11 +78,11 @@ The phone and laptop must be on the same Wi-Fi (or use Expo's tunnel mode).
 
 ## Trying each break format
 
-| Format    | What you'll see                                                                |
-| --------- | ------------------------------------------------------------------------------ |
-| Flashcard | One multiple-choice question. Answer it; the WebView dismisses.                |
-| Quiz      | 8 questions back-to-back covering every supported type, then a summary screen. |
-| Deep Dive | Same as Quiz, preceded by a multi-page lesson.                                 |
+| Format         | What you'll see                                                                |
+| -------------- | ------------------------------------------------------------------------------ |
+| Quick Question | One multiple-choice question. Answer it; the WebView dismisses.                |
+| Practice Set   | 8 questions back-to-back covering every supported type, then a summary screen. |
+| Mastery Round  | Same as Practice Set, preceded by a multi-page lesson.                         |
 
 In **Mock mode**, every answer is graded as correct so you'll always see the success summary.
 
@@ -114,7 +114,7 @@ The SDK's `<LevelMomentAdModal />` (mounted in `App.tsx`) provides the fullscree
 
 **Mock mode shows "Page not found" / blank screen** — your iPhone can't reach the Break URL. `localhost` only works in the iOS simulator; on a real device you need your laptop's LAN IP, or Expo's `--tunnel` mode.
 
-**WebView opens but stays blank** — open `http://<laptop-ip>:3000/break?mock=true&format=quiz` in your laptop's browser first. If it works there, it's a network-reachability issue, not the page.
+**WebView opens but stays blank** — open `http://<laptop-ip>:3000/break?mock=true&format=practice_set` in your laptop's browser first. If it works there, it's a network-reachability issue, not the page.
 
 **Expo Go version mismatch** — this example targets Expo SDK 51. Update Expo Go from the App Store, or change the `expo` version in `package.json` to match your installed Expo Go.
 

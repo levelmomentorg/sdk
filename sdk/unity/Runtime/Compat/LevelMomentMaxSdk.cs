@@ -283,12 +283,12 @@ namespace LevelMoment.Compat.Max
         /// ad unit is loaded.
         /// </summary>
         /// <param name="format">
-        /// Level Moment break format (<c>flashcard</c>/<c>quiz</c>/
-        /// <c>deep_dive</c>) to load for this ad unit. MAX has no equivalent
-        /// parameter; defaults to <c>flashcard</c> so a straight port needs
-        /// no changes.
+        /// Level Moment break format (<c>quick_question</c>/<c>practice_set</c>/
+        /// <c>mastery_round</c>/<c>intro_lesson</c>) to load for this ad unit.
+        /// MAX has no equivalent parameter; defaults to <c>quick_question</c>
+        /// so a straight port needs no changes.
         /// </param>
-        public static void MapAdUnit(string adUnitId, string placementId, string format = "flashcard")
+        public static void MapAdUnit(string adUnitId, string placementId, string format = "quick_question")
         {
             if (string.IsNullOrEmpty(adUnitId))
             {
@@ -301,12 +301,12 @@ namespace LevelMoment.Compat.Max
                 return;
             }
             _placementByAdUnit[adUnitId] = placementId;
-            _formatByAdUnit[adUnitId] = string.IsNullOrEmpty(format) ? "flashcard" : format;
+            _formatByAdUnit[adUnitId] = string.IsNullOrEmpty(format) ? "quick_question" : format;
         }
 
         private static bool TryResolvePlacement(string adUnitId, out string placementId, out string format)
         {
-            format = "flashcard";
+            format = "quick_question";
             if (string.IsNullOrEmpty(adUnitId) || !_placementByAdUnit.TryGetValue(adUnitId, out placementId))
             {
                 placementId = null;

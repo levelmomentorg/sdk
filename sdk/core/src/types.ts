@@ -1,7 +1,19 @@
 import type { HostedOptions } from "./hosted.js";
 /** Public contracts shared by the platform SDKs. */
 
-export type BreakFormat = "flashcard" | "quiz" | "deep_dive";
+/**
+ * The four break formats.
+ *
+ * `quick_question` is one question and `practice_set` a set of them; both
+ * replace a rewarded ad slot. `mastery_round` is a longer set and
+ * `intro_lesson` the same set opening on an instruction panel; both replace an
+ * interstitial slot. Pass the one that matches the slot you are filling.
+ */
+export type BreakFormat =
+  | "quick_question"
+  | "practice_set"
+  | "mastery_round"
+  | "intro_lesson";
 
 export type EnsureSignedInResult = "ready" | "canceled" | "technicalFailure";
 

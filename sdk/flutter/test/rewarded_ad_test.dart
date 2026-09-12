@@ -55,7 +55,7 @@ void main() {
       await LevelMomentRewardedAd.load(
         placementId: 'game-42',
         studentToken: 'eply_sbx_abc/&=',
-        format: 'quiz',
+        format: 'practice_set',
         adLoadCallback: LevelMomentAdLoadCallback(
           onAdLoaded: (a) => ad = a,
           onAdFailedToLoad: (_) => fail('should not fail to load'),
@@ -66,7 +66,7 @@ void main() {
       final uri = Uri.parse(url);
       expect(uri.origin + uri.path, 'https://app.levelmoment.com/break');
       expect(uri.queryParameters['placementId'], 'game-42');
-      expect(uri.queryParameters['format'], 'quiz');
+      expect(uri.queryParameters['format'], 'practice_set');
       expect(uri.queryParameters['apiUrl'], 'https://api.levelmoment.com');
       // The credential never rides on the URL, even when the game supplied
       // one to load() — it travels only over the postMessage bridge, as
@@ -174,7 +174,7 @@ void main() {
       final uri = Uri.parse(ad.buildUrl());
       expect(uri.queryParameters['mock'], 'true');
       expect(uri.queryParameters['placementId'], 'game-1');
-      expect(uri.queryParameters['format'], 'flashcard'); // default
+      expect(uri.queryParameters['format'], 'quick_question'); // default
       expect(uri.queryParameters.containsKey('apiUrl'), isFalse);
       expect(uri.queryParameters.containsKey('token'), isFalse);
     });
