@@ -185,7 +185,7 @@ credentials stay in the hosted bridge and are never supplied in game config.
 - `OnUserEarnedRewardItem(item)` — optional equivalent answer callback with the opaque impression `RewardId`, when the hosted page supplies one.
 - `OnAdDismissed` — fires **exactly once** when the break ends. Always resume the game here.
 - `OnAdFailedToShow(error)` — fires instead of `OnAdDismissed` when the break can't be shown (not loaded, no WebView provider, page error, or the ad was already shown — see below).
-- `format` — `quick_question` (default), `practice_set`, `mastery_round`, or `intro_lesson`. The first two fill a rewarded slot (one question, then a set); the last two fill an interstitial slot (a longer set, and the same set opening on an instruction panel).
+- `format` — `quick_question` (default), `practice_set`, `mastery_round`, or `intro_lesson`. The first two fill a rewarded slot (one question, then a set); the last two fill an interstitial slot (a longer set, and the same set opening on an instruction panel). Declare the slot and Level Moment picks the format inside it, since which one suits the learner is not something a game can see. A format you pass is a floor: the break is never smaller than the one you sized the slot against.
 - One `Show()` per handle: once a `RewardedAd`/`InterstitialAd` has been shown, `IsLoaded` is false and a second `Show()` reports `OnAdFailedToShow` with `not_loaded` rather than reopening it — get a fresh handle from `Load()` for each break.
 
 A **15-second pre-`ready` watchdog** guarantees a crashed or unreachable page

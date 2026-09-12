@@ -7,7 +7,12 @@ import type { HostedOptions } from "./hosted.js";
  * `quick_question` is one question and `practice_set` a set of them; both
  * replace a rewarded ad slot. `mastery_round` is a longer set and
  * `intro_lesson` the same set opening on an instruction panel; both replace an
- * interstitial slot. Pass the one that matches the slot you are filling.
+ * interstitial slot.
+ *
+ * Declare the slot and Level Moment picks the format inside it — which one
+ * depends on the learner, which a game cannot see. A format you pass is read
+ * as a floor: the break you get is never smaller than the one you sized your
+ * slot against.
  */
 export type BreakFormat =
   | "quick_question"
