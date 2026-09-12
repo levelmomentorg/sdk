@@ -8,6 +8,17 @@ versioning follows [Semver](https://semver.org).
 
 ### Added
 
+- `LevelMomentAdSlot` — the slot a game declares for an ad placement: the ad
+  type it replaces, a target duration in seconds, and the reward amount the
+  game grants the player for it. `RewardedAd.Load` and `InterstitialAd.Load`
+  take one, and it rides on the hosted `/break` URL, where the serve fits
+  questions to the duration.
+- `LevelMomentMaxSdk.MapAdUnit` takes the slot's target duration and reward
+  amount alongside the placement and format. `OnAdReceivedRewardEvent` then
+  reports the declared amount: the amount the ad unit already granted. MAX
+  reads that from its dashboard, and there is no dashboard here. An ad unit
+  mapped without one keeps reporting 1 for a correct answer.
+
 - `LevelMoment.Compat.Max` — an AppLovin MAX-shaped compatibility facade
   (`Runtime/Compat/`) over the existing `InterstitialAd`/`RewardedAd`: a game
   whose code calls `MaxSdk.LoadInterstitial(id)` /

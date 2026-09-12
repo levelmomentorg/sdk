@@ -93,9 +93,10 @@ namespace LevelMoment.Compat.Max
     /// Shape-compatible stand-in for MAX's <c>MaxSdkBase.Reward</c> struct.
     ///
     /// Provides: <see cref="Label"/>, <see cref="Amount"/> — both real data,
-    /// not fabricated: <see cref="Amount"/> is the underlying reward amount
-    /// (1 for a correct answer, 0 otherwise — see
-    /// <see cref="RewardedAdShowCallbacks.OnUserEarnedReward"/>);
+    /// not fabricated: <see cref="Amount"/> is the reward amount the game
+    /// declared for this ad unit in <c>LevelMomentMaxSdk.MapAdUnit</c>, or,
+    /// when it declared none, the underlying per-answer amount (1 for a correct
+    /// answer — see <see cref="RewardedAdShowCallbacks.OnUserEarnedReward"/>);
     /// <see cref="Label"/> is the opaque impression id
     /// (<see cref="LevelMomentRewardItem.RewardId"/>) that correlates with the
     /// verified webhook, in the same string slot MAX uses for its

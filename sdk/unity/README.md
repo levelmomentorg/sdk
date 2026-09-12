@@ -250,7 +250,10 @@ using LevelMoment.Compat.Max;
 // Load() before Initialize() fails with "not_initialized".
 LevelMomentAds.Initialize(new LevelMomentConfig());
 
-LevelMomentMaxSdk.MapAdUnit("YOUR_MAX_AD_UNIT_ID", "YOUR_PLACEMENT_ID");
+// Declare the slot: the placement, the break format, the target duration in
+// seconds, and the reward amount this ad unit already grants the player.
+LevelMomentMaxSdk.MapAdUnit(
+    "YOUR_MAX_AD_UNIT_ID", "YOUR_PLACEMENT_ID", "practice_set", 30, 50);
 
 // OnSdkInitializedEvent arrives on a later frame, as MAX's does.
 LevelMomentMaxSdkCallbacks.OnSdkInitializedEvent += () =>
@@ -276,6 +279,17 @@ Runtime divergences worth knowing before you rely on this facade:
   shape. The underlying `RewardedAdShowCallbacks.OnUserEarnedRewardItem`
   still fires once per graded answer (amount 0 for a wrong one) if you need
   per-answer granularity — it's just not behind the MAX-shaped event.
+- **The slot's duration decides how much the break holds.** Level Moment fits
+  questions to the seconds you declare: a fifteen-second slot holds several
+  addition questions or one long-division question. The count stays fixed for
+  the slot; how long a break actually runs varies with the learner. Leave the
+  duration at 0 to take the format's default (15 seconds for a quick question,
+  30 for a practice set, 60 for a mastery round or intro lesson).
+- **`Reward.Amount` is the amount you declared for the ad unit.** MAX reads
+  that from its dashboard; there is no dashboard here, so the mapping states
+  it. An ad unit mapped without one reports 1 for a correct answer instead, so
+  a handler that grants `reward.Amount` would pay 1. Declare the amount to keep
+  it accurate.
 - **`Reward.Label` is an opaque impression id**, not MAX's dashboard-configured
   currency name — do not display it to a player or compare it against a
   currency string.

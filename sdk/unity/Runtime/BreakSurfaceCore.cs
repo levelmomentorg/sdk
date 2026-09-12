@@ -96,6 +96,9 @@ namespace LevelMoment
         private readonly string _placementId;
         private readonly string _format;
         private readonly string _kind;
+        // What the game declared for this slot, or null when it declared
+        // nothing. Rides on the hosted /break URL; see AdSlot.cs.
+        private readonly LevelMomentAdSlot _slot;
         private readonly string _studentToken;
 
         // Placement-specific handling for the one bridge message that varies
@@ -125,13 +128,21 @@ namespace LevelMoment
             string format,
             string kind,
             string studentToken,
-            Action<HostMessage> handleEarnedReward)
+            Action<HostMessage> handleEarnedReward,
+            LevelMomentAdSlot slot = null)
         {
             _placementId = placementId;
             _format = string.IsNullOrEmpty(format) ? "quick_question" : format;
             _kind = kind;
             _studentToken = studentToken;
             _handleEarnedReward = handleEarnedReward;
+            _slot = slot;
+        }
+
+        /// <summary>What the game declared for this slot, or null.</summary>
+        public LevelMomentAdSlot Slot
+        {
+            get { return _slot; }
         }
 
         /// <summary>The break format: <c>quick_question</c>, <c>practice_set</c>, <c>mastery_round</c>, or <c>intro_lesson</c>.</summary>
@@ -194,7 +205,7 @@ namespace LevelMoment
             _inPublisherCallback = false;
             _callbacks = callbacks;
 
-            var url = BreakUrl.Build(LevelMomentAds.Config, _placementId, _format, _kind);
+            var url = BreakUrl.Build(LevelMomentAds.Config, _placementId, _format, _kind, _slot);
             _hostedUrl = url;
 
             try

@@ -37,10 +37,10 @@ namespace LevelMoment
 
         private readonly BreakSurfaceCore<InterstitialAdShowCallbacks> _core;
 
-        private InterstitialAd(string placementId, string format, string studentToken)
+        private InterstitialAd(string placementId, string format, string studentToken, LevelMomentAdSlot slot)
         {
             _core = new BreakSurfaceCore<InterstitialAdShowCallbacks>(
-                placementId, format, "interstitial", studentToken, handleEarnedReward: null);
+                placementId, format, "interstitial", studentToken, handleEarnedReward: null, slot: slot);
         }
 
         // ---- Static factory — mirrors InterstitialAd.Load() -----------------
@@ -55,9 +55,10 @@ namespace LevelMoment
         public static void Load(
             string placementId,
             InterstitialAdLoadCallbacks callbacks,
-            string format = "quick_question")
+            string format = "quick_question",
+            LevelMomentAdSlot slot = null)
         {
-            Load(placementId, null, callbacks, format);
+            Load(placementId, null, callbacks, format, slot);
         }
 
         /// <summary>
@@ -69,7 +70,8 @@ namespace LevelMoment
             string placementId,
             string studentToken,
             InterstitialAdLoadCallbacks callbacks,
-            string format = "quick_question")
+            string format = "quick_question",
+            LevelMomentAdSlot slot = null)
         {
             string resolvedToken;
             LevelMomentAdError error;
@@ -82,7 +84,7 @@ namespace LevelMoment
                 return;
             }
 
-            var ad = new InterstitialAd(placementId, format, resolvedToken);
+            var ad = new InterstitialAd(placementId, format, resolvedToken, slot);
             ad._core.MarkLoaded();
 
             if (callbacks != null && callbacks.OnAdLoaded != null)
@@ -107,6 +109,12 @@ namespace LevelMoment
         public string Format
         {
             get { return _core.Format; }
+        }
+
+        /// <summary>What the game declared for this slot, or null when it declared nothing.</summary>
+        public LevelMomentAdSlot Slot
+        {
+            get { return _core.Slot; }
         }
 
         /// <summary>

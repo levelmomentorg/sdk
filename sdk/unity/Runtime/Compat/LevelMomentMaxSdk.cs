@@ -102,6 +102,10 @@
 // the "already_showing" ordering note above — NOT on a duplicate Show call
 // while one is already in progress). Per-answer granularity is still
 // available — it just isn't behind the MAX-shaped event; see README.md.
+// The Amount it carries is the reward amount the game declared for the ad
+// unit in MapAdUnit, which is the value the ad unit already granted — MAX
+// reads that from its dashboard, and there is no dashboard here. An ad unit
+// mapped without one reports the underlying per-answer amount instead.
 //
 // NOT PROVIDED: banner/MREC (MAX's `CreateBanner`/`CreateMRec` and friends),
 // `OnAdClickedEvent`/`OnAdRevenuePaidEvent`/`OnExpiredAdReloadedEvent`/
@@ -241,6 +245,16 @@ namespace LevelMoment.Compat.Max
         private static readonly Dictionary<string, string> _formatByAdUnit =
             new Dictionary<string, string>();
 
+        // adUnitId -> the two values the game declared for the slot: its target
+        // duration in seconds and the reward amount it grants. Both are always
+        // populated by MapAdUnit, so an ad unit that is mapped at all has them.
+        // The third part of a slot, the ad type it replaces, is named by the
+        // load surface instead — see SlotFor.
+        private static readonly Dictionary<string, int> _durationByAdUnit =
+            new Dictionary<string, int>();
+        private static readonly Dictionary<string, int> _rewardAmountByAdUnit =
+            new Dictionary<string, int>();
+
         // At most one live handle per ad unit, independently for each format.
         private static readonly Dictionary<string, InterstitialAd> _interstitials =
             new Dictionary<string, InterstitialAd>();
@@ -288,7 +302,25 @@ namespace LevelMoment.Compat.Max
         /// MAX has no equivalent parameter; defaults to <c>quick_question</c>
         /// so a straight port needs no changes.
         /// </param>
-        public static void MapAdUnit(string adUnitId, string placementId, string format = "quick_question")
+        /// <param name="targetDurationSeconds">
+        /// How long this slot should run. Level Moment fits questions to it —
+        /// a fifteen-second slot holds several addition questions or one long
+        /// division question. 0 takes the format's default duration.
+        /// </param>
+        /// <param name="rewardAmount">
+        /// What the game grants the player when this slot's break passes,
+        /// matching the amount the ad unit already granted. It is the
+        /// <c>Amount</c> a migrated <c>OnAdReceivedRewardEvent</c> handler
+        /// reads, so a port keeps its reward economy. 0 reports the underlying
+        /// per-answer amount instead. Interstitial slots grant nothing and
+        /// leave it at 0.
+        /// </param>
+        public static void MapAdUnit(
+            string adUnitId,
+            string placementId,
+            string format = "quick_question",
+            int targetDurationSeconds = 0,
+            int rewardAmount = 0)
         {
             if (string.IsNullOrEmpty(adUnitId))
             {
@@ -300,11 +332,22 @@ namespace LevelMoment.Compat.Max
                 LogError("LevelMomentMaxSdk.MapAdUnit: placementId must not be empty for ad unit '" + adUnitId + "'.");
                 return;
             }
+            var resolvedFormat = string.IsNullOrEmpty(format) ? "quick_question" : format;
             _placementByAdUnit[adUnitId] = placementId;
-            _formatByAdUnit[adUnitId] = string.IsNullOrEmpty(format) ? "quick_question" : format;
+            _formatByAdUnit[adUnitId] = resolvedFormat;
+            // The ad type is NOT derived from the format here. Which ad type
+            // this slot replaces is what the game does with the ad unit —
+            // LoadInterstitial or LoadRewardedAd — and those two say so when
+            // they build the slot below. Deriving it from the format would let
+            // a mapping's default format overrule the game's own call.
+            _durationByAdUnit[adUnitId] = targetDurationSeconds > 0
+                ? targetDurationSeconds
+                : LevelMomentAdSlot.DefaultDurationSeconds(resolvedFormat);
+            _rewardAmountByAdUnit[adUnitId] = rewardAmount;
         }
 
-        private static bool TryResolvePlacement(string adUnitId, out string placementId, out string format)
+        private static bool TryResolvePlacement(
+            string adUnitId, out string placementId, out string format)
         {
             format = "quick_question";
             if (string.IsNullOrEmpty(adUnitId) || !_placementByAdUnit.TryGetValue(adUnitId, out placementId))
@@ -316,6 +359,31 @@ namespace LevelMoment.Compat.Max
             if (_formatByAdUnit.TryGetValue(adUnitId, out mappedFormat))
                 format = mappedFormat;
             return true;
+        }
+
+        /// <summary>
+        /// The slot a mapped ad unit fills, for the ad type the calling surface
+        /// replaces (<c>"interstitial"</c> from LoadInterstitial,
+        /// <c>"rewarded"</c> from LoadRewardedAd). Null for an unmapped ad unit.
+        /// </summary>
+        private static LevelMomentAdSlot SlotFor(string adUnitId, string adType)
+        {
+            int duration;
+            if (adUnitId == null || !_durationByAdUnit.TryGetValue(adUnitId, out duration))
+                return null;
+            return new LevelMomentAdSlot(adType, duration, DeclaredRewardAmount(adUnitId));
+        }
+
+        /// <summary>
+        /// The reward amount the game declared for this ad unit, or 0 when it
+        /// declared none.
+        /// </summary>
+        private static int DeclaredRewardAmount(string adUnitId)
+        {
+            int amount;
+            if (adUnitId != null && _rewardAmountByAdUnit.TryGetValue(adUnitId, out amount))
+                return amount;
+            return 0;
         }
 
         // ---- SDK init -----------------------------------------------------
@@ -372,6 +440,7 @@ namespace LevelMoment.Compat.Max
                     adUnitId, UnmappedError());
                 return;
             }
+            var slot = SlotFor(adUnitId, "interstitial");
 
             InterstitialAd.Load(placementId, new InterstitialAdLoadCallbacks
             {
@@ -392,7 +461,7 @@ namespace LevelMoment.Compat.Max
                     LevelMomentMaxSdkCallbacks.Interstitial.RaiseOnAdLoadFailedEvent(
                         adUnitId, new ErrorInfo(error));
                 },
-            }, format);
+            }, format, slot);
         }
 
         /// <summary>
@@ -520,6 +589,7 @@ namespace LevelMoment.Compat.Max
                     adUnitId, UnmappedError());
                 return;
             }
+            var slot = SlotFor(adUnitId, "rewarded");
 
             RewardedAd.Load(placementId, new RewardedAdLoadCallbacks
             {
@@ -537,7 +607,7 @@ namespace LevelMoment.Compat.Max
                     LevelMomentMaxSdkCallbacks.Rewarded.RaiseOnAdLoadFailedEvent(
                         adUnitId, new ErrorInfo(error));
                 },
-            }, format);
+            }, format, slot);
         }
 
         /// <summary>
@@ -613,17 +683,27 @@ namespace LevelMoment.Compat.Max
                 OnUserEarnedRewardItem = item =>
                 {
                     // MAX fires OnAdReceivedRewardEvent at most once per
-                    // Show; the underlying reward fires once per graded
-                    // answer (amount 0 for a wrong one). Collapse to
-                    // MAX's shape: only the first correct answer reports.
+                    // Show. The underlying reward reports the break's grade
+                    // (amount 0 when it did not pass), so this filter keeps
+                    // MAX's shape whatever the break reports: the first
+                    // positive amount of a Show, and nothing else.
                     if (item.Amount <= 0)
                         return;
                     if (_rewardedGranted.Contains(adUnitId))
                         return;
                     _rewardedGranted.Add(adUnitId);
+                    // Report what the game declared for this slot, the way MAX
+                    // reports what the studio configured for the ad unit. A
+                    // slot that declared no amount reports the underlying
+                    // per-answer amount, so an unmigrated mapping is unchanged.
+                    var declared = DeclaredRewardAmount(adUnitId);
                     LevelMomentMaxSdkCallbacks.Rewarded.RaiseOnAdReceivedRewardEvent(
                         adUnitId,
-                        new Reward { Label = item.RewardId, Amount = item.Amount },
+                        new Reward
+                        {
+                            Label = item.RewardId,
+                            Amount = declared > 0 ? declared : item.Amount,
+                        },
                         new AdInfo(adUnitId));
                 },
             });
@@ -713,6 +793,8 @@ namespace LevelMoment.Compat.Max
         {
             _placementByAdUnit.Clear();
             _formatByAdUnit.Clear();
+            _durationByAdUnit.Clear();
+            _rewardAmountByAdUnit.Clear();
             _interstitials.Clear();
             _rewarded.Clear();
             _interstitialShowing.Clear();

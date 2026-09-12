@@ -194,6 +194,67 @@ namespace LevelMoment.Tests.EditMode
         }
 
         [Test]
+        public void MapAdUnit_SlotDeclarationReachesTheBuiltUrl()
+        {
+            var fake = new FakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+
+            LevelMomentMaxSdk.MapAdUnit("unit1", "p1", "practice_set", 20, 50);
+            LevelMomentMaxSdk.LoadInterstitial("unit1");
+            LevelMomentMaxSdk.ShowInterstitial("unit1");
+
+            // The ad type is the surface the game loaded through, not the
+            // mapped format: this ad unit replaces an interstitial.
+            StringAssert.Contains("adType=interstitial", fake.LastUrl);
+            StringAssert.Contains("targetDurationSeconds=20", fake.LastUrl);
+            StringAssert.Contains("rewardAmount=50", fake.LastUrl);
+        }
+
+        [Test]
+        public void MapAdUnit_RewardedLoadDeclaresARewardedSlot()
+        {
+            var fake = new FakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+
+            // Mapped with the default format (quick_question) and loaded as a
+            // rewarded ad: the slot replaces a rewarded ad unit.
+            LevelMomentMaxSdk.MapAdUnit("runit", "p1");
+            LevelMomentMaxSdk.LoadRewardedAd("runit");
+            LevelMomentMaxSdk.ShowRewardedAd("runit");
+
+            StringAssert.Contains("adType=rewarded", fake.LastUrl);
+        }
+
+        [Test]
+        public void MapAdUnit_WithoutASlotTakesTheFormatsDefaultDuration()
+        {
+            var fake = new FakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+
+            LevelMomentMaxSdk.MapAdUnit("unit1", "p1", "mastery_round");
+            LevelMomentMaxSdk.LoadInterstitial("unit1");
+            LevelMomentMaxSdk.ShowInterstitial("unit1");
+
+            StringAssert.Contains("adType=interstitial", fake.LastUrl);
+            StringAssert.Contains("targetDurationSeconds=60", fake.LastUrl);
+            // Nothing declared, nothing on the URL.
+            StringAssert.DoesNotContain("rewardAmount=", fake.LastUrl);
+        }
+
+        [Test]
+        public void MapAdUnit_ClampsASlotDurationOutsideTheRange()
+        {
+            var fake = new FakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+
+            LevelMomentMaxSdk.MapAdUnit("unit1", "p1", "practice_set", 99999);
+            LevelMomentMaxSdk.LoadInterstitial("unit1");
+            LevelMomentMaxSdk.ShowInterstitial("unit1");
+
+            StringAssert.Contains("targetDurationSeconds=300", fake.LastUrl);
+        }
+
+        [Test]
         public void MapAdUnit_EmptyAdUnitId_DoesNotRegisterAndLogsAnError()
         {
 #if UNITY_5_3_OR_NEWER
@@ -425,6 +486,43 @@ namespace LevelMoment.Tests.EditMode
         }
 
         // ---- Reward event: at most one per Show, only for a correct answer -----
+
+        [Test]
+        public void RewardedAd_ReportsTheRewardAmountTheSlotDeclared()
+        {
+            var fake = new FakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+            LevelMomentMaxSdk.MapAdUnit("runit", "p1", "practice_set", 30, 50);
+
+            Reward reward = default;
+            LevelMomentMaxSdkCallbacks.Rewarded.OnAdReceivedRewardEvent += (adUnitId, r, info) => reward = r;
+
+            LevelMomentMaxSdk.LoadRewardedAd("runit");
+            LevelMomentMaxSdk.ShowRewardedAd("runit");
+            fake.EmitMessage(Reward(1, "impression-1"));
+            Pump();
+
+            Assert.AreEqual(50, reward.Amount, "the game is paid what it declared for the ad unit");
+            Assert.AreEqual("impression-1", reward.Label);
+        }
+
+        [Test]
+        public void RewardedAd_WithoutADeclaredAmountReportsTheGradedAmount()
+        {
+            var fake = new FakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+            LevelMomentMaxSdk.MapAdUnit("runit", "p1", "practice_set");
+
+            Reward reward = default;
+            LevelMomentMaxSdkCallbacks.Rewarded.OnAdReceivedRewardEvent += (adUnitId, r, info) => reward = r;
+
+            LevelMomentMaxSdk.LoadRewardedAd("runit");
+            LevelMomentMaxSdk.ShowRewardedAd("runit");
+            fake.EmitMessage(Reward(1, "impression-1"));
+            Pump();
+
+            Assert.AreEqual(1, reward.Amount);
+        }
 
         [Test]
         public void RewardedAd_FiveGradedAnswers_FiresOnAdReceivedRewardEventExactlyOnce()

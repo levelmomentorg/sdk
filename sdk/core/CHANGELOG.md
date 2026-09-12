@@ -6,6 +6,15 @@ versioning follows [Semver](https://semver.org).
 
 ## [Unreleased]
 
+### Added
+
+- `SlotDeclaration`, `adTypeForBreakFormat`, `normalizeSlotDeclaration`, and
+  `addSlotParams` — the contract a game uses to declare one ad slot: the ad
+  type it replaces, a target duration in seconds, and the reward amount it
+  grants. `addSlotParams` puts the declaration on the hosted break URL under
+  the names the hosted page and the API read, so every platform SDK spells it
+  the same way.
+
 ### Changed — BREAKING
 
 - `BreakFormat` is now `quick_question` | `practice_set` | `mastery_round` |

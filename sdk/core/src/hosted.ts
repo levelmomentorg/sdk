@@ -1,3 +1,6 @@
+import type { SlotDeclaration } from "./types.js";
+import { normalizeSlotDeclaration } from "./types.js";
+
 export const HOSTED_BREAK_URL = "https://levelmoment.com/break";
 export const HOSTED_API_URL = "https://levelmoment.com/api";
 export const BRIDGE_PROTOCOL_VERSION = 1;
@@ -69,6 +72,25 @@ export function addBridgeVersion(
   params.set("protocolVersion", String(BRIDGE_PROTOCOL_VERSION));
   params.set("sdkVersion", SDK_VERSION);
   if (testing) params.set("sandbox", "true");
+}
+
+/**
+ * Put a slot declaration on the hosted break URL. The names here are the names
+ * the hosted page and the API read, so every platform SDK spells them the same
+ * way. A slot that declared nothing adds nothing, and the page falls back to
+ * the format's own default size.
+ */
+export function addSlotParams(
+  params: URLSearchParams,
+  slot: SlotDeclaration | null | undefined,
+): void {
+  const declared = normalizeSlotDeclaration(slot);
+  if (!declared) return;
+  params.set("adType", declared.adType);
+  params.set("targetDurationSeconds", String(declared.targetDurationSeconds));
+  if (declared.rewardAmount !== undefined) {
+    params.set("rewardAmount", String(declared.rewardAmount));
+  }
 }
 
 export function sameHostedOrigin(url: string, hostedUrl: string): boolean {

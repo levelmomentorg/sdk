@@ -54,7 +54,8 @@ namespace LevelMoment
             LevelMomentConfig config,
             string placementId,
             string format,
-            string kind = null)
+            string kind = null,
+            LevelMomentAdSlot slot = null)
         {
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
@@ -62,11 +63,26 @@ namespace LevelMoment
             if (string.IsNullOrEmpty(placementId))
                 throw new ArgumentException("placementId is required", nameof(placementId));
 
+            var resolvedFormat = string.IsNullOrEmpty(format) ? "quick_question" : format;
             var query = new StringBuilder();
             Append(query, "placementId", placementId);
-            Append(query, "format", string.IsNullOrEmpty(format) ? "quick_question" : format);
+            Append(query, "format", resolvedFormat);
             if (!string.IsNullOrEmpty(kind))
                 Append(query, "kind", kind);
+
+            // What the game declared for this slot. Absent when it declared
+            // nothing, and the hosted page then sizes the break by format.
+            if (slot != null)
+            {
+                Append(query, "adType", slot.AdType);
+                Append(query, "targetDurationSeconds", slot.TargetDurationSeconds.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture));
+                if (slot.RewardAmount > 0)
+                {
+                    Append(query, "rewardAmount", slot.RewardAmount.ToString(
+                        System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
 
             if (config.Mock)
             {
