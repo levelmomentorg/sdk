@@ -25,10 +25,10 @@ See [`MIGRATION.md`](MIGRATION.md) for a line-by-line swap guide.
 - **`LevelMomentRewardedAd.load(...)`** — static factory mirrors `RewardedAd.load(adUnitId, request, callback)`; synchronous mark-ready (no native preload), supports `format` (`'quick_question'`, `'practice_set'`, `'mastery_round'`, `'intro_lesson'`) and an optional SSV-parity `customData` (stamped onto every impression the hosted page records)
 - **`LevelMomentAdLoadCallback`** — mirrors `RewardedAdLoadCallback` (`onAdLoaded`, `onAdFailedToLoad`)
 - **`LevelMomentFullScreenContentCallback`** — mirrors `FullScreenContentCallback` (`onAdShowedFullScreenContent`, `onAdFailedToShowFullScreenContent`, `onAdDismissedFullScreenContent`)
-- **`LevelMomentRewardItem`** — mirrors `RewardItem` (`type`, `amount`, optional `rewardId`)
+- **`LevelMomentRewardItem`** — one server-confirmed earned break (`type`, `rewardId`, `earnedAt`); the game owns the item or currency amount
 - **`ad.show(context:, onUserEarnedReward:)`** — pushes `LevelMomentWebView` as a fullscreen route; the hosted page renders the learning activity
 - **`LevelMomentWebView`** — fullscreen `WebView` pointing at the hosted `/break` page, with a JavaScript channel that handles `ready`, `earnedReward`, `signedIn`, `dismissed`, and `error`. Break messages drive the ad callbacks; `signedIn` resolves the sign-in gate. With `hidden: true` the widget renders nothing at all while still loading the page for the headless credential check
-- **postMessage bridge** — terminal-once dismiss semantics. `onUserEarnedReward` fires once per graded answer (`amount` 1 correct / 0 otherwise). Grant the chosen bonus on the first correct callback, keep it after a later failure, and resume once on either terminal callback.
+- **postMessage bridge** — terminal-once dismiss semantics. `onUserEarnedReward` fires once when a graded break passes; `rewardId` equals its server-owned break ID. Dedupe game grants by that ID, and resume once on either terminal callback.
 - **Pre-`ready` watchdog** — 15 seconds, mirroring `sdk/web`, `sdk/react-native`, and `sdk/unity`. An unreachable or crashed break page resolves as a clean dismissal; a main-frame load failure fires `onAdFailedToShowFullScreenContent` with code `network_error`. After `ready` there is no timeout.
 - **Dart unit tests** — `test/rewarded_ad_test.dart` covers URL building, the `not_loaded` guard, `HostMessage` parsing, and terminal-once; `test/gate_test.dart` covers the gate URL (gate/check mode, mock/live, `?`/`&`), the `signedIn` verdict, the `SignInDispatcher` mapping and its settle-exactly-once discipline, mock mode, and the no-navigator paths for both entry points
 - **`MIGRATION.md`** — complete line-by-line swap guide
@@ -119,6 +119,10 @@ void showBreak(BuildContext context) {
 
   LevelMomentRewardedAd.load(
     placementId: 'YOUR_PLACEMENT_ID',
+    adType: 'rewarded',
+    targetDurationSeconds: 30,
+    slotType: 'item_reward',
+    dimensions: {'item': 'sword', 'color': 'blue'},
     adLoadCallback: LevelMomentAdLoadCallback(
       onAdLoaded: (ad) {
         ad.fullScreenContentCallback = LevelMomentFullScreenContentCallback(
@@ -128,8 +132,9 @@ void showBreak(BuildContext context) {
         ad.show(
           context: context,
           onUserEarnedReward: (_, reward) {
-            if (!finished && reward.amount == 1 && !granted) {
+            if (!finished && !granted) {
               granted = true;
+              recordGrantedReward(reward.rewardId);
               grantBonus();
             }
           },
@@ -148,6 +153,11 @@ the SDK never reads or writes the production secure store in that mode.
 That's it. The SDK pushes a fullscreen route hosting a WebView that loads the
 hosted `/break` page and calls `onAdDismissedFullScreenContent` when the
 student finishes.
+
+Register the `slotType` and category codes in Break performance before use.
+One `placementId` serves every in-game location. For level transitions,
+register an integer `afterLevel` range once and send the level number in
+`dimensions`; a new level does not need a new integration key or category code.
 
 ### Sign out
 

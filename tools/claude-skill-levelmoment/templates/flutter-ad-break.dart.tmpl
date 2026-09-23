@@ -11,7 +11,7 @@ class RewardedSlotHooks {
 
   final void Function() pauseGame;
   final void Function() resumeGame;
-  final void Function() grantChosenBonus;
+  final void Function(String rewardId) grantChosenBonus;
   final void Function() prepareNextSlot;
 }
 
@@ -41,9 +41,9 @@ Future<void> showLevelMomentRewardedSlot({
         ad.show(
           context: context,
           onUserEarnedReward: (_, reward) {
-            if (!finished && reward.amount == 1 && !granted) {
+            if (!finished && !granted) {
               granted = true;
-              hooks.grantChosenBonus();
+              hooks.grantChosenBonus(reward.rewardId);
             }
           },
         );

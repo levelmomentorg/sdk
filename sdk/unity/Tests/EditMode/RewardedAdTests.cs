@@ -151,9 +151,9 @@ namespace LevelMoment.Tests.EditMode
         private const string Ready = "{\"type\":\"ready\"}";
         private const string Dismissed = "{\"type\":\"dismissed\"}";
 
-        private static string Reward(int amount)
+        private static string Reward(string rewardId = "break-reward")
         {
-            return "{\"type\":\"earnedReward\",\"payload\":{\"amount\":" + amount + "}}";
+            return "{\"type\":\"earnedReward\",\"payload\":{\"rewardId\":\"" + rewardId + "\",\"earnedAt\":\"2026-09-22T00:00:00.000Z\"}}";
         }
 
         private static string ErrorMsg(string code, string message)
@@ -444,24 +444,24 @@ namespace LevelMoment.Tests.EditMode
             Assert.AreEqual(1, shown);
         }
 
-        // ---- earnedReward (non-terminal, may repeat) ------------------------
+        // ---- earnedReward (non-terminal, forwarded once) --------------------
 
         [Test]
-        public void EarnedReward_ForwardsEveryAnswer()
+        public void EarnedReward_ForwardsOnlyOnce()
         {
             var fake = new FakeWebView();
             LevelMomentWebViewRegistry.Register(() => fake);
 
-            var amounts = new List<int>();
+            var rewards = new List<string>();
             var ad = LoadAd();
-            ad.Show(new RewardedAdShowCallbacks { OnUserEarnedReward = a => amounts.Add(a) });
+            ad.Show(new RewardedAdShowCallbacks { OnUserEarnedReward = a => rewards.Add(a.RewardId) });
 
             fake.EmitMessage(Ready);
-            fake.EmitMessage(Reward(1));
-            fake.EmitMessage(Reward(0));
-            fake.EmitMessage(Reward(1));
+            fake.EmitMessage(Reward());
+            fake.EmitMessage(Reward());
+            fake.EmitMessage(Reward("another-break"));
 
-            Assert.AreEqual(new List<int> { 1, 0, 1 }, amounts);
+            Assert.AreEqual(new List<string> { "break-reward" }, rewards);
         }
 
         [Test]
@@ -477,11 +477,11 @@ namespace LevelMoment.Tests.EditMode
                 OnUserEarnedRewardItem = value => item = value,
             });
 
-            fake.EmitMessage("{\"type\":\"earnedReward\",\"payload\":{\"amount\":1,\"rewardId\":\"impression-7\"}}");
+            fake.EmitMessage(Reward("break-7"));
 
             Assert.IsNotNull(item);
-            Assert.AreEqual(1, item.Amount);
-            Assert.AreEqual("impression-7", item.RewardId);
+            Assert.AreEqual("break-7", item.RewardId);
+            Assert.AreEqual("2026-09-22T00:00:00.000Z", item.EarnedAt);
         }
 
         // ---- Terminal-once collapse -----------------------------------------
@@ -498,13 +498,13 @@ namespace LevelMoment.Tests.EditMode
             var ad = LoadAd();
             ad.Show(new RewardedAdShowCallbacks
             {
-                OnUserEarnedReward = a => rewards += a,
+                OnUserEarnedReward = _ => rewards++,
                 OnAdDismissed = () => dismissed++,
                 OnAdFailedToShow = e => failed = e,
             });
 
             fake.EmitMessage(Ready);
-            fake.EmitMessage(Reward(1));
+            fake.EmitMessage(Reward());
             fake.EmitMessage(Dismissed);
             fake.EmitMessage(Dismissed); // duplicate terminal — collapsed
             fake.EmitMessage(ErrorMsg("late", "ignored")); // after terminal — ignored
@@ -753,7 +753,7 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Show_ThrowingRewardCallback_IsNotReportedAsAProviderFailure()
         {
-            var fake = new SyncMessageWebView(Reward(1));
+            var fake = new SyncMessageWebView(Reward());
             LevelMomentWebViewRegistry.Register(() => fake);
 
             LevelMomentAdError failed = null;

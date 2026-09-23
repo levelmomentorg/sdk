@@ -64,6 +64,12 @@ class LevelMomentRewardedAd {
   /// Sent in the credential handshake so the page stamps it on every
   /// impression it records and echoes it on reward.earned.
   final String? customData;
+  /// Registered reporting group and values for this break.
+  final String? slotType;
+  final Map<String, Object>? dimensions;
+  final String? adType;
+  final int? targetDurationSeconds;
+  final int? rewardAmount;
 
   /// Mirrors: fullScreenContentCallback — set this before calling show()
   LevelMomentFullScreenContentCallback? fullScreenContentCallback;
@@ -78,6 +84,11 @@ class LevelMomentRewardedAd {
     required String format,
     this.studentToken,
     this.customData,
+    this.slotType,
+    this.dimensions,
+    this.adType,
+    this.targetDurationSeconds,
+    this.rewardAmount,
   }) : _format = format;
 
   // ---------------------------------------------------------------------------
@@ -98,6 +109,11 @@ class LevelMomentRewardedAd {
     String? studentToken,
     String format = 'quick_question',
     String? customData,
+    String? slotType,
+    Map<String, Object>? dimensions,
+    String? adType,
+    int? targetDurationSeconds,
+    int? rewardAmount,
   }) async {
     assert(
       LevelMomentAds.instance.isInitialized,
@@ -118,6 +134,11 @@ class LevelMomentRewardedAd {
       studentToken: resolvedToken,
       format: format,
       customData: customData,
+      slotType: slotType,
+      dimensions: dimensions,
+      adType: adType,
+      targetDurationSeconds: targetDurationSeconds,
+      rewardAmount: rewardAmount,
     );
     ad._loaded = true;
     adLoadCallback.onAdLoaded(ad);
@@ -160,6 +181,7 @@ class LevelMomentRewardedAd {
     // times; dismissed/error fire the dismissal exactly once. Mirrors the
     // _shown/dismissedRef discipline in the react-native SDK.
     var terminal = false;
+    var rewardDelivered = false;
 
     void handleMessage(HostMessage message) {
       // Keep the secure store in step with the page: store what pairing
@@ -183,13 +205,15 @@ class LevelMomentRewardedAd {
           return;
         case Ready():
           fullScreenContentCallback?.onAdShowedFullScreenContent?.call(this);
-        case EarnedReward(:final amount, :final rewardId):
+        case EarnedReward(:final rewardId, :final earnedAt):
+          if (terminal || rewardDelivered) return;
+          rewardDelivered = true;
           onUserEarnedReward(
             this,
             LevelMomentRewardItem(
               type: 'question_answered',
-              amount: amount,
               rewardId: rewardId,
+              earnedAt: earnedAt,
             ),
           );
         // SignedIn belongs to the sign-in gate and never reaches a break. If
@@ -223,6 +247,8 @@ class LevelMomentRewardedAd {
             placementId: placementId,
             explicitToken: studentToken,
             customData: customData,
+            slotType: slotType,
+            dimensions: dimensions,
             useDeviceStore: !LevelMomentAds.instance.mock &&
                 LevelMomentAds.instance.unsafeTesting == null,
             origin: levelMomentOrigin(LevelMomentAds.instance.breakUrl),
@@ -250,6 +276,11 @@ class LevelMomentRewardedAd {
       'placementId': placementId,
       'format': _format,
     };
+    if (adType != null) params['adType'] = adType!;
+    if (targetDurationSeconds != null) {
+      params['targetDurationSeconds'] = '$targetDurationSeconds';
+    }
+    if (rewardAmount != null) params['rewardAmount'] = '$rewardAmount';
     if (LevelMomentAds.instance.mock) {
       params['mock'] = 'true';
     } else {

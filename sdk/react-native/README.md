@@ -49,7 +49,14 @@ import { LevelMomentAd } from "@levelmoment/sdk-react-native";
 
 function showBreak() {
   pauseGame();
-  const ad = LevelMomentAd.createForAdRequest("YOUR_PLACEMENT_ID", {});
+  const ad = LevelMomentAd.createForAdRequest("YOUR_PLACEMENT_ID", {
+    slot: {
+      adType: "rewarded",
+      targetDurationSeconds: 30,
+      slotType: "item_reward",
+      dimensions: { item: "sword", color: "blue" },
+    },
+  });
   let granted = false;
   let finished = false;
   const finish = () => {
@@ -61,9 +68,10 @@ function showBreak() {
   };
 
   ad.addAdEventListener("loaded", () => ad.show());
-  ad.addAdEventListener("earnedReward", ({ amount }) => {
-    if (!finished && amount === 1 && !granted) {
+  ad.addAdEventListener("earnedReward", ({ rewardId }) => {
+    if (!finished && !granted) {
       granted = true;
+      recordGrantedReward(rewardId);
       grantBonus();
     }
   });
@@ -75,9 +83,12 @@ function showBreak() {
 
 `load()` prepares a new handle. The hosted activity loads when `show()` opens,
 so there is no instant-display promise. Create a new handle for each target
-slot, grant on the first correct answer, and resume once after `closed` or an
-error. An optional `rewardId` is an opaque correlation value for server
-callbacks.
+slot, grant once for the server-confirmed passed break, and resume after
+`closed` or an error. Dedupe grants by `rewardId = breakSessionId`; the game
+owns the item or currency amount. Register `slotType` and dimension codes in
+the studio's Break performance screen before using them. One `placementId`
+supports many items and level transitions; an integer `afterLevel` dimension
+lets the report compare individual levels without registering each level.
 
 The normal configuration uses the canonical Level Moment hosted service. Use
 `unsafeTesting` only for local or sandbox endpoints and an `eply_sbx_` test

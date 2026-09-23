@@ -17,7 +17,7 @@
 //       OnAdFailedToLoad = err => Retry(),
 //   });
 //   _ad.Show(new RewardedAdShowCallbacks {
-//       OnUserEarnedReward = amount => { if (amount == 1) GrantBonus(); },
+//       OnUserEarnedReward = reward => GrantBonusOnce(reward.RewardId),
 //       OnAdDismissed      = () => ResumeGame(),
 //       OnAdFailedToShow   = err => ResumeGame(),
 //   });

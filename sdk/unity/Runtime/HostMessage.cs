@@ -70,11 +70,11 @@ namespace LevelMoment
     {
         public HostMessageType Type;
 
-        /// <summary>Reward amount for <see cref="HostMessageType.EarnedReward"/> (0 or 1).</summary>
-        public int Amount;
-
-        /// <summary>Opaque impression identifier for this answer, when supplied.</summary>
+        /// <summary>Opaque break outcome identifier.</summary>
         public string RewardId;
+
+        /// <summary>Server-confirmed earning time.</summary>
+        public string EarnedAt;
 
         /// <summary>Error code for <see cref="HostMessageType.Error"/>.</summary>
         public string Code;
@@ -158,17 +158,15 @@ namespace LevelMoment
                 case "earnedReward":
                     if (wire.payload == null || !raw.Contains("\"payload\""))
                         return null;
-                    if (wire.payload.amount != 0 && wire.payload.amount != 1)
-                        return null;
-                    if (wire.payload.rewardId != null &&
-                        (wire.payload.rewardId.Length == 0 ||
-                         wire.payload.rewardId.Length > 256))
+                    if (string.IsNullOrEmpty(wire.payload.rewardId) ||
+                        wire.payload.rewardId.Length > 256 ||
+                        string.IsNullOrEmpty(wire.payload.earnedAt))
                         return null;
                     return new HostMessage
                     {
                         Type = HostMessageType.EarnedReward,
-                        Amount = wire.payload.amount,
                         RewardId = wire.payload.rewardId,
+                        EarnedAt = wire.payload.earnedAt,
                     };
                 case "signedIn":
                     return new HostMessage { Type = HostMessageType.SignedIn };
@@ -224,8 +222,8 @@ namespace LevelMoment
         [Serializable]
         private class WirePayload
         {
-            public int amount;
             public string rewardId;
+            public string earnedAt;
             public string code;
             public string message;
             public string token;

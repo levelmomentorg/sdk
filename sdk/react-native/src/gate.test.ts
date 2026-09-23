@@ -147,7 +147,10 @@ describe("gateResultFor", () => {
   it("returns null for messages that do not end the gate", () => {
     expect(gateResultFor({ type: "ready" })).toBeNull();
     expect(
-      gateResultFor({ type: "earnedReward", payload: { amount: 1 } }),
+      gateResultFor({
+        type: "earnedReward",
+        payload: { rewardId: "break-1", earnedAt: "2026-09-22T00:00:00.000Z" },
+      }),
     ).toBeNull();
   });
 });
@@ -391,7 +394,7 @@ describe("host messages the gate must not act on", () => {
     const pending = ensureSignedIn(OPTIONS);
     const reward: HostMessage = {
       type: "earnedReward",
-      payload: { amount: 1 },
+      payload: { rewardId: "break-1", earnedAt: "2026-09-22T00:00:00.000Z" },
     };
     host.current!.onMessage(reward);
     const race = await Promise.race([

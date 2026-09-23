@@ -7,8 +7,8 @@
 // error) to the C# callbacks. Structurally mirrors sdk/flutter's
 // LevelMomentRewardedAd and sdk/react-native's LevelMomentAd:
 //   - Load() is a synchronous mark-ready — no network (the page does the fetch).
-//   - dismissed/error are terminal and collapse to a single dismiss (the
-//     terminal-once guard); earnedReward may fire many times before it.
+//   - dismissed/error are terminal and collapse to a single dismiss; a
+//     server-confirmed earnedReward reaches the game at most once per show.
 //   - A pre-`ready` load watchdog (15s, mirroring sdk/web) prevents a crashed
 //     page from covering the game forever.
 //
@@ -41,6 +41,7 @@ namespace LevelMoment
         // placement opens is byte-for-byte what it always was. See
         // InterstitialAd, which passes "interstitial".
         private readonly BreakSurfaceCore<RewardedAdShowCallbacks> _core;
+        private bool _rewardDispatched;
 
         private RewardedAd(string placementId, string format, string studentToken, LevelMomentAdSlot slot)
         {
@@ -161,21 +162,16 @@ namespace LevelMoment
         private void HandleEarnedReward(HostMessage msg)
         {
             var callbacks = _core.Callbacks;
-            if (callbacks == null)
+            if (callbacks == null || _core.IsTerminal || _rewardDispatched)
                 return;
 
-            if (callbacks.OnUserEarnedRewardItem != null)
-            {
-                var earnedItem = callbacks.OnUserEarnedRewardItem;
-                var item = new LevelMomentRewardItem { Amount = msg.Amount, RewardId = msg.RewardId };
-                _core.FireToPublisher(delegate { earnedItem(item); });
-            }
-            if (!_core.IsTerminal && callbacks.OnUserEarnedReward != null)
-            {
-                var earned = callbacks.OnUserEarnedReward;
-                var amount = msg.Amount;
-                _core.FireToPublisher(delegate { earned(amount); });
-            }
+            // Set before invoking publisher code: a reentrant bridge message
+            // cannot grant the same break twice.
+            _rewardDispatched = true;
+            var callback = callbacks.OnUserEarnedRewardItem ?? callbacks.OnUserEarnedReward;
+            if (callback == null) return;
+            var item = new LevelMomentRewardItem { RewardId = msg.RewardId, EarnedAt = msg.EarnedAt };
+            _core.FireToPublisher(delegate { callback(item); });
         }
     }
 }

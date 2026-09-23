@@ -13,7 +13,7 @@ import {
 
 export type HostMessage =
   | { type: "ready" }
-  | { type: "earnedReward"; payload: { amount: 0 | 1; rewardId?: string } }
+  | { type: "earnedReward"; payload: { rewardId: string; earnedAt: string } }
   /** Sign-in gate only: this device holds a valid credential for the game. */
   | { type: "signedIn" }
   | { type: "dismissed" }
@@ -51,6 +51,8 @@ export interface CredentialReply {
    */
   custody: boolean;
   customData?: string;
+  slotType?: string;
+  dimensions?: Record<string, string | number>;
 }
 
 /**

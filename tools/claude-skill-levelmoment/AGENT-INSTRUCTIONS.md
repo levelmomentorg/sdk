@@ -45,8 +45,9 @@ When the target slot opens:
 
 1. Pause the game once.
 2. Show the new handle.
-3. On the first `amount == 1` reward callback, run the handoff's chosen bonus
-   action once. Ignore later correct and incorrect reward callbacks.
+3. On the first server-confirmed terminal reward callback, pass its opaque
+   `rewardId` to the handoff's chosen bonus action once. A failed or abandoned
+   break has no reward callback; individual answers grant nothing.
 4. On either terminal callback, resume once and prepare a fresh handle for the
    next slot. A reward already granted stays granted if a later failure arrives.
 
@@ -87,9 +88,9 @@ hooks with the supplied slot and reward action.
 Run the handoff's focused install, test, and build commands. Confirm the
 target slot handles these cases:
 
-- A first correct answer grants one bonus.
-- A second correct answer grants no second bonus.
-- A wrong answer grants no bonus.
+- A completed-and-passed graded break grants one bonus by `rewardId`.
+- A duplicate callback or webhook for that ID grants no second bonus.
+- A failed or abandoned break grants no bonus, even after a correct child answer.
 - Closing the break resumes once.
 - A show failure resumes once and does not revoke an earlier bonus.
 

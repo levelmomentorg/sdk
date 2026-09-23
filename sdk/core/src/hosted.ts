@@ -130,11 +130,11 @@ export function isBridgeMessage(value: unknown): boolean {
   switch (msg.type) {
     case "earnedReward":
       return (
-        (payload.amount === 0 || payload.amount === 1) &&
-        (payload.rewardId === undefined ||
-          (typeof payload.rewardId === "string" &&
-            payload.rewardId.length > 0 &&
-            payload.rewardId.length <= 256))
+        typeof payload.rewardId === "string" &&
+        payload.rewardId.length > 0 &&
+        payload.rewardId.length <= 256 &&
+        typeof payload.earnedAt === "string" &&
+        !Number.isNaN(Date.parse(payload.earnedAt))
       );
     case "credentialIssued":
       return typeof payload.token === "string" && payload.token.length > 0;

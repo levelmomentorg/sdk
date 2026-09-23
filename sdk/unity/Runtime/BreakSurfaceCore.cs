@@ -287,7 +287,8 @@ namespace LevelMoment
                         _webView,
                         LevelMomentAds.Config.Mock ? null : _studentToken,
                         LevelMomentAds.Config.CustomData,
-                        OriginOf(_hostedUrl));
+                        OriginOf(_hostedUrl),
+                        _slot);
                     break;
                 case HostMessageType.CredentialIssued:
                 case HostMessageType.CredentialInvalid:

@@ -54,6 +54,8 @@ export interface LevelMomentAdOptions extends HostedOptions {
   mock?: boolean;
   /** Opaque game-server context, sent privately with the break handshake. */
   customData?: string;
+  /** Declared serving and pre-registered reporting attributes. */
+  slot?: import("@levelmoment/sdk-core").SlotDeclaration;
 }
 
 export class LevelMomentAd {
@@ -110,7 +112,7 @@ export class LevelMomentAd {
   /**
    * Open the hosted break page in a fullscreen WebView. The page handles all
    * question rendering and posts back terminal events: 'earnedReward' fires
-   * once per answer, then 'closed' fires when the session ends.
+   * once for the terminal passed break, then 'closed' fires.
    */
   show(): void {
     if (this._disposed || this._finished) {
@@ -143,6 +145,10 @@ export class LevelMomentAd {
         undefined,
         this.options.customData,
         !!this.options.unsafeTesting || !!this.options.mock,
+        {
+          slotType: this.options.slot?.slotType,
+          dimensions: this.options.slot?.dimensions,
+        },
       ),
     });
 
@@ -158,6 +164,15 @@ export class LevelMomentAd {
     const params = new URLSearchParams();
     params.set("placementId", this.placementId);
     params.set("format", this.options.format ?? "quick_question");
+    if (this.options.slot) {
+      params.set("adType", this.options.slot.adType);
+      params.set(
+        "targetDurationSeconds",
+        String(this.options.slot.targetDurationSeconds),
+      );
+      if (this.options.slot.rewardAmount !== undefined)
+        params.set("rewardAmount", String(this.options.slot.rewardAmount));
+    }
     if (this.options.mock) {
       params.set("mock", "true");
     } else if (this.options.apiUrl) {
@@ -190,14 +205,12 @@ export class LevelMomentAd {
       case "needCredential":
         return;
       case "earnedReward":
-        if (msg.payload.rewardId) {
-          if (this._rewardIds.has(msg.payload.rewardId)) return;
-          this._rewardIds.add(msg.payload.rewardId);
-        }
+        if (this._rewardIds.has(msg.payload.rewardId)) return;
+        this._rewardIds.add(msg.payload.rewardId);
         this._emit("earnedReward", {
           type: "question_answered",
-          amount: msg.payload.amount,
-          ...(msg.payload.rewardId ? { rewardId: msg.payload.rewardId } : {}),
+          rewardId: msg.payload.rewardId,
+          earnedAt: msg.payload.earnedAt,
         });
         return;
       // `signedIn` belongs to the sign-in gate and never reaches a break. If one

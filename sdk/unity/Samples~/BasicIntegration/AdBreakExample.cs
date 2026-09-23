@@ -58,11 +58,11 @@ public class AdBreakExample : MonoBehaviour
 
         _rewardedAd.Show(new RewardedAdShowCallbacks
         {
-            OnUserEarnedReward = amount =>
+            OnUserEarnedReward = reward =>
             {
-                // amount == 1 → correct answer; 0 → skipped / wrong.
-                if (amount == 1)
-                    Debug.Log("[LevelMoment] Correct! Grant a bonus here.");
+                // A server-confirmed passed break has one opaque reward ID.
+                // Deduplicate that ID in persistent game state before granting.
+                Debug.Log("[LevelMoment] Earned " + reward.RewardId + ". Grant a bonus here.");
             },
             OnAdDismissed = () =>
             {

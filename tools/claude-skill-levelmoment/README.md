@@ -24,7 +24,8 @@ place of a supplied preview artifact.
 - `reference/` contains platform mapping, installation, diagnosis, and preview
   guidance.
 - `templates/` contains examples with a fresh handle per break, one bonus for
-  the first correct answer, and one game resume per terminal result.
+  one game-owned bonus per server-confirmed passed break, and one game resume
+  per terminal result.
 - `handoff.example.json` describes the required partner inputs.
 
 ## Verify the packet

@@ -7,7 +7,7 @@ import {
 type RewardedSlotHooks = {
   pauseGame(): void;
   resumeGame(): void;
-  grantChosenBonus(): void;
+  grantChosenBonus(rewardId: string): void;
   prepareNextSlot(): void;
 };
 
@@ -31,10 +31,10 @@ export function showLevelMomentRewardedSlot(
 
   cleanups.push(ad.addAdEventListener("loaded", () => ad.show()));
   cleanups.push(
-    ad.addAdEventListener("earnedReward", ({ amount }) => {
-      if (!finished && amount === 1 && !granted) {
+    ad.addAdEventListener("earnedReward", ({ rewardId }) => {
+      if (!finished && !granted) {
         granted = true;
-        hooks.grantChosenBonus();
+        hooks.grantChosenBonus(rewardId);
       }
     }),
   );

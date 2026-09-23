@@ -6,14 +6,14 @@ public sealed class LevelMomentRewardedSlot
     private readonly string _placementId;
     private readonly Action _pauseGame;
     private readonly Action _resumeGame;
-    private readonly Action _grantChosenBonus;
+    private readonly Action<string> _grantChosenBonus;
     private readonly Action _prepareNextSlot;
 
     public LevelMomentRewardedSlot(
         string placementId,
         Action pauseGame,
         Action resumeGame,
-        Action grantChosenBonus,
+        Action<string> grantChosenBonus,
         Action prepareNextSlot)
     {
         _placementId = placementId;
@@ -40,12 +40,12 @@ public sealed class LevelMomentRewardedSlot
         {
             OnAdLoaded = ad => ad.Show(new RewardedAdShowCallbacks
             {
-                OnUserEarnedReward = amount =>
+                OnUserEarnedReward = reward =>
                 {
-                    if (!finished && amount == 1 && !granted)
+                    if (!finished && !granted)
                     {
                         granted = true;
-                        _grantChosenBonus();
+                        _grantChosenBonus(reward.RewardId);
                     }
                 },
                 OnAdDismissed = finish,

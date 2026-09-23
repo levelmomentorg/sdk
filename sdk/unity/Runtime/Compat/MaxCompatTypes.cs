@@ -95,13 +95,12 @@ namespace LevelMoment.Compat.Max
     /// Provides: <see cref="Label"/>, <see cref="Amount"/> — both real data,
     /// not fabricated: <see cref="Amount"/> is the reward amount the game
     /// declared for this ad unit in <c>LevelMomentMaxSdk.MapAdUnit</c>, or,
-    /// when it declared none, the underlying per-answer amount (1 for a correct
-    /// answer — see <see cref="RewardedAdShowCallbacks.OnUserEarnedReward"/>);
-    /// <see cref="Label"/> is the opaque impression id
+    /// when it declared none, 1 for a server-confirmed earned break;
+    /// <see cref="Label"/> is the opaque break reward id
     /// (<see cref="LevelMomentRewardItem.RewardId"/>) that correlates with the
     /// verified webhook, in the same string slot MAX uses for its
     /// dashboard-configured reward currency name. There is no currency name
-    /// to report here — Level Moment rewards are pass/fail per answer, not a
+    /// to report here — Level Moment game rewards are earned per passed graded break, not a
     /// configurable currency — so <c>Label</c> carries the id instead of an
     /// empty string.
     /// </summary>

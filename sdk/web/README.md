@@ -30,6 +30,12 @@ import {
 
 const client = LevelMomentWebClient.initialize({
   placementId: "YOUR_PLACEMENT_ID",
+  slot: {
+    adType: "rewarded",
+    targetDurationSeconds: 30,
+    slotType: "item_reward",
+    dimensions: { item: "sword", color: "blue" },
+  },
 });
 
 let nextAd: LevelMomentWebAd | undefined;
@@ -55,9 +61,10 @@ function showBreak() {
     prepare();
   };
   ad.show({
-    onUserEarnedReward: ({ amount }) => {
-      if (!finished && amount === 1 && !granted) {
+    onUserEarnedReward: ({ rewardId }) => {
+      if (!finished && !granted) {
         granted = true;
+        recordGrantedReward(rewardId);
         grantBonus();
       }
     },
@@ -71,8 +78,15 @@ prepare();
 
 `loadAd()` prepares an ad handle. The hosted break loads when `show()` opens;
 the SDK does not promise an instant display or preload the activity. Always
-resume the game after dismissal or show failure. An optional `rewardId` is an
-opaque correlation value for server callbacks.
+resume the game after dismissal or show failure. The callback fires once for a
+server-confirmed passed graded break. Its `rewardId` equals `breakSessionId`;
+dedupe grants by that ID. Your game decides the item or currency amount.
+
+Register `item_reward`, `item`, and `color` in the game's Break performance
+screen before sending those codes. The same `placementId` serves sword,
+character, costume, and level-transition breaks; use an integer `afterLevel`
+dimension to group all level breaks and compare individual levels. Unknown or
+retired reporting fields are omitted from reports without blocking the break.
 
 The standard production configuration needs only `placementId`; the SDK always
 uses the canonical Level Moment hosted origin. For local or sandbox development,
@@ -98,5 +112,5 @@ player needs the access flow, while a technical failure rejects the promise.
 See [`MIGRATION.md`](MIGRATION.md) and the signed-in [developer documentation](https://levelmoment.com/docs) for more details.
 
 Create a new handle after every terminal callback. The example grants one game
-bonus on the first correct answer and resumes play once on dismissal or
-failure. An earned bonus survives a later show failure.
+bonus from one server-confirmed passed graded break, deduplicated by
+`rewardId`, and resumes play once on dismissal or failure.

@@ -347,10 +347,22 @@ describe("LevelMomentWebAd", () => {
       const ad = await loadAd(LIVE);
       ad.show({ onUserEarnedReward: (r) => rewards.push(r) });
       emitMessage(
-        { type: "earnedReward", payload: { amount: 1 } },
+        {
+          type: "earnedReward",
+          payload: {
+            rewardId: "reward-1",
+            earnedAt: "2026-09-22T00:00:00.000Z",
+          },
+        },
         HOST_ORIGIN,
       );
-      expect(rewards).toEqual([{ type: "question_answered", amount: 1 }]);
+      expect(rewards).toEqual([
+        {
+          type: "question_answered",
+          rewardId: "reward-1",
+          earnedAt: "2026-09-22T00:00:00.000Z",
+        },
+      ]);
     });
 
     it("delivers a reward ID once when the hosted bridge retries it", async () => {
@@ -360,14 +372,21 @@ describe("LevelMomentWebAd", () => {
 
       const message = {
         type: "earnedReward" as const,
-        payload: { amount: 1 as const, rewardId: "reward-42" },
+        payload: {
+          rewardId: "reward-42",
+          earnedAt: "2026-09-22T00:00:00.000Z",
+        },
         protocolVersion: 1,
       };
       emitMessage(message, HOST_ORIGIN);
       emitMessage(message, HOST_ORIGIN);
 
       expect(rewards).toEqual([
-        { type: "question_answered", amount: 1, rewardId: "reward-42" },
+        {
+          type: "question_answered",
+          rewardId: "reward-42",
+          earnedAt: "2026-09-22T00:00:00.000Z",
+        },
       ]);
     });
 
@@ -385,6 +404,31 @@ describe("LevelMomentWebAd", () => {
             token: "student-tok-123",
             custody: false,
             customData: undefined,
+            protocolVersion: 1,
+            sdkVersion: "0.2.0",
+          },
+        },
+        HOST_ORIGIN,
+      );
+    });
+
+    it("forwards reporting-only metadata without a serving slot", async () => {
+      const ad = await loadAd({
+        ...LIVE,
+        slotType: "level_break",
+        dimensions: { afterLevel: 4 },
+      });
+      ad.show({});
+      emitMessage({ type: "needCredential" }, HOST_ORIGIN);
+      expect(body.children[0].contentWindow.postMessage).toHaveBeenCalledWith(
+        {
+          type: "credential",
+          payload: {
+            token: "student-tok-123",
+            custody: false,
+            customData: undefined,
+            slotType: "level_break",
+            dimensions: { afterLevel: 4 },
             protocolVersion: 1,
             sdkVersion: "0.2.0",
           },

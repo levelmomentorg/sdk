@@ -15,11 +15,11 @@ import { resolveHostedOptions, addBridgeVersion } from "@levelmoment/sdk-core";
 //   client.loadAd({ onAdLoaded: (ad) => (pending = ad) });
 //
 //   // Show in an existing ad slot. The hosted page handles everything.
-//   // earnedReward fires once per graded answer — accumulate, apply on dismiss.
-//   let reward = 0;
+//   // earnedReward fires once for a passed graded break.
+//   let earned = false;
 //   pending?.show({
-//     onUserEarnedReward: (r) => (reward = Math.max(reward, r.amount)),
-//     onAdDismissed: () => { if (reward === 1) grantBonus(); resumeGame(); },
+//     onUserEarnedReward: () => (earned = true),
+//     onAdDismissed: () => { if (earned) grantBonus(); resumeGame(); },
 //   });
 
 import type {
@@ -62,6 +62,9 @@ interface WebAdSpec {
   mock?: boolean;
   /** Opaque game-server context, sent through the host handshake. */
   customData?: string;
+  slot?: LevelMomentConfig["slot"];
+  slotType?: string;
+  dimensions?: Record<string, string | number>;
   /**
    * Pre-`ready` watchdog timeout (ms). Defaults to DEFAULT_LOAD_TIMEOUT_MS
    * when unset. 0 or negative disables the watchdog entirely.
@@ -117,6 +120,9 @@ export class LevelMomentWebAd {
       studentToken: config.studentToken,
       mock: config.mock,
       customData: config.customData,
+      slot: config.slot,
+      slotType: config.slotType ?? config.slot?.slotType,
+      dimensions: config.dimensions ?? config.slot?.dimensions,
       loadTimeoutMs: config.breakLoadTimeoutMs,
     });
     ad._loaded = true;
@@ -143,7 +149,7 @@ export class LevelMomentWebAd {
   /**
    * Open the hosted /break page in a fullscreen iframe. The page handles all
    * question rendering and posts back terminal events: 'earnedReward' fires
-   * once per answer, then 'dismissed' (or 'error') fires when the session ends.
+   * once for the terminal passed break, then 'dismissed' (or 'error') fires.
    */
   show(callbacks: WebAdShowCallbacks): void {
     if (this._disposed || this._consumed) return;
@@ -168,16 +174,12 @@ export class LevelMomentWebAd {
       onMessage: (msg: HostMessage) => {
         switch (msg.type) {
           case "earnedReward":
-            if (msg.payload.rewardId) {
-              if (this._rewardIds.has(msg.payload.rewardId)) return;
-              this._rewardIds.add(msg.payload.rewardId);
-            }
+            if (this._rewardIds.has(msg.payload.rewardId)) return;
+            this._rewardIds.add(msg.payload.rewardId);
             callbacks.onUserEarnedReward?.({
               type: "question_answered",
-              amount: msg.payload.amount,
-              ...(msg.payload.rewardId
-                ? { rewardId: msg.payload.rewardId }
-                : {}),
+              rewardId: msg.payload.rewardId,
+              earnedAt: msg.payload.earnedAt,
             });
             return;
           case "dismissed":
@@ -195,6 +197,8 @@ export class LevelMomentWebAd {
               token: this._spec.studentToken ?? "",
               custody: false,
               customData: this._spec.customData,
+              slotType: this._spec.slotType,
+              dimensions: this._spec.dimensions,
             });
             return;
           case "error":
@@ -239,6 +243,15 @@ export class LevelMomentWebAd {
     const params = new URLSearchParams();
     params.set("placementId", this._spec.placementId);
     params.set("format", this._spec.format);
+    if (this._spec.slot) {
+      params.set("adType", this._spec.slot.adType);
+      params.set(
+        "targetDurationSeconds",
+        String(this._spec.slot.targetDurationSeconds),
+      );
+      if (this._spec.slot.rewardAmount !== undefined)
+        params.set("rewardAmount", String(this._spec.slot.rewardAmount));
+    }
     if (this._spec.mock) {
       params.set("mock", "true");
     } else if (this._spec.apiUrl) {

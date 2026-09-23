@@ -8,10 +8,11 @@ slot. Report each result as pass, fail, or unknown.
   password, or preview secret.
 - The target slot creates a fresh handle for every show.
 - A load failure restores regular gameplay once.
-- The first correct answer grants the handoff reward once.
-- Wrong and later correct answers grant nothing.
+- A completed-and-passed graded break grants the handoff reward once by
+  `rewardId`, independent of its question count.
+- Individual answers and failed or abandoned breaks grant nothing.
 - Dismissal and failure each resume once.
-- A failure after a first correct answer does not undo the reward.
+- A failure after a confirmed terminal reward does not undo that reward.
 - `ensureAccess` only runs from a deliberate player action. `checkAccess`, if
   present, treats technical failure as unknown. Access cancellation does not
   reopen the flow or pause the game.

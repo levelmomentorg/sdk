@@ -33,6 +33,8 @@ Future<CredentialReply> Function() credentialResponder({
   LevelMomentTokenStore? store,
   bool useDeviceStore = true,
   String? customData,
+  String? slotType,
+  Map<String, Object>? dimensions,
   String? origin,
 }) {
   return () async {
@@ -51,6 +53,8 @@ Future<CredentialReply> Function() credentialResponder({
       token: token,
       custody: useDeviceStore && await target.isAvailable(),
       customData: customData,
+      slotType: slotType,
+      dimensions: dimensions,
       origin: origin ?? levelMomentOrigin(kLevelMomentBreakUrl),
     );
   };

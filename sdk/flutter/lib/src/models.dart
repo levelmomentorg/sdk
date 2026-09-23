@@ -21,18 +21,16 @@ class LevelMomentAdError {
 
 /// Mirrors: RewardItem
 /// type is always 'question_answered'
-/// amount is 1 for correct answer, 0 for skipped/wrong
 class LevelMomentRewardItem {
   final String type;
-  final num amount;
-
-  /// Opaque impression identifier supplied by the hosted break, when present.
-  final String? rewardId;
+  /// Opaque server-confirmed break outcome identifier.
+  final String rewardId;
+  final String earnedAt;
 
   const LevelMomentRewardItem({
     required this.type,
-    required this.amount,
-    this.rewardId,
+    required this.rewardId,
+    required this.earnedAt,
   });
 }
 

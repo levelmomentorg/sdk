@@ -93,19 +93,16 @@
 //
 // REWARD SEMANTICS: MAX's OnAdReceivedRewardEvent fires at most once per
 // Show — grant one reward when the ad finishes. The underlying
-// RewardedAdShowCallbacks.OnUserEarnedRewardItem instead fires once per
-// GRADED ANSWER (including amount 0 for a wrong answer), because a break can
-// contain several questions. To keep a migrated callback body's grant-once
-// assumption true, ShowRewardedAd raises OnAdReceivedRewardEvent for at most
-// the FIRST answer with Amount > 0 per Show, and never for a wrong answer;
+// RewardedAdShowCallbacks.OnUserEarnedRewardItem fires only for a
+// server-confirmed passed graded break. ShowRewardedAd forwards that outcome
+// to OnAdReceivedRewardEvent at most once per Show;
 // the once-flag resets only when a genuinely new Show actually starts (see
 // the "already_showing" ordering note above — NOT on a duplicate Show call
-// while one is already in progress). Per-answer granularity is still
-// available — it just isn't behind the MAX-shaped event; see README.md.
+// while one is already in progress). Child answers never grant the game reward.
 // The Amount it carries is the reward amount the game declared for the ad
 // unit in MapAdUnit, which is the value the ad unit already granted — MAX
 // reads that from its dashboard, and there is no dashboard here. An ad unit
-// mapped without one reports the underlying per-answer amount instead.
+// mapped without one reports 1 for the earned break.
 //
 // NOT PROVIDED: banner/MREC (MAX's `CreateBanner`/`CreateMRec` and friends),
 // `OnAdClickedEvent`/`OnAdRevenuePaidEvent`/`OnExpiredAdReloadedEvent`/
@@ -311,8 +308,8 @@ namespace LevelMoment.Compat.Max
         /// What the game grants the player when this slot's break passes,
         /// matching the amount the ad unit already granted. It is the
         /// <c>Amount</c> a migrated <c>OnAdReceivedRewardEvent</c> handler
-        /// reads, so a port keeps its reward economy. 0 reports the underlying
-        /// per-answer amount instead. Interstitial slots grant nothing and
+        /// reads, so a port keeps its reward economy. 0 reports 1 for a passed
+        /// graded break. Interstitial slots grant nothing and
         /// leave it at 0.
         /// </param>
         public static void MapAdUnit(
@@ -683,26 +680,23 @@ namespace LevelMoment.Compat.Max
                 OnUserEarnedRewardItem = item =>
                 {
                     // MAX fires OnAdReceivedRewardEvent at most once per
-                    // Show. The underlying reward reports the break's grade
-                    // (amount 0 when it did not pass), so this filter keeps
-                    // MAX's shape whatever the break reports: the first
-                    // positive amount of a Show, and nothing else.
-                    if (item.Amount <= 0)
-                        return;
+                    // Show. The underlying callback exists only for a
+                    // server-confirmed earned break; this guard also drops
+                    // duplicate deliveries within the same Show.
                     if (_rewardedGranted.Contains(adUnitId))
                         return;
                     _rewardedGranted.Add(adUnitId);
                     // Report what the game declared for this slot, the way MAX
                     // reports what the studio configured for the ad unit. A
-                    // slot that declared no amount reports the underlying
-                    // per-answer amount, so an unmigrated mapping is unchanged.
+                    // slot that declared no amount reports 1 for the earned
+                    // break. The game's own declared amount remains authoritative.
                     var declared = DeclaredRewardAmount(adUnitId);
                     LevelMomentMaxSdkCallbacks.Rewarded.RaiseOnAdReceivedRewardEvent(
                         adUnitId,
                         new Reward
                         {
                             Label = item.RewardId,
-                            Amount = declared > 0 ? declared : item.Amount,
+                            Amount = declared > 0 ? declared : 1,
                         },
                         new AdInfo(adUnitId));
                 },

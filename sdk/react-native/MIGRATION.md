@@ -68,9 +68,10 @@ import { LevelMomentAd } from "@levelmoment/sdk-react-native";
 const ad = LevelMomentAd.createForAdRequest("YOUR_PLACEMENT_ID");
 let rewardGranted = false;
 ad.addAdEventListener("loaded", () => ad.show());
-ad.addAdEventListener("earnedReward", ({ amount }) => {
-  if (amount === 1 && !rewardGranted) {
+ad.addAdEventListener("earnedReward", ({ rewardId }) => {
+  if (!rewardGranted) {
     rewardGranted = true;
+    recordGrantedReward(rewardId);
     grantBonus();
   }
 });
@@ -85,9 +86,9 @@ ad.addAdEventListener("error", () => {
 ad.load();
 ```
 
-A multi-question break can emit several reward callbacks. Guard the game
-reward so the first correct answer grants it once. Dismissal and failure only
-resume the game.
+A passed graded break emits one reward callback, regardless of question count.
+Deduplicate game grants by `rewardId = breakSessionId`. Dismissal and failure
+only resume the game; the game chooses the item or currency amount.
 
 Production uses fixed service endpoints and managed credentials. Do not pass
 `apiUrl`, `breakUrl`, or `studentToken`.
@@ -115,6 +116,6 @@ const options = {
 2. Confirm a quiet access check does not show the modal.
 3. Confirm the visible access flow can pair a fresh install.
 4. Complete a break and confirm `closed` resumes the game exactly once.
-5. Confirm a correct answer grants the game reward at most once.
+5. Confirm a server-confirmed passed graded break grants the game reward at most once per `rewardId`.
 
 Compare the result with the [React Native example](example/App.tsx).

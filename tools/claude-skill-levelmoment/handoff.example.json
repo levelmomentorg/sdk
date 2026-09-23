@@ -27,7 +27,8 @@
   },
   "reward": {
     "action": "",
-    "firstCorrectOnly": true,
+    "grantOn": "terminalReward",
+    "dedupeByRewardId": true,
     "resumeOnTerminal": true
   },
   "verification": {

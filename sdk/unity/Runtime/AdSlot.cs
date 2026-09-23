@@ -14,6 +14,8 @@
 // See docs/decisions/break-formats-and-payment-2026-09-11.md.
 // ---------------------------------------------------------------------------
 
+using System.Collections.Generic;
+
 namespace LevelMoment
 {
     /// <summary>
@@ -44,6 +46,12 @@ namespace LevelMoment
         /// </summary>
         public int RewardAmount { get; private set; }
 
+        /// <summary>Registered reporting group. This is not a new SDK key.</summary>
+        public string SlotType { get; private set; }
+
+        /// <summary>Registered category codes or integer-range values.</summary>
+        public IDictionary<string, object> Dimensions { get; private set; }
+
         /// <summary>
         /// Declare a slot. <paramref name="targetDurationSeconds"/> is clamped
         /// to <see cref="MinDurationSeconds"/>..<see cref="MaxDurationSeconds"/>
@@ -51,11 +59,14 @@ namespace LevelMoment
         /// a slot outside the range still serves a break, which is a better
         /// outcome for the player than refusing one over a typo.
         /// </summary>
-        public LevelMomentAdSlot(string adType, int targetDurationSeconds, int rewardAmount = 0)
+        public LevelMomentAdSlot(string adType, int targetDurationSeconds, int rewardAmount = 0,
+            string slotType = null, IDictionary<string, object> dimensions = null)
         {
             AdType = adType == "interstitial" ? "interstitial" : "rewarded";
             TargetDurationSeconds = Clamp(targetDurationSeconds, MinDurationSeconds, MaxDurationSeconds);
             RewardAmount = Clamp(rewardAmount, 0, MaxRewardAmount);
+            SlotType = slotType;
+            Dimensions = dimensions;
         }
 
         /// <summary>

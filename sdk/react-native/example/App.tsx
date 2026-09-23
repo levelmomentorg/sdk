@@ -93,11 +93,7 @@ export default function App(): React.ReactElement {
       setStatus(`Error: ${err.code} — ${err.message}`);
     });
     ad.addAdEventListener("earnedReward", (reward) => {
-      setStatus(
-        reward.amount === 1
-          ? "Reward earned — correct!"
-          : "Answered (no reward)",
-      );
+      setStatus(`Reward earned for break ${reward.rewardId}`);
     });
     ad.addAdEventListener("closed", () => {
       setStatus("Dismissed — ready for next break");

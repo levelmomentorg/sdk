@@ -53,6 +53,8 @@ void main() {
         'token': 'tok-123',
         'custody': true,
         'customData': null,
+        'slotType': null,
+        'dimensions': null,
         'protocolVersion': 1,
         'sdkVersion': '0.2.0',
       });
@@ -99,6 +101,8 @@ void main() {
         'token': '',
         'custody': false,
         'customData': null,
+        'slotType': null,
+        'dimensions': null,
         'protocolVersion': 1,
         'sdkVersion': '0.2.0',
       });
@@ -241,7 +245,7 @@ void main() {
 
       for (final message in <HostMessage>[
         const Ready(),
-        const EarnedReward(1),
+        const EarnedReward('break-1', '2026-09-22T00:00:00.000Z'),
         const SignedIn(),
         const Dismissed(),
         const ErrorMsg('code', 'message'),

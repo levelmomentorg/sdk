@@ -81,6 +81,15 @@ test("TypeScript templates compile against the installed SDK exports", () => {
   typecheckTypeScriptTemplate("templates/rn-app-root.tsx.tmpl");
 });
 
+test("native templates pass the terminal reward ID to game-owned grants", () => {
+  const flutter = read("templates/flutter-ad-break.dart.tmpl");
+  const unity = read("templates/unity-AdsManager.cs.tmpl");
+  assert.match(flutter, /hooks\.grantChosenBonus\(reward\.rewardId\)/);
+  assert.match(unity, /_grantChosenBonus\(reward\.RewardId\)/);
+  assert.doesNotMatch(flutter, /reward\.amount/);
+  assert.doesNotMatch(unity, /amount\s*==\s*1/);
+});
+
 test("web template grants once, resumes once, and creates a fresh handle", () => {
   const handles = [];
   const client = {
@@ -105,21 +114,22 @@ test("web template grants once, resumes once, and creates a fresh handle", () =>
   const slot = createLevelMomentRewardedSlot("partner-placement", {
     pauseGame: () => calls.push("pause"),
     resumeGame: () => calls.push("resume"),
-    grantChosenBonus: () => calls.push("grant"),
+    grantChosenBonus: (rewardId) => calls.push(`grant:${rewardId}`),
   });
 
   assert.equal(slot.show(), true);
-  handles[0].callbacks.onUserEarnedReward({ amount: 0 });
-  handles[0].callbacks.onUserEarnedReward({ amount: 1 });
-  handles[0].callbacks.onUserEarnedReward({ amount: 1 });
+  handles[0].callbacks.onUserEarnedReward({ rewardId: "break-1" });
+  handles[0].callbacks.onUserEarnedReward({ rewardId: "break-1" });
   handles[0].callbacks.onAdFailedToShow();
-  handles[0].callbacks.onUserEarnedReward({ amount: 1 });
+  handles[0].callbacks.onUserEarnedReward({ rewardId: "break-1" });
   handles[0].callbacks.onAdDismissed();
 
-  assert.deepEqual(calls, ["pause", "grant", "resume"]);
+  assert.deepEqual(calls, ["pause", "grant:break-1", "resume"]);
   assert.equal(handles.length, 2);
   assert.notEqual(handles[0], handles[1]);
   assert.equal(slot.show(), true);
+  handles[1].callbacks.onAdDismissed();
+  assert.deepEqual(calls.slice(-2), ["pause", "resume"]);
 });
 
 test("React Native template resumes once for load failure and dismissal", () => {
@@ -164,17 +174,17 @@ test("React Native template resumes once for load failure and dismissal", () => 
   const hooks = {
     pauseGame: () => calls.push("pause"),
     resumeGame: () => calls.push("resume"),
-    grantChosenBonus: () => calls.push("grant"),
+    grantChosenBonus: (rewardId) => calls.push(`grant:${rewardId}`),
     prepareNextSlot: () => calls.push("prepare"),
   };
 
   showLevelMomentRewardedSlot("partner-placement", hooks);
-  ads[0].emit("earnedReward", { amount: 1 });
+  ads[0].emit("earnedReward", { rewardId: "break-2" });
   ads[0].emit("error", { code: "network_error" });
   ads[0].emit("closed");
-  ads[0].emit("earnedReward", { amount: 1 });
+  ads[0].emit("earnedReward", { rewardId: "break-2" });
 
-  assert.deepEqual(calls, ["pause", "grant", "resume", "prepare"]);
+  assert.deepEqual(calls, ["pause", "grant:break-2", "resume", "prepare"]);
   assert.equal(ads[0].disposed, true);
   assert.equal(Object.keys(ads[0].options).length, 0);
 
@@ -182,7 +192,7 @@ test("React Native template resumes once for load failure and dismissal", () => 
   ads[1].emit("error", { code: "load_failed" });
   assert.deepEqual(calls, [
     "pause",
-    "grant",
+    "grant:break-2",
     "resume",
     "prepare",
     "pause",
@@ -200,6 +210,9 @@ test("handoff uses supplied immutable inputs without a fabricated source", () =>
   assert.equal(handoff.sdk.platformArtifact.sha256, "");
   assert.equal(handoff.placement.placementId, "");
   assert.equal(handoff.sdk.nativeSource.immutableRef, "");
+  assert.equal(handoff.reward.grantOn, "terminalReward");
+  assert.equal(handoff.reward.dedupeByRewardId, true);
+  assert.equal("firstCorrectOnly" in handoff.reward, false);
   assert.equal("$schema" in handoff, false);
 });
 

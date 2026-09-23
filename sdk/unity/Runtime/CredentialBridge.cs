@@ -35,7 +35,8 @@ namespace LevelMoment
         public static string BuildInjection(
             string token,
             string customData = null,
-            string expectedOrigin = "https://levelmoment.com")
+            string expectedOrigin = "https://levelmoment.com",
+            LevelMomentAdSlot slot = null)
         {
             // custody is fixed false: nothing here can outlive the WebView's
             // own storage, so asking to be told about minted credentials would
@@ -43,10 +44,27 @@ namespace LevelMoment
             var json = "{\"token\":\"" + EscapeJson(token ?? string.Empty) +
                        "\",\"custody\":false,\"customData\":" +
                        (customData == null ? "null" : "\"" + EscapeJson(customData) + "\"") +
+                       ",\"slotType\":" + (slot == null || slot.SlotType == null ? "null" : "\"" + EscapeJson(slot.SlotType) + "\"") +
+                       ",\"dimensions\":" + DimensionsJson(slot) +
                        ",\"protocolVersion\":1,\"sdkVersion\":\"0.2.0\"}";
             return "if (window.location.origin === \"" + EscapeJson(expectedOrigin) + "\") {" +
                    "window.__levelMomentDeliverCredential && " +
                    "window.__levelMomentDeliverCredential(\"" + EscapeJson(json) + "\");}";
+        }
+
+        private static string DimensionsJson(LevelMomentAdSlot slot)
+        {
+            if (slot == null || slot.Dimensions == null) return "null";
+            var parts = new System.Collections.Generic.List<string>();
+            foreach (var entry in slot.Dimensions)
+            {
+                var key = "\"" + EscapeJson(entry.Key) + "\":";
+                if (entry.Value is string)
+                    parts.Add(key + "\"" + EscapeJson((string)entry.Value) + "\"");
+                else if (entry.Value is int)
+                    parts.Add(key + ((int)entry.Value).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+            return "{" + string.Join(",", parts.ToArray()) + "}";
         }
 
         /// <summary>
@@ -105,12 +123,13 @@ namespace LevelMoment
             ILevelMomentWebView webView,
             string token,
             string customData = null,
-            string expectedOrigin = "https://levelmoment.com")
+            string expectedOrigin = "https://levelmoment.com",
+            LevelMomentAdSlot slot = null)
         {
             var scriptable = webView as ILevelMomentScriptableWebView;
             if (scriptable == null)
                 return;
-            scriptable.EvaluateJS(BuildInjection(token, customData, expectedOrigin));
+            scriptable.EvaluateJS(BuildInjection(token, customData, expectedOrigin, slot));
         }
     }
 }

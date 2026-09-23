@@ -255,7 +255,7 @@ void main() {
     test('ready and earnedReward end nothing', () {
       final t = make();
       expect(t.dispatcher.handle(const Ready()), isFalse);
-      expect(t.dispatcher.handle(const EarnedReward(1)), isFalse);
+      expect(t.dispatcher.handle(const EarnedReward('break-1', '2026-09-22T00:00:00.000Z')), isFalse);
       expect(t.log, isEmpty);
       expect(t.dispatcher.isSettled, isFalse);
     });

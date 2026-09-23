@@ -22,8 +22,8 @@ export function showRewardedBreak(): void {
 
   let rewardGranted = false;
   ad.show({
-    onUserEarnedReward: ({ amount }) => {
-      if (amount === 1 && !rewardGranted) {
+    onUserEarnedReward: ({ rewardId }) => {
+      if (rewardId && !rewardGranted) {
         rewardGranted = true;
         grantBonus();
       }

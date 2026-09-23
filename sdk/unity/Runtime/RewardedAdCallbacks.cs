@@ -12,8 +12,8 @@ namespace LevelMoment
 {
     public class LevelMomentRewardItem
     {
-        public int Amount;
         public string RewardId;
+        public string EarnedAt;
     }
 
     /// <summary>
@@ -38,13 +38,11 @@ namespace LevelMoment
     public class RewardedAdShowCallbacks : BreakShowCallbacksBase
     {
         /// <summary>
-        /// Fired on each answer: <c>amount</c> is 1 for a correct answer, 0
-        /// otherwise. May fire multiple times per break. Mirrors AdMob's
-        /// <c>OnUserEarnedReward</c> (grant a bonus when amount == 1).
+        /// Fired once for a server-confirmed earned break.
         /// </summary>
-        public Action<int> OnUserEarnedReward;
+        public Action<LevelMomentRewardItem> OnUserEarnedReward;
 
-        /// <summary>Answer event with the opaque impression identifier.</summary>
+        /// <summary>Alias for integrations using an item callback.</summary>
         public Action<LevelMomentRewardItem> OnUserEarnedRewardItem;
     }
 }

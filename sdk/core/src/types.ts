@@ -40,6 +40,10 @@ export interface SlotDeclaration {
   targetDurationSeconds: number;
   /** Omit when the ad unit granted nothing (an interstitial slot). */
   rewardAmount?: number;
+  /** Pre-registered game-scoped reporting code. Never a user identifier. */
+  slotType?: string;
+  /** Pre-registered category codes or integers in registered ranges. */
+  dimensions?: Record<string, string | number>;
 }
 
 /** Shortest and longest slot a game may declare, in seconds. */
@@ -93,6 +97,10 @@ export function normalizeSlotDeclaration(
       MAX_SLOT_REWARD_AMOUNT,
     );
   }
+  if (typeof value.slotType === "string") declaration.slotType = value.slotType;
+  if (value.dimensions && typeof value.dimensions === "object") {
+    declaration.dimensions = value.dimensions;
+  }
   return declaration;
 }
 
@@ -116,13 +124,17 @@ export interface LevelMomentAdError {
 
 export interface RewardItem {
   type: "question_answered";
-  amount: 0 | 1;
-  /** Opaque ID for matching a verified reward webhook. */
-  rewardId?: string;
+  /** Opaque break outcome ID for matching a verified reward webhook. */
+  rewardId: string;
+  earnedAt: string;
 }
 
 export interface LevelMomentConfig extends HostedOptions {
   placementId: string;
   requestTimeoutMs?: number;
   customData?: string;
+  slot?: SlotDeclaration;
+  /** Reporting-only attributes may be sent without declaring a serving slot. */
+  slotType?: string;
+  dimensions?: Record<string, string | number>;
 }

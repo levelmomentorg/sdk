@@ -73,9 +73,10 @@ export function showRewardedBreak(): void {
 
   let rewardGranted = false;
   ad.show({
-    onUserEarnedReward: ({ amount }) => {
-      if (amount === 1 && !rewardGranted) {
+    onUserEarnedReward: ({ rewardId }) => {
+      if (!rewardGranted) {
         rewardGranted = true;
+        recordGrantedReward(rewardId);
         grantBonus();
       }
     },
@@ -85,8 +86,9 @@ export function showRewardedBreak(): void {
 }
 ```
 
-A multi-question break can emit several reward callbacks. Guard the game
-reward so the first correct answer grants it once.
+A passed graded break emits one reward callback, regardless of question count.
+Deduplicate grants with `rewardId = breakSessionId`; do not grant for a child
+answer alone. The game owns the reward value.
 
 ## 5. Configure sandbox testing
 

@@ -80,11 +80,12 @@ if (pending == null) return;
 bool rewardGranted = false;
 pending.Show(new RewardedAdShowCallbacks
 {
-    OnUserEarnedReward = amount =>
+    OnUserEarnedReward = reward =>
     {
-        if (amount == 1 && !rewardGranted)
+        if (!rewardGranted)
         {
             rewardGranted = true;
+            RecordGrantedReward(reward.RewardId);
             GrantBonus();
         }
     },
@@ -93,9 +94,9 @@ pending.Show(new RewardedAdShowCallbacks
 });
 ```
 
-A multi-question break can emit several reward callbacks. Guard the game
-reward so the first correct answer grants it once. Dismissal and failure only
-resume the game.
+A passed graded break emits one reward callback, regardless of question count.
+Deduplicate game grants by `RewardId = breakSessionId`. Dismissal and failure
+only resume the game; the game chooses the item or currency amount.
 
 ## 5. Replace interstitial loading (optional)
 

@@ -22,40 +22,39 @@ namespace LevelMoment.Tests.EditMode
         }
 
         [Test]
-        public void TryParse_EarnedReward_CorrectAmount()
+        public void TryParse_EarnedReward_RequiresServerReceipt()
         {
-            var msg = HostMessage.TryParse("{\"type\":\"earnedReward\",\"payload\":{\"amount\":1}}");
+            var msg = HostMessage.TryParse("{\"type\":\"earnedReward\",\"payload\":{\"rewardId\":\"break-7\",\"earnedAt\":\"2026-09-22T00:00:00.000Z\"}}");
             Assert.IsNotNull(msg);
             Assert.AreEqual(HostMessageType.EarnedReward, msg.Type);
-            Assert.AreEqual(1, msg.Amount);
+            Assert.AreEqual("break-7", msg.RewardId);
+            Assert.AreEqual("2026-09-22T00:00:00.000Z", msg.EarnedAt);
         }
 
         [Test]
         public void TryParse_EarnedReward_MapsOpaqueRewardId()
         {
             var msg = HostMessage.TryParse(
-                "{\"type\":\"earnedReward\",\"payload\":{\"amount\":1,\"rewardId\":\"impression-7\"}}");
+                "{\"type\":\"earnedReward\",\"payload\":{\"rewardId\":\"break-7\",\"earnedAt\":\"2026-09-22T00:00:00.000Z\"}}");
 
             Assert.IsNotNull(msg);
-            Assert.AreEqual("impression-7", msg.RewardId);
+            Assert.AreEqual("break-7", msg.RewardId);
         }
 
         [Test]
         public void TryParse_RejectsInvalidRewardAndProtocolVersions()
         {
             Assert.IsNull(HostMessage.TryParse(
-                "{\"type\":\"earnedReward\",\"payload\":{\"amount\":2}}"));
+                "{\"type\":\"earnedReward\",\"payload\":{\"rewardId\":\"break-7\"}}"));
             Assert.IsNull(HostMessage.TryParse(
                 "{\"type\":\"ready\",\"protocolVersion\":2}"));
         }
 
         [Test]
-        public void TryParse_EarnedReward_ZeroAmount()
+        public void TryParse_EarnedReward_MissingRewardId_IsRejected()
         {
-            var msg = HostMessage.TryParse("{\"type\":\"earnedReward\",\"payload\":{\"amount\":0}}");
-            Assert.IsNotNull(msg);
-            Assert.AreEqual(HostMessageType.EarnedReward, msg.Type);
-            Assert.AreEqual(0, msg.Amount);
+            var msg = HostMessage.TryParse("{\"type\":\"earnedReward\",\"payload\":{\"earnedAt\":\"2026-09-22T00:00:00.000Z\"}}");
+            Assert.IsNull(msg);
         }
 
         [Test]

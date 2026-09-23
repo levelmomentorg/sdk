@@ -28,10 +28,16 @@ export function credentialResponder(
   store: KeychainTokenStore = deviceCredentials,
   customData?: string,
   testing = false,
+  reporting?: {
+    slotType?: string;
+    dimensions?: Record<string, string | number>;
+  },
 ): () => Promise<CredentialReply> {
   return async () => ({
     token: explicitToken || (testing ? "" : await store.get(placementId)),
     customData,
+    slotType: reporting?.slotType,
+    dimensions: reporting?.dimensions,
     // Custody is a promise to keep a durable copy, so it is only claimed when
     // there is a keychain to keep it in. In Expo Go there is not — the native
     // module is absent and every write is silently dropped — and claiming it

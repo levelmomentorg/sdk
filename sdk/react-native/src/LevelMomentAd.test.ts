@@ -43,7 +43,7 @@ describe("LevelMomentAd bridge lifecycle", () => {
 
     const reward = {
       type: "earnedReward" as const,
-      payload: { amount: 1 as const, rewardId: "reward-42" },
+      payload: { rewardId: "reward-42", earnedAt: "2026-09-22T00:00:00.000Z" },
     };
     host.current!.onMessage(reward);
     host.current!.onMessage(reward);
@@ -51,8 +51,8 @@ describe("LevelMomentAd bridge lifecycle", () => {
     expect(onReward).toHaveBeenCalledOnce();
     expect(onReward).toHaveBeenCalledWith({
       type: "question_answered",
-      amount: 1,
       rewardId: "reward-42",
+      earnedAt: "2026-09-22T00:00:00.000Z",
     });
   });
 

@@ -66,14 +66,14 @@ sealed class HostMessage {
       case 'earnedReward':
         final payload = decoded['payload'];
         if (payload is! Map<String, dynamic>) return null;
-        final amount = payload['amount'];
-        if (amount is! num || (amount != 0 && amount != 1)) return null;
         final rawRewardId = payload['rewardId'];
-        if (rawRewardId != null &&
-            (rawRewardId is! String ||
-                rawRewardId.isEmpty ||
-                rawRewardId.length > 256)) return null;
-        return EarnedReward(amount.toInt(), rawRewardId as String?);
+        final earnedAt = payload['earnedAt'];
+        if (rawRewardId is! String ||
+            rawRewardId.isEmpty ||
+            rawRewardId.length > 256 ||
+            earnedAt is! String ||
+            DateTime.tryParse(earnedAt) == null) return null;
+        return EarnedReward(rawRewardId, earnedAt);
       case 'signedIn':
         return const SignedIn();
       case 'dismissed':
@@ -111,12 +111,11 @@ class Ready extends HostMessage {
   const Ready();
 }
 
-/// The student answered. `amount` is 1 for a correct answer, 0 otherwise.
-/// May fire multiple times within a single break session.
+/// One server-confirmed earned break outcome.
 class EarnedReward extends HostMessage {
-  final int amount;
-  final String? rewardId;
-  const EarnedReward(this.amount, [this.rewardId]);
+  final String rewardId;
+  final String earnedAt;
+  const EarnedReward(this.rewardId, this.earnedAt);
 }
 
 /// Sign-in gate only: this device holds a valid credential for the game.
@@ -218,6 +217,8 @@ class CredentialReply {
     required this.token,
     required this.custody,
     this.customData,
+    this.slotType,
+    this.dimensions,
     this.origin = 'https://levelmoment.com',
   });
 
@@ -227,6 +228,8 @@ class CredentialReply {
   /// Ask to be told about credentials the page mints or discards.
   final bool custody;
   final String? customData;
+  final String? slotType;
+  final Map<String, Object>? dimensions;
   final String origin;
 
   /// The JavaScript that hands this reply to the page.
@@ -242,6 +245,8 @@ class CredentialReply {
       'token': token,
       'custody': custody,
       'customData': customData,
+      'slotType': slotType,
+      'dimensions': dimensions,
       'protocolVersion': kLevelMomentProtocolVersion,
       'sdkVersion': kLevelMomentSdkVersion,
     });

@@ -76,7 +76,7 @@ namespace LevelMoment.Tests.EditMode
 
         private static string Reward(int amount)
         {
-            return "{\"type\":\"earnedReward\",\"payload\":{\"amount\":" + amount + "}}";
+            return "{\"type\":\"earnedReward\",\"payload\":{\"rewardId\":\"break-interstitial\",\"earnedAt\":\"2026-09-22T00:00:00.000Z\"}}";
         }
 
         private static string ErrorMsg(string code, string message)

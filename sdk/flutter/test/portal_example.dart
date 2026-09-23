@@ -4,8 +4,9 @@ import 'package:levelmoment_ads/levelmoment_ads.dart';
 // Call once at app startup.
 Future<void> initializeLearning() => LevelMomentAds.instance.initialize();
 
-// Call from the player's learning action. Pass your game's callbacks.
-Future<void> showLearningBreak(BuildContext context, VoidCallback grantBonus, VoidCallback resumeGame) async {
+// Call from the player's learning action. Persist each rewardId in your game
+// before granting so callback retries and webhooks cannot grant twice.
+Future<void> showLearningBreak(BuildContext context, void Function(String rewardId) grantBonus, VoidCallback resumeGame) async {
   final access = await LevelMomentAds.instance.ensureAccess(context: context, placementId: "YOUR_PLACEMENT_ID");
   if (!context.mounted) return;
   if (access != EnsureSignedInResult.ready) { resumeGame(); return; }
@@ -18,7 +19,7 @@ Future<void> showLearningBreak(BuildContext context, VoidCallback grantBonus, Vo
           onAdDismissedFullScreenContent: (ad) { ad.dispose(); resumeGame(); },
           onAdFailedToShowFullScreenContent: (ad, error) { ad.dispose(); resumeGame(); },
         );
-        ad.show(context: context, onUserEarnedReward: (ad, reward) { if (reward.amount == 1 && !earned) { earned = true; grantBonus(); } });
+        ad.show(context: context, onUserEarnedReward: (ad, reward) { if (reward.rewardId.isNotEmpty && !earned) { earned = true; grantBonus(reward.rewardId); } });
       },
       onAdFailedToLoad: (error) => resumeGame(),
     ),

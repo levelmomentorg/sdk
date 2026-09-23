@@ -68,10 +68,10 @@ namespace LevelMoment.Tests.EditMode
         private const string Ready = "{\"type\":\"ready\"}";
         private const string Dismissed = "{\"type\":\"dismissed\"}";
 
-        private static string Reward(int amount, string rewardId)
+        private static string Reward(int ignoredLegacyAmount, string rewardId)
         {
-            return "{\"type\":\"earnedReward\",\"payload\":{\"amount\":" + amount +
-                ",\"rewardId\":\"" + rewardId + "\"}}";
+            return "{\"type\":\"earnedReward\",\"payload\":{\"rewardId\":\"" + rewardId +
+                "\",\"earnedAt\":\"2026-09-22T00:00:00.000Z\"}}";
         }
 
         /// <summary>
@@ -485,7 +485,7 @@ namespace LevelMoment.Tests.EditMode
             Assert.AreEqual("not_loaded", failedError.Code);
         }
 
-        // ---- Reward event: at most one per Show, only for a correct answer -----
+        // ---- Reward event: at most one server-confirmed outcome per Show -----
 
         [Test]
         public void RewardedAd_ReportsTheRewardAmountTheSlotDeclared()
@@ -507,7 +507,7 @@ namespace LevelMoment.Tests.EditMode
         }
 
         [Test]
-        public void RewardedAd_WithoutADeclaredAmountReportsTheGradedAmount()
+        public void RewardedAd_WithoutADeclaredAmountUsesTheGameDefault()
         {
             var fake = new FakeWebView();
             LevelMomentWebViewRegistry.Register(() => fake);
@@ -525,7 +525,7 @@ namespace LevelMoment.Tests.EditMode
         }
 
         [Test]
-        public void RewardedAd_FiveGradedAnswers_FiresOnAdReceivedRewardEventExactlyOnce()
+        public void RewardedAd_RepeatedReceipt_FiresOnAdReceivedRewardEventExactlyOnce()
         {
             var fake = new FakeWebView();
             LevelMomentWebViewRegistry.Register(() => fake);
@@ -554,11 +554,11 @@ namespace LevelMoment.Tests.EditMode
             Assert.AreEqual(1, rewardCount, "MAX fires OnAdReceivedRewardEvent at most once per Show");
             Assert.AreEqual("runit", rewardedAdUnit);
             Assert.AreEqual(1, reward.Amount);
-            Assert.AreEqual("impression-1", reward.Label, "the FIRST correct answer wins, not a later one");
+            Assert.AreEqual("impression-1", reward.Label, "the first confirmed receipt wins");
         }
 
         [Test]
-        public void RewardedAd_WrongAnswersOnly_FiresNoRewardEvent()
+        public void RewardedAd_WithoutAConfirmedReceipt_FiresNoRewardEvent()
         {
             var fake = new FakeWebView();
             LevelMomentWebViewRegistry.Register(() => fake);
@@ -570,9 +570,7 @@ namespace LevelMoment.Tests.EditMode
             LevelMomentMaxSdk.LoadRewardedAd("runit");
             LevelMomentMaxSdk.ShowRewardedAd("runit");
 
-            fake.EmitMessage(Reward(0, "impression-1"));
-            fake.EmitMessage(Reward(0, "impression-2"));
-            fake.EmitMessage(Reward(0, "impression-3"));
+            fake.EmitMessage(Ready);
             Pump();
 
             Assert.AreEqual(0, rewardCount);
@@ -883,13 +881,13 @@ namespace LevelMoment.Tests.EditMode
             LevelMomentMaxSdkCallbacks.Rewarded.OnAdReceivedRewardEvent += (adUnitId, r, info) => rewardCount++;
 
             // A duplicate Show while genuinely still on screen must not reset
-            // the once-per-Show grant flag the first correct answer already set.
+            // the once-per-Show grant flag the confirmed reward already set.
             LevelMomentMaxSdk.ShowRewardedAd("runit");
 
             fake.EmitMessage(Reward(1, "impression-2"));
             Pump();
 
-            Assert.AreEqual(0, rewardCount, "the grant flag must still be set from the first correct answer");
+            Assert.AreEqual(0, rewardCount, "the grant flag must still be set from the confirmed reward");
         }
 
         // ---- Calling back into the facade from a callback ------------------------

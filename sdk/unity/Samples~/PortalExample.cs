@@ -9,15 +9,16 @@ public static class LearningBreaks
 
     });
 
-    // Call from the player's learning action. Pass your game's callbacks.
-    public static void Show(Action grantBonus, Action resumeGame)
+    // Call from the player's learning action. Persist each RewardId in your game
+    // before granting so callback retries and webhooks cannot grant twice.
+    public static void Show(Action<string> grantBonus, Action resumeGame)
     {
         LevelMomentAds.EnsureAccess("YOUR_PLACEMENT_ID", access => {
             if (access != EnsureSignedInResult.Ready) { resumeGame(); return; }
             bool earned = false;
             RewardedAd.Load("YOUR_PLACEMENT_ID", new RewardedAdLoadCallbacks {
                 OnAdLoaded = ad => ad.Show(new RewardedAdShowCallbacks {
-                    OnUserEarnedRewardItem = reward => { if (reward.Amount == 1 && !earned) { earned = true; grantBonus(); } },
+                    OnUserEarnedRewardItem = reward => { if (!earned) { earned = true; grantBonus(reward.RewardId); } },
                     OnAdDismissed = () => { ad.Destroy(); resumeGame(); },
                     OnAdFailedToShow = error => { ad.Destroy(); resumeGame(); },
                 }),

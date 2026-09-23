@@ -306,21 +306,21 @@ void main() {
       expect(HostMessage.tryParse('{"type":"ready"}'), isA<Ready>());
 
       final reward = HostMessage.tryParse(
-        '{"type":"earnedReward","payload":{"amount":1,"rewardId":"impression-7"}}',
+        '{"type":"earnedReward","payload":{"rewardId":"break-7","earnedAt":"2026-09-22T00:00:00.000Z"}}',
       );
       expect(reward, isA<EarnedReward>());
       final earned = reward as EarnedReward;
-      expect(earned.amount, 1);
-      expect(earned.rewardId, 'impression-7');
+      expect(earned.rewardId, 'break-7');
+      expect(earned.earnedAt, '2026-09-22T00:00:00.000Z');
       expect(
         HostMessage.tryParse(
-          '{"type":"earnedReward","payload":{"amount":2}}',
+          '{"type":"earnedReward","payload":{"earnedAt":"2026-09-22T00:00:00.000Z"}}',
         ),
         isNull,
       );
       expect(
         HostMessage.tryParse(
-          '{"type":"earnedReward","payload":{"amount":1,"rewardId":""}}',
+          '{"type":"earnedReward","payload":{"rewardId":"","earnedAt":"2026-09-22T00:00:00.000Z"}}',
         ),
         isNull,
       );
@@ -353,20 +353,23 @@ void main() {
 
   group('show() terminal-once', () {
     // Locks the contract that the dispatch closure inside show() collapses two
-    // terminal messages (dismissed/error) into a single dismiss path, while
-    // earnedReward may fire repeatedly. The closure is private; we exercise
+    // terminal messages (dismissed/error) into a single dismiss path and
+    // forwards one earnedReward. The closure is private; we exercise
     // the equivalent guard logic that show() implements so the contract is
     // pinned even though the WebView channel isn't driven here.
-    test('two terminals collapse to one dismiss; rewards repeat', () {
+    test('two terminals collapse to one dismiss; reward forwards once', () {
       var dismissed = 0;
       var rewards = 0;
       var terminal = false;
+      var rewardDelivered = false;
 
       void handle(HostMessage m) {
         switch (m) {
           case Ready():
             break;
           case EarnedReward():
+            if (terminal || rewardDelivered) return;
+            rewardDelivered = true;
             rewards++;
           case Dismissed() || SignedIn():
             if (terminal) return;
@@ -387,12 +390,12 @@ void main() {
         }
       }
 
-      handle(const EarnedReward(1));
-      handle(const EarnedReward(0));
+      handle(const EarnedReward('break-1', '2026-09-22T00:00:00.000Z'));
+      handle(const EarnedReward('break-2', '2026-09-22T00:00:01.000Z'));
       handle(const Dismissed());
       handle(const ErrorMsg('late', 'ignored')); // second terminal — ignored
 
-      expect(rewards, 2);
+      expect(rewards, 1);
       expect(dismissed, 1);
     });
   });

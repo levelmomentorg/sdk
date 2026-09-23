@@ -133,11 +133,12 @@ RewardedAd.Load("YOUR_PLACEMENT_ID", new RewardedAdLoadCallbacks
 {
     OnAdLoaded = ad => ad.Show(new RewardedAdShowCallbacks
     {
-        OnUserEarnedReward = amount =>
+        OnUserEarnedReward = reward =>
         {
-            if (!finished && amount == 1 && !granted)
+            if (!finished && !granted)
             {
                 granted = true;
+                RecordGrantedReward(reward.RewardId);
                 GrantBonus();
             }
         },
@@ -154,6 +155,26 @@ work. The deprecated `studentToken` overload is refused in production.
 
 A game that passes an explicit token needs a WebView provider implementing `ILevelMomentScriptableWebView` for the token to reach the page — see API below. The bundled gree adapter implements it.
 
+One `placementId` is the stable integration key for the whole game. To report
+different item or level breaks, register the slot type and dimensions in the
+studio's Break performance screen, then declare them on each handle:
+
+```csharp
+using System.Collections.Generic;
+
+var slot = new LevelMomentAdSlot(
+    "rewarded", 30, slotType: "item_reward",
+    dimensions: new Dictionary<string, object> {
+        { "item", "sword" }, { "color", "blue" }
+    });
+RewardedAd.Load("YOUR_PLACEMENT_ID", callbacks,
+    format: "practice_set", slot: slot);
+```
+
+For level transitions, register an integer `afterLevel` range once and send
+the current level number. You do not need a key or catalog option per level.
+Unknown reporting codes are omitted from reports without blocking the break.
+
 ---
 
 ## API
@@ -168,8 +189,8 @@ A game that passes an explicit token needs a WebView provider implementing `ILev
 | `LevelMomentAds.CheckAccess(placementId, onResult, onError, studentToken?)` | Optional access check on `/access?mode=check`; `onResult(false)` means the access flow is needed, while technical failures call `onError`.                                                                                                                                   |
 | `RewardedAd.Load(placementId, callbacks, format?)`                          | Synchronous mark-ready (no network). `callbacks`: `OnAdLoaded`, `OnAdFailedToLoad`.                                                                                                                                                                                          |
 | `RewardedAd.Load(placementId, studentToken, callbacks, format?)`            | Deprecated compatibility overload. The token is accepted only with an `eply_sbx_` credential in `UnsafeTesting`.                                                                                                                                                             |
-| `ad.Show(callbacks)`                                                        | Opens the hosted break in a WebView. `callbacks`: `OnUserEarnedReward(int amount)`, `OnAdDismissed`, `OnAdFailedToShow(error)`, `OnAdShowedFullScreenContent`.                                                                                                               |
-| `callbacks.OnUserEarnedRewardItem`                                          | Optional answer callback with `Amount` and the hosted page's opaque `RewardId`.                                                                                                                                                                                              |
+| `ad.Show(callbacks)`                                                        | Opens the hosted break in a WebView. `OnUserEarnedReward(item)` fires once for a server-confirmed passed graded break; dismiss and failure callbacks remain terminal.                                                                                                        |
+| `callbacks.OnUserEarnedRewardItem`                                          | Optional alias for the same item (`RewardId`, `EarnedAt`), with no game-currency amount.                                                                                                                                                                                     |
 | `ad.IsLoaded`                                                               | True when loaded and not yet shown/destroyed.                                                                                                                                                                                                                                |
 | `ad.Destroy()`                                                              | Release the ad + tear down the WebView (no callbacks fired).                                                                                                                                                                                                                 |
 | `ILevelMomentWebView` / `LevelMomentWebViewRegistry`                        | WebView provider seam for custom plugins.                                                                                                                                                                                                                                    |
@@ -182,8 +203,8 @@ credentials stay in the hosted bridge and are never supplied in game config.
 
 **Callback semantics** (identical to the other LevelMoment SDKs):
 
-- `OnUserEarnedReward(amount)` — fires once per graded answer: `amount == 1` for a correct answer, `0` otherwise. Grant the chosen bonus on the first correct callback only.
-- `OnUserEarnedRewardItem(item)` — optional equivalent answer callback with the opaque impression `RewardId`, when the hosted page supplies one.
+- `OnUserEarnedReward(item)` — fires once for a server-confirmed passed graded break. `item.RewardId` equals the break ID; dedupe game grants by it. The game owns the item or currency amount.
+- `OnUserEarnedRewardItem(item)` — optional alias with the same terminal reward item and earned time.
 - `OnAdDismissed` — fires **exactly once** when the break ends. Always resume the game here.
 - `OnAdFailedToShow(error)` — fires instead of `OnAdDismissed` when the break can't be shown (not loaded, no WebView provider, page error, or the ad was already shown — see below).
 - `format` — `quick_question` (default), `practice_set`, `mastery_round`, or `intro_lesson`. The first two fill a rewarded slot (one question, then a set); the last two fill an interstitial slot (a longer set, and the same set opening on an instruction panel). Declare the slot and Level Moment picks the format inside it, since which one suits the learner is not something a game can see. A format you pass is a floor: the break is never smaller than the one you sized the slot against.
@@ -275,11 +296,9 @@ port to `RewardedAd`/`InterstitialAd`.
 
 Runtime divergences worth knowing before you rely on this facade:
 
-- **`OnAdReceivedRewardEvent` fires at most once per `ShowRewardedAd`**, on
-  the first graded answer with a positive amount, matching MAX's grant-once
-  shape. The underlying `RewardedAdShowCallbacks.OnUserEarnedRewardItem`
-  still fires once per graded answer (amount 0 for a wrong one) if you need
-  per-answer granularity — it's just not behind the MAX-shaped event.
+- **`OnAdReceivedRewardEvent` fires at most once per `ShowRewardedAd`**, when
+  the server confirms that the whole graded break passed. Its label is the
+  break reward ID; no child-answer callback authorizes a grant.
 - **The slot's duration decides how much the break holds.** Level Moment fits
   questions to the seconds you declare: a fifteen-second slot holds several
   addition questions or one long-division question. The count stays fixed for
@@ -288,10 +307,9 @@ Runtime divergences worth knowing before you rely on this facade:
   30 for a practice set, 60 for a mastery round or intro lesson).
 - **`Reward.Amount` is the amount you declared for the ad unit.** MAX reads
   that from its dashboard; there is no dashboard here, so the mapping states
-  it. An ad unit mapped without one reports 1 for a correct answer instead, so
-  a handler that grants `reward.Amount` would pay 1. Declare the amount to keep
-  it accurate.
-- **`Reward.Label` is an opaque impression id**, not MAX's dashboard-configured
+  it. An ad unit mapped without one reports 1 for a passed break. Declare the
+  game-owned amount to keep it accurate.
+- **`Reward.Label` is an opaque break reward id**, not MAX's dashboard-configured
   currency name — do not display it to a player or compare it against a
   currency string.
 - **`placement`/`customData` on `ShowInterstitial`/`ShowRewardedAd` are
@@ -342,8 +360,8 @@ il2cpp build, and each target device. Before release:
    - Run the EditMode suites in the editor so bridge parsing meets the real
      `JsonUtility`.
 2. **On-device smoke** (real WebView): build to iOS/Android with the canonical
-   hosted service, trigger a break, and confirm the hosted page loads, an answer
-   fires `OnUserEarnedReward`, and closing the break fires `OnAdDismissed`
+   hosted service, trigger a break, and confirm a server-confirmed passed graded
+   break fires `OnUserEarnedReward` with `RewardId`, while closing it fires `OnAdDismissed`
    exactly once. Try `Mock = true` for an offline pass.
 
 ---

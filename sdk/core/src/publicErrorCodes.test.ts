@@ -153,11 +153,14 @@ describe("hosted surface boundary", () => {
 });
 
 describe("hosted bridge validation", () => {
-  it("accepts only a well-formed graded reward", () => {
+  it("accepts only a server-confirmed terminal reward", () => {
     expect(
       isBridgeMessage({
         type: "earnedReward",
-        payload: { amount: 1, rewardId: "opaque-reward-id" },
+        payload: {
+          rewardId: "opaque-reward-id",
+          earnedAt: "2026-09-22T00:00:00.000Z",
+        },
         protocolVersion: 1,
       }),
     ).toBe(true);
@@ -167,13 +170,25 @@ describe("hosted bridge validation", () => {
     for (const message of [
       { type: "earnedReward" },
       { type: "earnedReward", payload: {} },
-      { type: "earnedReward", payload: { amount: 2 } },
-      { type: "earnedReward", payload: { amount: "1" } },
-      { type: "earnedReward", payload: { amount: 1, rewardId: "" } },
-      { type: "earnedReward", payload: { amount: 1, rewardId: 42 } },
+      { type: "earnedReward", payload: { rewardId: "x" } },
       {
         type: "earnedReward",
-        payload: { amount: 1, rewardId: "a".repeat(257) },
+        payload: { earnedAt: "2026-09-22T00:00:00.000Z" },
+      },
+      {
+        type: "earnedReward",
+        payload: { rewardId: "", earnedAt: "2026-09-22T00:00:00.000Z" },
+      },
+      {
+        type: "earnedReward",
+        payload: { rewardId: 42, earnedAt: "2026-09-22T00:00:00.000Z" },
+      },
+      {
+        type: "earnedReward",
+        payload: {
+          rewardId: "a".repeat(257),
+          earnedAt: "2026-09-22T00:00:00.000Z",
+        },
       },
     ]) {
       expect(isBridgeMessage(message)).toBe(false);
@@ -184,7 +199,7 @@ describe("hosted bridge validation", () => {
     expect(
       isBridgeMessage({
         type: "earnedReward",
-        payload: { amount: 1 },
+        payload: { rewardId: "x", earnedAt: "2026-09-22T00:00:00.000Z" },
         protocolVersion: 2,
       }),
     ).toBe(false);
