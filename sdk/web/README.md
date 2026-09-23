@@ -15,9 +15,10 @@ Install the immutable `0.2.0` preview artifact or reference supplied for your
 partner integration. The public npm channel currently provides `0.1.2`, which
 does not necessarily match this preview README.
 
-Use `AGENT-INSTRUCTIONS.md` in the complete partner packet supplied with this
-preview. Give the agent that packet, the immutable artifact or source reference,
-the placement ID, target slot, and reward action.
+Give a coding agent the placement ID, immutable SDK source, target slot, reward
+action, and verification commands. Require it to load the current
+[porting documentation](https://levelmoment.com/docs/porting) and this package's
+[migration guide](./MIGRATION.md) before it edits the game.
 
 ## Use
 

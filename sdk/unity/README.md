@@ -4,9 +4,10 @@
 device before release. The repository version is `0.2.0`; use the immutable
 preview artifact or reference supplied for your partner integration.
 
-Use `AGENT-INSTRUCTIONS.md` in the complete partner packet supplied with this
-preview. Give the agent that packet, the immutable artifact or source reference,
-the placement ID, target slot, and reward action.
+Give a coding agent the placement ID, immutable SDK source, target slot, reward
+action, and generated port plan. Require it to load the current
+[porting documentation](https://levelmoment.com/docs/porting) and this package's
+[migration guide](./MIGRATION.md) before it edits the game.
 
 Unity Package Manager (UPM) package that integrates LevelMoment into Unity games (iOS, Android, and other WebView-capable platforms). Drop-in replacement for Google AdMob / Unity Ads **rewarded ads**: instead of a video, it shows a Level Moment break — a quick question or a practice set.
 

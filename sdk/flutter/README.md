@@ -5,9 +5,10 @@ device before release. The repository version is `0.2.0` and is not published
 to `pub.dev`. Use the immutable preview artifact or reference supplied for your
 partner integration.
 
-Use `AGENT-INSTRUCTIONS.md` in the complete partner packet supplied with this
-preview. Give the agent that packet, the immutable artifact or source reference,
-the placement ID, target slot, and reward action.
+Give a coding agent the placement ID, immutable SDK source, target slot, reward
+action, and verification commands. Require it to load the current
+[porting documentation](https://levelmoment.com/docs/porting) and this package's
+[migration guide](./MIGRATION.md) before it edits the game.
 
 Flutter SDK for iOS and Android apps. Drop-in replacement for the
 `google_mobile_ads` rewarded ad format.

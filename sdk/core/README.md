@@ -11,9 +11,10 @@ and public error types used by web and React Native integrations. It contains
 no learning content or game runtime. Install a platform package to show a
 break; the platform package brings this contract package along.
 
-Use `AGENT-INSTRUCTIONS.md` in the complete partner packet supplied with this
-preview. Give the agent that packet, the immutable artifact or source reference,
-the placement ID, target slot, and reward action.
+Give a coding agent the placement ID, immutable SDK source, target slot, reward
+action, and verification commands. Require it to load the current
+[porting documentation](https://levelmoment.com/docs/porting) and the migration
+guide for the game platform before it edits the game.
 
 See the [developer documentation](https://levelmoment.com/docs) for setup and
 the [SDK repository](https://github.com/levelmomentorg/sdk) for release notes.

@@ -16,9 +16,10 @@ does not necessarily match this preview README. Add `react-native-webview` and,
 when durable native credentials are needed, `react-native-keychain` as peer
 dependencies.
 
-Use `AGENT-INSTRUCTIONS.md` in the complete partner packet supplied with this
-preview. Give the agent that packet, the immutable artifact or source reference,
-the placement ID, target slot, and reward action.
+Give a coding agent the placement ID, immutable SDK source, target slot, reward
+action, and verification commands. Require it to load the current
+[porting documentation](https://levelmoment.com/docs/porting) and this package's
+[migration guide](./MIGRATION.md) before it edits the game.
 
 Install `react-native-keychain` when the app needs durable native credential
 storage. Expo Go uses the hosted storage fallback; use a development build for
