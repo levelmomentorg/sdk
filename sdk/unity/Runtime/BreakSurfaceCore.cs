@@ -107,6 +107,9 @@ namespace LevelMoment
 
         private bool _loaded;
         private bool _shown;
+        // The page posts `ready` again when it falls back to the pairing card,
+        // so the showed callback is held to one per Show.
+        private bool _showedFired;
         private bool _terminal;
         private bool _disposed;
 
@@ -201,6 +204,7 @@ namespace LevelMoment
             }
 
             _shown = true;
+            _showedFired = false;
             _terminal = false;
             _inPublisherCallback = false;
             _callbacks = callbacks;
@@ -379,6 +383,9 @@ namespace LevelMoment
 
         private void FireShowed()
         {
+            if (_showedFired)
+                return;
+            _showedFired = true;
             if (_callbacks == null || _callbacks.OnAdShowedFullScreenContent == null)
                 return;
             var showed = _callbacks.OnAdShowedFullScreenContent;

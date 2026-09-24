@@ -46,10 +46,25 @@ versioning follows [Semver](https://semver.org).
   `RewardedAd`'s method/property signatures are unchanged; one-show-per-handle
   is now enforced (see Fixed, below) where it previously was not.
 
+- A native macOS WebView for standalone players
+  (`Runtime/Plugins/macOS/LevelMomentWebView.bundle`, source and build script
+  in `Native~/macOS`). It replaces gree in a macOS player automatically, with no
+  scripting define. The break is a real web view inside the player window, so
+  VoiceOver, Voice Control, Switch Control, the keyboard, and UI automation
+  reach its questions and answers. Under gree, the page sat in a hidden
+  off-screen window and the game window showed a texture of it, so
+  position-based assistive technology and pointer automation missed it, and
+  typed answers were dropped when Active Input Handling was New or Both.
+  Editor play mode on a Mac still uses gree, so typed answers may not register
+  there.
+
 ### Fixed
 
 - A shown break no longer reports `IsLoaded` or reopens; get a fresh handle
   from `Load()` per break; a second `Show()` reports `not_loaded`.
+- `OnAdShowedFullScreenContent` (MAX facade: `OnAdDisplayedEvent`) fires once
+  per `Show()`. It fired twice when the page fell back to the pairing card,
+  which posts `ready` a second time.
 
 ## [0.2.0] — 2026-09-05
 

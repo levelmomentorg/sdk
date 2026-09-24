@@ -444,6 +444,23 @@ namespace LevelMoment.Tests.EditMode
             Assert.AreEqual(1, shown);
         }
 
+        [Test]
+        public void Ready_PostedAgainForPairing_FiresOnAdShowedOnce()
+        {
+            // The page posts `ready` on mount and again when it opens the
+            // pairing card. A game counting displays would see two.
+            var fake = new FakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+
+            var shown = 0;
+            var ad = LoadAd();
+            ad.Show(new RewardedAdShowCallbacks { OnAdShowedFullScreenContent = () => shown++ });
+
+            fake.EmitMessage(Ready);
+            fake.EmitMessage(Ready);
+            Assert.AreEqual(1, shown);
+        }
+
         // ---- earnedReward (non-terminal, forwarded once) --------------------
 
         [Test]

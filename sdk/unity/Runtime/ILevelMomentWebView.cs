@@ -3,9 +3,11 @@
 //
 // Unity ships no built-in WebView, so the SDK depends on a pluggable provider.
 // A provider opens a fullscreen WebView at the hosted /break URL and surfaces
-// the page's bridge messages as raw JSON strings. The bundled provider is a
+// the page's bridge messages as raw JSON strings. Two providers ship: a
 // gree/unity-webview adapter (compiled only when LEVELMOMENT_GREE_WEBVIEW is
-// set); other WebView plugins (Vuplex, 3D WebView) can register their own.
+// set) and a native macOS view that macOS standalone players use in its place
+// (Runtime/MacOS). Other WebView plugins (Vuplex, 3D WebView) can register
+// their own.
 //
 // See docs/ADR-001-webview-rendering.md and sdk/unity/README.md.
 // ---------------------------------------------------------------------------

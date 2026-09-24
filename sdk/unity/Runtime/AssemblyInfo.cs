@@ -6,3 +6,5 @@
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("LevelMomentSDK.Tests.EditMode")]
+// The gree adapter defers to the native macOS view (MacNativeWebView).
+[assembly: InternalsVisibleTo("LevelMomentSDK.Gree")]

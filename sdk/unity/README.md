@@ -43,6 +43,12 @@ WebView provider. Add both to `Packages/manifest.json`:
 "com.unity.inputsystem": "1.11.2"
 ```
 
+Installing the Input System package with **Active Input Handling** on **Input
+Manager (Old)** makes the editor ask to switch to the new backends and restart,
+and setting it to **Input System Package (New)** alone breaks every legacy `Input` call. If
+the game reads input through the legacy `Input` class, set **Project Settings →
+Player → Other Settings → Active Input Handling** to **Both**.
+
 **Note:** The gree UPM packages namespace the plugin as
 `Gree.UnityWebView.WebViewObject`. The SDK supports both this and the classic
 global-namespace install; a `versionDefine` sets `LEVELMOMENT_GREE_UPM`
@@ -58,7 +64,8 @@ LEVELMOMENT_GREE_WEBVIEW
 
 This compiles the bundled gree adapter, which registers as the WebView provider
 at startup. Without the define or a registered provider, `Show()` reports a
-failure through `OnAdFailedToShow`.
+failure through `OnAdFailedToShow`. macOS standalone players are the exception:
+they use the SDK's native macOS view and need no define.
 
 > Using a different WebView plugin (Vuplex, 3D WebView)? Implement `ILevelMomentWebView` and call `LevelMomentWebViewRegistry.Register(() => new YourAdapter())` at startup instead of steps 2–3.
 
@@ -85,6 +92,23 @@ iOS App Transport Security blocks the WebView from loading a local `/break`
 page over HTTP. For development builds, add
 `NSAppTransportSecurity > NSAllowsArbitraryLoads` to the exported Xcode
 project's Info.plist. Production uses HTTPS and needs no exception.
+
+### macOS standalone players
+
+The package includes a native macOS WebView
+(`Runtime/Plugins/macOS/LevelMomentWebView.bundle`). In a macOS standalone
+player it registers itself and takes over from gree, with no scripting define.
+The break opens as a real web view inside the player window. Its questions and
+answers are named controls that VoiceOver, Voice Control, Switch Control, the
+keyboard, and UI automation can reach. A provider the game registers itself
+still takes precedence. In the Unity Editor, gree remains the provider.
+
+**Note:** The SDK reads page messages once per frame. With **Run In
+Background** off, a player that is not the active app pauses its frame loop,
+so reward and dismiss callbacks arrive when the player becomes active again.
+Automation that drives the break through the accessibility API without
+activating the player window does not receive those callbacks until the window
+becomes active.
 
 ---
 
@@ -359,7 +383,11 @@ il2cpp build, and each target device. Before release:
      the scripting define is absent.
    - Run the EditMode suites in the editor so bridge parsing meets the real
      `JsonUtility`.
-2. **On-device smoke** (real WebView): build to iOS/Android with the canonical
+2. **Accessibility check**: open a break in a built player and confirm that
+   each answer is a named control inside the game window. On macOS, use
+   Accessibility Inspector or VoiceOver. On iOS, use VoiceOver. On Android,
+   use TalkBack.
+3. **On-device smoke** (real WebView): build to iOS/Android with the canonical
    hosted service, trigger a break, and confirm a server-confirmed passed graded
    break fires `OnUserEarnedReward` with `RewardId`, while closing it fires `OnAdDismissed`
    exactly once. Try `Mock = true` for an offline pass.

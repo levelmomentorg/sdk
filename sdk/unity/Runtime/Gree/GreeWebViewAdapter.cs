@@ -142,6 +142,14 @@ namespace LevelMoment
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Register()
         {
+#if UNITY_STANDALONE_OSX && !UNITY_EDITOR
+            // gree paints a macOS player's page into a texture from an
+            // off-screen window, where assistive technology and pointer
+            // automation cannot reach it. The SDK's native macOS view registers
+            // itself when its bundle loaded; defer to it.
+            if (MacNativeWebView.IsAvailable)
+                return;
+#endif
             LevelMomentWebViewRegistry.Register(delegate { return new GreeWebViewAdapter(); });
         }
     }
