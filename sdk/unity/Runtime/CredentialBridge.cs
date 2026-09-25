@@ -13,6 +13,10 @@
 // this SDK does not ship one. So Unity answers with whatever token the game
 // configured — usually none — and never asks for custody: the page keeps the
 // credential in its own storage, exactly as before. See sdk/unity/README.md.
+//
+// The reply also carries `platform` and `storefront`, read once and cached at
+// LevelMomentAds.Initialize() (see StorefrontProvider.cs) — never here. The
+// server uses them to decide store policy.
 // ---------------------------------------------------------------------------
 
 using System.Text;
@@ -36,17 +40,28 @@ namespace LevelMoment
             string token,
             string customData = null,
             string expectedOrigin = "https://levelmoment.com",
-            LevelMomentAdSlot slot = null)
+            LevelMomentAdSlot slot = null,
+            string platform = null,
+            string storefront = null)
         {
             // custody is fixed false: nothing here can outlive the WebView's
             // own storage, so asking to be told about minted credentials would
             // pull a token into a process with nowhere safer to put it.
+            //
+            // platform/storefront are read once at LevelMomentAds.Initialize()
+            // and cached — never here. The server uses them to decide store
+            // policy: "ios"/"android" from the running OS
+            // (null on macOS/editor/standalone, never "web"), and on iOS the
+            // StoreKit storefront's ISO 3166-1 alpha-3 country code, or null
+            // when unavailable. Android always reports a null storefront.
             var json = "{\"token\":\"" + EscapeJson(token ?? string.Empty) +
                        "\",\"custody\":false,\"customData\":" +
                        (customData == null ? "null" : "\"" + EscapeJson(customData) + "\"") +
+                       ",\"platform\":" + (platform == null ? "null" : "\"" + EscapeJson(platform) + "\"") +
+                       ",\"storefront\":" + (storefront == null ? "null" : "\"" + EscapeJson(storefront) + "\"") +
                        ",\"slotType\":" + (slot == null || slot.SlotType == null ? "null" : "\"" + EscapeJson(slot.SlotType) + "\"") +
                        ",\"dimensions\":" + DimensionsJson(slot) +
-                       ",\"protocolVersion\":1,\"sdkVersion\":\"0.2.0\"}";
+                       ",\"protocolVersion\":1,\"sdkVersion\":\"" + LevelMomentEndpoints.SdkVersion + "\"}";
             return "if (window.location.origin === \"" + EscapeJson(expectedOrigin) + "\") {" +
                    "window.__levelMomentDeliverCredential && " +
                    "window.__levelMomentDeliverCredential(\"" + EscapeJson(json) + "\");}";
@@ -124,12 +139,15 @@ namespace LevelMoment
             string token,
             string customData = null,
             string expectedOrigin = "https://levelmoment.com",
-            LevelMomentAdSlot slot = null)
+            LevelMomentAdSlot slot = null,
+            string platform = null,
+            string storefront = null)
         {
             var scriptable = webView as ILevelMomentScriptableWebView;
             if (scriptable == null)
                 return;
-            scriptable.EvaluateJS(BuildInjection(token, customData, expectedOrigin, slot));
+            scriptable.EvaluateJS(BuildInjection(
+                token, customData, expectedOrigin, slot, platform, storefront));
         }
     }
 }

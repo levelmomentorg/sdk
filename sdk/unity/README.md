@@ -1,7 +1,7 @@
 # LevelMoment Unity SDK (`com.levelmoment.sdk`)
 
 **Preview:** Validate the WebView provider and hosted break on each target
-device before release. The repository version is `0.2.0`; use the immutable
+device before release. The repository version is `0.3.0`; use the immutable
 preview artifact or reference supplied for your partner integration.
 
 Give a coding agent the placement ID, immutable SDK source, target slot, reward
@@ -28,7 +28,7 @@ Unity has **no built-in WebView**, so the SDK needs a WebView provider. The bund
 
 ### 1. Install this package
 
-In Unity Package Manager, add the immutable `0.2.0` preview artifact or
+In Unity Package Manager, add the immutable `0.3.0` preview artifact or
 reference supplied for your partner integration. Do not point a partner build
 at a moving branch.
 
@@ -277,6 +277,30 @@ The shell announces `kind=interstitial` on the `/break` URL it opens
 (`RewardedAd` sends no `kind`), so the hosted page can tell which placement it
 is serving. **The hosted `/break` page does not yet read this param** — until
 it does, the page renders the same experience for both kinds.
+
+---
+
+## Platform and storefront reporting
+
+`LevelMomentAds.Initialize()` reads the device's platform and, on iOS, its App
+Store storefront once and caches the result. The credential bridge sends both
+to the hosted page next to every credential reply, so the server can decide
+store policy for the placement (link-only checkout, sign-in only, or hidden,
+depending on where the game is distributed).
+
+- Platform is `ios` or `android`, from the running OS. macOS, the Unity
+  Editor, and every other standalone target send no platform.
+- Storefront is the iOS StoreKit storefront's ISO 3166-1 alpha-3 country
+  code, such as `USA` (iOS 13 and later), or null when no Apple account is signed in or the device predates
+  iOS 13. Android always sends no storefront — the SDK adds no Play Billing
+  dependency, so it cannot read one, and a studio's own billing plugin never
+  conflicts with it.
+
+Reading StoreKit on the main thread inside `needCredential` would risk
+missing the page's 500ms reply window, so the read happens once, at
+`Initialize()`, on a device iOS player only. `Runtime/Plugins/iOS/LevelMomentStorefront.m`
+holds the native call; nothing here needs App Store Connect access or a
+sandbox tester account to build.
 
 ---
 

@@ -211,6 +211,59 @@ namespace LevelMoment.Tests.EditMode
             StringAssert.Contains("\\\"token\\\":\\\"\\\"", fake.LastJS);
         }
 
+        // The gate must forward the SAME cached platform/storefront the break
+        // surface does (BreakSurfaceCore has its own coverage in
+        // StorefrontTests.cs) — a regression here would silently narrow every
+        // gate-only integration to the fail-closed default once store-policy
+        // enforcement reads these fields.
+        [Test]
+        public void EnsureSignedIn_NeedCredential_CarriesTheCachedPlatformAndStorefront()
+        {
+            LevelMomentAds.ResetForTests();
+            LevelMomentAds.StorefrontProvider = new FakeStorefrontProvider("ios", "USA");
+            LevelMomentAds.Initialize(new LevelMomentConfig
+            {
+                ApiUrl = "https://api.example.com",
+                BreakUrl = "https://app.example.com/break",
+                UnsafeTesting = new UnsafeTesting { ApiUrl = "https://api.example.com", BreakUrl = "https://app.example.com/break" },
+            });
+            LevelMomentAds.ClockSeconds = () => _now;
+            LevelMomentAds.LoadTimeoutSeconds = 15;
+            LevelMomentAds.CheckTimeoutSeconds = 30;
+
+            var fake = new ScriptableFakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+
+            LevelMomentAds.EnsureSignedIn("p1", delegate { });
+            fake.EmitMessage("{\"type\":\"needCredential\"}");
+
+            Assert.AreEqual(1, fake.EvaluateJSCount);
+            StringAssert.Contains("\\\"platform\\\":\\\"ios\\\"", fake.LastJS);
+            StringAssert.Contains("\\\"storefront\\\":\\\"USA\\\"", fake.LastJS);
+        }
+
+        private class FakeStorefrontProvider : IStorefrontProvider
+        {
+            private readonly string _platform;
+            private readonly string _storefront;
+
+            public FakeStorefrontProvider(string platform, string storefront)
+            {
+                _platform = platform;
+                _storefront = storefront;
+            }
+
+            public string Platform
+            {
+                get { return _platform; }
+            }
+
+            public string ReadStorefront()
+            {
+                return _storefront;
+            }
+        }
+
         [Test]
         public void BuildGate_CheckModeUsesModeCheck()
         {

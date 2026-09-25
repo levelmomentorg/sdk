@@ -177,7 +177,10 @@ namespace LevelMoment
                         _webView,
                         LevelMomentAds.Config.Mock ? null : _studentToken,
                         LevelMomentAds.Config.CustomData,
-                        OriginOf(_hostedUrl));
+                        OriginOf(_hostedUrl),
+                        null,
+                        LevelMomentAds.Platform,
+                        LevelMomentAds.Storefront);
                     break;
                 case HostMessageType.CredentialIssued:
                 case HostMessageType.CredentialInvalid:

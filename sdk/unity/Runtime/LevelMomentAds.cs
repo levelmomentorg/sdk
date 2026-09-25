@@ -54,6 +54,20 @@ namespace LevelMoment
             get { return Config != null; }
         }
 
+        /// <summary>
+        /// <c>"ios"</c> / <c>"android"</c>, cached at Initialize(); null until
+        /// then and on every other platform. Reported to the hosted page next
+        /// to the credential — see CredentialBridge.
+        /// </summary>
+        internal static string Platform { get; private set; }
+
+        /// <summary>
+        /// The iOS StoreKit storefront's country code, cached at Initialize();
+        /// always null on Android and every other platform, and null on iOS
+        /// when no Apple account is signed in. See StorefrontProvider.cs.
+        /// </summary>
+        internal static string Storefront { get; private set; }
+
         // ---- Injectable seams (overridden by the EditMode tests) ------------
 
         /// <summary>Monotonic clock in seconds, used by the load watchdog.</summary>
@@ -65,11 +79,24 @@ namespace LevelMoment
         /// <summary>Total IsSignedIn deadline in seconds (0 disables it).</summary>
         internal static double CheckTimeoutSeconds = DefaultCheckTimeoutSeconds;
 
+        /// <summary>
+        /// Source for <see cref="Platform"/>/<see cref="Storefront"/>, read
+        /// exactly once by Initialize(). Tests substitute a fake to assert the
+        /// cache-once behaviour without a native call.
+        /// </summary>
+        internal static IStorefrontProvider StorefrontProvider = new DeviceStorefrontProvider();
+
         // ---- Public API -----------------------------------------------------
 
         /// <summary>
         /// Initialise the SDK. Call once from Awake()/Start() in your bootstrap
         /// scene, before loading any ads. Mirrors MobileAds.Initialize().
+        ///
+        /// Also reads and caches the device's platform and, on iOS, its App
+        /// Store storefront (see <see cref="Platform"/>/<see cref="Storefront"/>)
+        /// — exactly once, here. Neither is ever read again from the
+        /// `needCredential` reply path, which the hosted page waits only
+        /// 500ms for.
         /// </summary>
         public static void Initialize(LevelMomentConfig config)
         {
@@ -78,6 +105,11 @@ namespace LevelMoment
             config.Validate();
 
             Config = config;
+
+            Platform = StorefrontProvider.Platform;
+            Storefront = string.Equals(Platform, "ios", StringComparison.Ordinal)
+                ? StorefrontProvider.ReadStorefront()
+                : null;
         }
 
         // ---- Startup sign-in gate ------------------------------------------
@@ -345,9 +377,12 @@ namespace LevelMoment
         internal static void ResetForTests()
         {
             Config = null;
+            Platform = null;
+            Storefront = null;
             ClockSeconds = DefaultClock;
             LoadTimeoutSeconds = DefaultLoadTimeoutSeconds;
             CheckTimeoutSeconds = DefaultCheckTimeoutSeconds;
+            StorefrontProvider = new DeviceStorefrontProvider();
             LevelMomentRuntime.SkipDriver = false;
         }
     }

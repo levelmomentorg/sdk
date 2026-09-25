@@ -8,6 +8,20 @@ versioning follows [Semver](https://semver.org).
 
 ### Added
 
+- The credential-bridge reply to the hosted page's `needCredential` message now
+  carries `platform` (`"ios"` / `"android"`, from the running OS; null on
+  macOS and every other standalone target, and in the Editor) and
+  `storefront` (the iOS StoreKit storefront's alpha-3 country code, such as
+  `USA`, or null when unavailable; always null on
+  Android). Read once and cached at `LevelMomentAds.Initialize()`, never
+  inside the reply itself. The server uses these to decide store policy.
+- A native iOS plugin (`Runtime/Plugins/iOS/LevelMomentStorefront.m`) reads
+  `SKPaymentQueue.defaultQueue.storefront.countryCode`. An Editor
+  post-process build step links `StoreKit.framework` into the generated Xcode
+  project. Android sends no storefront and adds no Play Billing dependency,
+  by design — every Google Play row resolves the same store policy either
+  way.
+
 - `LevelMomentAdSlot` — the slot a game declares for an ad placement: the ad
   type it replaces, a target duration in seconds, and the reward amount the
   game grants the player for it. `RewardedAd.Load` and `InterstitialAd.Load`
