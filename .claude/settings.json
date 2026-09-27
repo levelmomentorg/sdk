@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "lloyd-skills": {
+      "source": {
+        "source": "github",
+        "repo": "lloydho/claude-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "house-rules@lloyd-skills": true
+  }
+}
