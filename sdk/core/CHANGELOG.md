@@ -4,9 +4,35 @@ All notable changes to `@levelmoment/sdk-core` are documented here. Format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
-## [Unreleased]
+## [0.3.0] — unreleased
+
+### Changed
+
+- `resolveHostedOptions(options, env)` takes a required `HostEnvironment`
+  (`{ kind: "native", debugBuild }` or `{ kind: "web", pageUrl }`) and returns
+  the resolved options with a `mode`: `production`, `sandbox`, or
+  `realPairing`. Resolving a resolved value returns it unchanged.
+- `addBridgeVersion(params, mode)` takes the mode instead of a boolean and adds
+  `sandbox=true` only in `sandbox` mode.
 
 ### Added
+
+- `unsafeTesting.realPairing`: run the real pairing path against a hosted page
+  on `http://localhost:<port>` or `http://127.0.0.1:<port>`, in a debug build
+  or on a local web dev server only. It sends no `apiUrl` and accepts no token.
+  See `docs/decisions/sdk-real-pairing-testing-2026-10-01.md`.
+- `credentialStoreKey(origin, placementId)`: the native credential-store key.
+  The production origin keeps its existing key; any other origin uses a
+  separate `com.levelmoment.test-credential.` prefix.
+- `isRealPairingUrl` and `REAL_PAIRING_HOSTS`.
+
+- `HostPlatform` and `HostStoreClaims`: a host's credential reply now says
+  which platform it runs on (`ios`, `android`, or `web`) and, on iOS, the App
+  Store storefront (`storefront`, null until read). Level Moment uses them to
+  follow each store's rules. A native shell never claims `web`.
+- `toPublicAdErrorCode`, which maps a code the hosted page posts to one of the
+  five public codes. A store-policy refusal reads as `no_fill`, never as
+  `invalid_token`.
 
 - `SlotDeclaration`, `adTypeForBreakFormat`, `normalizeSlotDeclaration`, and
   `addSlotParams` — the contract a game uses to declare one ad slot: the ad

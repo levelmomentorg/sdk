@@ -57,6 +57,7 @@ failure callbacks.
 cd sdk/flutter
 flutter pub get
 flutter analyze
+flutter test
 ```
 
 Install the immutable `0.2.0` preview artifact or reference supplied for your

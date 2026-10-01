@@ -1,4 +1,9 @@
-import { resolveHostedOptions, HOSTED_BREAK_URL } from "@levelmoment/sdk-core";
+import {
+  resolveHostedOptions,
+  HOSTED_BREAK_URL,
+  type ResolvedHostedOptions,
+} from "@levelmoment/sdk-core";
+import { webEnvironment } from "./environment.js";
 // LevelMomentWebClient — one-time initialisation + loadAd() convenience.
 //
 // This is a thin shell over the hosted /break page (ADR-001). The hosted
@@ -49,10 +54,10 @@ export type WebClientConfig = LevelMomentConfig & {
 };
 
 export class LevelMomentWebClient {
-  readonly config: WebClientConfig;
+  readonly config: ResolvedHostedOptions<WebClientConfig>;
 
   private constructor(config: WebClientConfig) {
-    this.config = resolveHostedOptions(config);
+    this.config = resolveHostedOptions(config, webEnvironment());
   }
 
   static initialize(config: WebClientConfig): LevelMomentWebClient {
@@ -162,7 +167,7 @@ export class LevelMomentWebClient {
       placementId: this.config.placementId,
       apiUrl: this.config.apiUrl,
       studentToken: this.config.studentToken,
-      unsafeTesting: this.config.unsafeTesting,
+      hostedMode: this.config.mode,
       mock: this.config.mock,
       loadTimeoutMs: this.config.breakLoadTimeoutMs,
       checkTimeoutMs: this.config.signInCheckTimeoutMs,

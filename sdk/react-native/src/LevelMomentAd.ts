@@ -1,6 +1,7 @@
 import {
   resolveHostedOptions,
   addBridgeVersion,
+  toPublicAdErrorCode,
   type HostedOptions,
 } from "@levelmoment/sdk-core";
 // Mirrors the react-native-google-mobile-ads RewardedAd API for drop-in replacement.
@@ -18,6 +19,7 @@ import type {
   BreakFormat,
 } from "@levelmoment/sdk-core";
 import { _hasModalHandler, _triggerModal } from "./modalHost.js";
+import { nativeEnvironment } from "./environment.js";
 import {
   HOST_CAPABILITIES,
   HOST_CAPABILITIES_PARAM,
@@ -26,6 +28,7 @@ import {
 import {
   applyCredentialMessage,
   credentialResponder,
+  credentialScope,
 } from "./credentialBridge.js";
 
 export type LevelMomentAdEvent =
@@ -75,7 +78,7 @@ export class LevelMomentAd {
 
   private constructor(placementId: string, options: LevelMomentAdOptions) {
     this.placementId = placementId;
-    this.options = resolveHostedOptions(options);
+    this.options = resolveHostedOptions(options, nativeEnvironment());
   }
 
   static createForAdRequest(
@@ -140,11 +143,10 @@ export class LevelMomentAd {
       url: this._buildUrl(),
       onMessage: (msg) => this._handleMessage(msg),
       onNeedCredential: credentialResponder(
-        this.placementId,
+        credentialScope(this.options, this.placementId),
         this.options.studentToken,
         undefined,
         this.options.customData,
-        !!this.options.unsafeTesting || !!this.options.mock,
         {
           slotType: this.options.slot?.slotType,
           dimensions: this.options.slot?.dimensions,
@@ -184,7 +186,7 @@ export class LevelMomentAd {
     // SSV-parity: carry the host-supplied customData to the hosted page in both
     // modes (opaque correlation data, not a credential) so the page stamps it
     // on every impression it records.
-    addBridgeVersion(params, !!this.options.unsafeTesting);
+    addBridgeVersion(params, this.options.mode);
     params.set(HOST_CAPABILITIES_PARAM, HOST_CAPABILITIES);
     const sep = this.options.breakUrl.includes("?") ? "&" : "?";
     return `${this.options.breakUrl}${sep}${params.toString()}`;
@@ -195,9 +197,10 @@ export class LevelMomentAd {
     // forget what the server refused. The host answers `needCredential`
     // itself — it is the only side that can reach into the WebView.
     if (
-      !this.options.unsafeTesting &&
-      !this.options.mock &&
-      applyCredentialMessage(msg, this.placementId)
+      applyCredentialMessage(
+        msg,
+        credentialScope(this.options, this.placementId),
+      )
     )
       return;
     switch (msg.type) {
@@ -225,7 +228,7 @@ export class LevelMomentAd {
       case "error":
         this._finished = true;
         this._emit("error", {
-          code: (msg.payload.code as LevelMomentAdError["code"]) ?? "unknown",
+          code: toPublicAdErrorCode(msg.payload.code),
           message: msg.payload.message,
         });
         return;

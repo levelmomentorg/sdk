@@ -94,6 +94,29 @@ pass test endpoints and an `eply_sbx_` credential through `unsafeTesting`. Use
 `mock: true` for local UI work without live questions. Do not set production
 URLs or player tokens in the normal configuration.
 
+## Test the real pairing path locally
+
+`unsafeTesting.realPairing` runs pairing, a learner session, and the learner's own topics against a hosted page on your machine, instead of sandbox content.
+
+Prerequisites:
+
+- The Level Moment API and web app running locally, with a placement registered for your game.
+- Your game served from `http://127.0.0.1:<port>` or `http://localhost:<port>`. Any other page refuses the option.
+
+Pass the local break page as `breakUrl`. Serve the game from `127.0.0.1` when the page is on `localhost`, so the page's storage is partitioned the way it is in production.
+
+```ts
+const client = LevelMomentWebClient.initialize({
+  placementId: "YOUR_LOCAL_PLACEMENT_ID",
+  unsafeTesting: {
+    realPairing: true,
+    breakUrl: "http://localhost:3000/break",
+  },
+});
+```
+
+`realPairing` takes no token and no `apiUrl`; the page uses its own API. The SDK logs a warning while it is on.
+
 ## Optional learning-access flow
 
 When a player chooses learning, open the access flow:

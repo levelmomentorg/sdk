@@ -94,6 +94,27 @@ The normal configuration uses the canonical Level Moment hosted service. Use
 `unsafeTesting` only for local or sandbox endpoints and an `eply_sbx_` test
 credential; do not put production URLs or player tokens in the app config.
 
+## Test the real pairing path locally
+
+`unsafeTesting.realPairing` runs pairing, a learner session, and the learner's own topics against a hosted page on your machine, instead of sandbox content. It works in debug builds only; a release bundle refuses it.
+
+Prerequisites:
+
+- The Level Moment API and web app running locally, with a placement registered for your game.
+- On Android, the host's ports forwarded to the device or emulator: `adb reverse tcp:3000 tcp:3000` and `adb reverse tcp:8080 tcp:8080`.
+- On iOS, the simulator. A physical iPhone has no route to your machine's `localhost`.
+
+```ts
+const ad = LevelMomentAd.createForAdRequest("YOUR_LOCAL_PLACEMENT_ID", {
+  unsafeTesting: {
+    realPairing: true,
+    breakUrl: "http://localhost:3000/break",
+  },
+});
+```
+
+`realPairing` takes no token and no `apiUrl`; the page uses its own API. A credential it pairs is kept in its own keychain entry and never replaces the production one.
+
 ## Optional learning-access flow
 
 When a player chooses learning, open the access flow:

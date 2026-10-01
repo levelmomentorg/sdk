@@ -24,6 +24,7 @@ import {
   isBridgeMessage,
   resolveHostedOptions,
   sameHostedOrigin,
+  toPublicAdErrorCode,
 } from "./hosted.js";
 
 /** Compiles only while `T` is `never`. */
@@ -101,27 +102,62 @@ describe("no side door out of the SDK", () => {
   });
 });
 
+describe("toPublicAdErrorCode", () => {
+  it("passes the five public codes through", () => {
+    for (const code of [
+      "network_error",
+      "no_fill",
+      "invalid_token",
+      "not_loaded",
+      "unknown",
+    ]) {
+      expect(toPublicAdErrorCode(code)).toBe(code);
+    }
+  });
+
+  it("reports a store refusal as no break, never as a dead credential", () => {
+    expect(toPublicAdErrorCode("store_unavailable")).toBe("no_fill");
+    expect(toPublicAdErrorCode("store_unavailable")).not.toBe("invalid_token");
+  });
+
+  it("reports anything else as unknown", () => {
+    for (const code of ["subscription_required", "check_timeout", 42, null]) {
+      expect(toPublicAdErrorCode(code)).toBe("unknown");
+    }
+  });
+});
+
+const NATIVE_DEBUG = { kind: "native", debugBuild: true } as const;
+
 describe("hosted surface boundary", () => {
   it("defaults to the canonical hosted break", () => {
-    expect(resolveHostedOptions({}).breakUrl).toBe(HOSTED_BREAK_URL);
+    expect(resolveHostedOptions({}, NATIVE_DEBUG).breakUrl).toBe(
+      HOSTED_BREAK_URL,
+    );
   });
 
   it("rejects custom destinations unless unsafeTesting is explicit", () => {
     expect(() =>
-      resolveHostedOptions({
-        placementId: "pl-1",
-        breakUrl: "https://localhost:3000/break",
-      }),
+      resolveHostedOptions(
+        {
+          placementId: "pl-1",
+          breakUrl: "https://localhost:3000/break",
+        },
+        NATIVE_DEBUG,
+      ),
     ).toThrow(/unsafeTesting/);
     expect(
-      resolveHostedOptions({
-        placementId: "pl-1",
-        unsafeTesting: {
-          breakUrl: "https://localhost:3000/break",
-          apiUrl: "https://localhost:8080",
-          token: "test-token",
+      resolveHostedOptions(
+        {
+          placementId: "pl-1",
+          unsafeTesting: {
+            breakUrl: "https://localhost:3000/break",
+            apiUrl: "https://localhost:8080",
+            token: "test-token",
+          },
         },
-      }),
+        NATIVE_DEBUG,
+      ),
     ).toMatchObject({ breakUrl: "https://localhost:3000/break" });
   });
 
@@ -132,10 +168,13 @@ describe("hosted surface boundary", () => {
       "https://localhost/break#x",
     ]) {
       expect(() =>
-        resolveHostedOptions({
-          placementId: "pl-1",
-          unsafeTesting: { breakUrl },
-        }),
+        resolveHostedOptions(
+          {
+            placementId: "pl-1",
+            unsafeTesting: { breakUrl },
+          },
+          NATIVE_DEBUG,
+        ),
       ).toThrow(/HTTP\(S\) test URL/);
     }
   });

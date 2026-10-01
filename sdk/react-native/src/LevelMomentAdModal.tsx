@@ -19,6 +19,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Linking,
   Modal,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -31,6 +32,7 @@ import {
   externalUrlToOpen,
   type HostMessage,
   isTerminal,
+  nativeStoreClaims,
 } from "./hostMessage.js";
 import { _registerModalHandler, type ModalShowParams } from "./modalHost.js";
 
@@ -145,7 +147,10 @@ function useHostedSurface(
               )
                 return;
               webViewRef.current?.injectJavaScript(
-                credentialInjection(reply, params.url),
+                credentialInjection(
+                  { ...reply, ...nativeStoreClaims(Platform.OS) },
+                  params.url,
+                ),
               );
             })
             .catch(() => {

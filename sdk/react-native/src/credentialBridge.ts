@@ -9,8 +9,31 @@
 // the page asks, the shell answers, and pairing hands the minted credential
 // back so the keychain can outlive the WebView's own storage.
 //
+import type { HostedMode } from "@levelmoment/sdk-core";
 import type { CredentialReply, HostMessage } from "./hostMessage.js";
 import { deviceCredentials, type KeychainTokenStore } from "./tokenStore.js";
+
+/**
+ * Which keychain slot a surface may use. `origin` is the resolved hosted
+ * page's origin and picks the slot; `useStore` is false for sandbox and mock
+ * surfaces, which never read or write the keychain.
+ */
+export interface CredentialScope {
+  placementId: string;
+  origin: string;
+  useStore: boolean;
+}
+
+export function credentialScope(
+  resolved: { mode: HostedMode; breakUrl: string; mock?: boolean },
+  placementId: string,
+): CredentialScope {
+  return {
+    placementId,
+    origin: new URL(resolved.breakUrl).origin,
+    useStore: resolved.mode !== "sandbox" && !resolved.mock,
+  };
+}
 
 /**
  * Build the answer to `needCredential` for one placement.
@@ -23,18 +46,19 @@ import { deviceCredentials, type KeychainTokenStore } from "./tokenStore.js";
  * still goes out promptly, so the page stops waiting.
  */
 export function credentialResponder(
-  placementId: string,
+  scope: CredentialScope,
   explicitToken: string | undefined,
   store: KeychainTokenStore = deviceCredentials,
   customData?: string,
-  testing = false,
   reporting?: {
     slotType?: string;
     dimensions?: Record<string, string | number>;
   },
 ): () => Promise<CredentialReply> {
   return async () => ({
-    token: explicitToken || (testing ? "" : await store.get(placementId)),
+    token:
+      explicitToken ||
+      (scope.useStore ? await store.get(scope.origin, scope.placementId) : ""),
     customData,
     slotType: reporting?.slotType,
     dimensions: reporting?.dimensions,
@@ -45,7 +69,7 @@ export function credentialResponder(
     // it stops treating its own storage as the record. Answering false there
     // degrades to exactly the pre-keychain model: the hosted origin keeps
     // ownership and pairing still works.
-    custody: !testing && (await store.isAvailable()),
+    custody: scope.useStore && (await store.isAvailable()),
   });
 }
 
@@ -59,15 +83,16 @@ export function credentialResponder(
  */
 export function applyCredentialMessage(
   msg: HostMessage,
-  placementId: string,
+  scope: CredentialScope,
   store: KeychainTokenStore = deviceCredentials,
 ): boolean {
+  if (!scope.useStore) return false;
   if (msg.type === "credentialIssued") {
-    void store.set(placementId, msg.payload.token);
+    void store.set(scope.origin, scope.placementId, msg.payload.token);
     return true;
   }
   if (msg.type === "credentialInvalid") {
-    void store.clear(placementId);
+    void store.clear(scope.origin, scope.placementId);
     return true;
   }
   return false;

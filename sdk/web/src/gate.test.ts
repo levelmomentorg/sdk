@@ -125,6 +125,8 @@ describe("ensureSignedIn", () => {
         payload: {
           token: "device-tok-123",
           custody: false,
+          platform: "web",
+          storefront: null,
           protocolVersion: 1,
           sdkVersion: "0.2.0",
           customData: undefined,
@@ -281,6 +283,8 @@ describe("isSignedIn", () => {
         payload: {
           token: "device-tok-123",
           custody: false,
+          platform: "web",
+          storefront: null,
           protocolVersion: 1,
           sdkVersion: "0.2.0",
           customData: undefined,
@@ -414,5 +418,51 @@ describe("learning access", () => {
     const failed = client.checkAccess();
     emit({ type: "error", payload: { code: "offline", message: "offline" } });
     await expect(failed).rejects.toThrow(/could not check/i);
+  });
+});
+
+describe("unsafeTesting.realPairing", () => {
+  const REAL = {
+    placementId: "placement-abc",
+    unsafeTesting: {
+      realPairing: true,
+      breakUrl: "http://localhost:3000/break",
+    },
+  };
+
+  function servePageFrom(href: string): void {
+    const win = (globalThis as unknown as { window: { location: unknown } })
+      .window;
+    win.location = { href, origin: new URL(href).origin };
+  }
+
+  it("opens the local page with neither sandbox nor apiUrl", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    servePageFrom("http://127.0.0.1:5173/");
+    LevelMomentWebClient.initialize(REAL).ensureSignedIn();
+    const url = new URL(frame().src);
+    expect(url.origin).toBe("http://localhost:3000");
+    expect(url.searchParams.get("mode")).toBe("gate");
+    expect(url.searchParams.has("sandbox")).toBe(false);
+    expect(url.searchParams.has("apiUrl")).toBe(false);
+  });
+
+  it("loads a break through the client without warning twice", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    servePageFrom("http://127.0.0.1:5173/");
+    const client = LevelMomentWebClient.initialize(REAL);
+    const ad = await new Promise<{ show: (cb: object) => void }>((resolve) =>
+      client.loadAd({ onAdLoaded: resolve }),
+    );
+    ad.show({});
+    expect(new URL(frame().src).origin).toBe("http://localhost:3000");
+    // Warnings are per origin per process; an earlier test may own this one.
+    expect(warn.mock.calls.length).toBeLessThanOrEqual(1);
+  });
+
+  it("is refused on a page that is not a local dev server", () => {
+    expect(() => LevelMomentWebClient.initialize(REAL)).toThrow(
+      /page served from/,
+    );
   });
 });

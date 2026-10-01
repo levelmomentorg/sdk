@@ -406,4 +406,16 @@ void main() {
   // presentation shell; its terminal-once guard mirrors the show() dispatch
   // logic pinned above, and its message parsing is covered by the
   // HostMessage.tryParse group.
+
+  group('publicAdErrorCode', () {
+    test('reports a store refusal as no_fill, never a credential failure', () {
+      expect(publicAdErrorCode('store_unavailable'), 'no_fill');
+    });
+
+    test('passes other codes through', () {
+      for (final code in ['no_fill', 'invalid_token', 'network_error']) {
+        expect(publicAdErrorCode(code), code);
+      }
+    });
+  });
 }

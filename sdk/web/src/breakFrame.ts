@@ -2,7 +2,11 @@ import {
   BRIDGE_PROTOCOL_VERSION,
   SDK_VERSION,
   isBridgeMessage,
+  type HostStoreClaims,
 } from "@levelmoment/sdk-core";
+
+/** A browser host has no store account: always `web`, never a storefront. */
+const WEB_STORE_CLAIMS: HostStoreClaims = { platform: "web", storefront: null };
 // BreakFrame — the iframe + postMessage plumbing every hosted surface shares.
 //
 // Two callers open the hosted page for different reasons: LevelMomentWebAd
@@ -190,6 +194,10 @@ export class BreakFrame {
         type: "credential",
         payload: {
           ...reply,
+          // Store claims (HostStoreClaims in sdk-core). This adapter always
+          // runs in a browser, so it says so explicitly: the page reads a
+          // reply with no platform as a missing claim, never as `web`.
+          ...WEB_STORE_CLAIMS,
           protocolVersion: BRIDGE_PROTOCOL_VERSION,
           sdkVersion: SDK_VERSION,
         },

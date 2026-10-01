@@ -229,7 +229,7 @@ class LevelMomentRewardedAd {
           terminal = true;
           fullScreenContentCallback?.onAdFailedToShowFullScreenContent?.call(
             this,
-            LevelMomentAdError(code: code, message: message),
+            LevelMomentAdError(code: publicAdErrorCode(code), message: message),
           );
           dispose();
       }

@@ -12,6 +12,7 @@
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:levelmoment_ads/levelmoment_ads.dart';
@@ -55,6 +56,8 @@ void main() {
         'customData': null,
         'slotType': null,
         'dimensions': null,
+        'platform': 'android',
+        'storefront': null,
         'protocolVersion': 1,
         'sdkVersion': '0.2.0',
       });
@@ -103,9 +106,33 @@ void main() {
         'customData': null,
         'slotType': null,
         'dimensions': null,
+        // flutter_test runs as Android unless a test overrides it.
+        'platform': 'android',
+        'storefront': null,
         'protocolVersion': 1,
         'sdkVersion': '0.2.0',
       });
+    });
+
+    test('claims the platform from the OS and never web', () {
+      try {
+        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+        expect(
+          decodeInjection(
+            const CredentialReply(token: '', custody: false).toInjection(),
+          )['platform'],
+          'ios',
+        );
+        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+        expect(
+          decodeInjection(
+            const CredentialReply(token: '', custody: false).toInjection(),
+          )['platform'],
+          isNull,
+        );
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
     });
   });
 

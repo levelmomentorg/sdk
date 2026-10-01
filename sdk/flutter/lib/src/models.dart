@@ -19,6 +19,15 @@ class LevelMomentAdError {
   String toString() => 'LevelMomentAdError($code: $message)';
 }
 
+/// The code a game receives for an `error` the hosted page posts.
+///
+/// `store_unavailable` is the store-policy refusal. To a game it means only
+/// "no break this time", so it arrives as `no_fill`, the same as the web and
+/// React Native SDKs report it, and never as a credential failure. Other codes
+/// pass through unchanged.
+String publicAdErrorCode(String code) =>
+    code == 'store_unavailable' ? 'no_fill' : code;
+
 /// Mirrors: RewardItem
 /// type is always 'question_answered'
 class LevelMomentRewardItem {

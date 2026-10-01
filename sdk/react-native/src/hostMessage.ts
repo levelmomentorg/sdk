@@ -1,7 +1,6 @@
 import {
   BRIDGE_PROTOCOL_VERSION,
   SDK_VERSION,
-  HOSTED_BREAK_URL,
   sameHostedOrigin,
 } from "@levelmoment/sdk-core";
 // The terminal-event protocol posted by the hosted /break page.
@@ -53,6 +52,26 @@ export interface CredentialReply {
   customData?: string;
   slotType?: string;
   dimensions?: Record<string, string | number>;
+  /** Store claims (see `HostStoreClaims`); added by `nativeStoreClaims`. */
+  platform?: "ios" | "android";
+  storefront?: string | null;
+}
+
+/**
+ * The store claims this shell adds to its credential reply, from React
+ * Native's `Platform.OS`.
+ *
+ * Only `ios` and `android` are claimed. Any other OS (react-native-web,
+ * Windows, macOS) sends no platform, which the page reads as a missing claim:
+ * a native shell must never say `web`. The storefront is null until this
+ * adapter reads it from StoreKit.
+ */
+export function nativeStoreClaims(
+  os: string,
+): Pick<CredentialReply, "platform" | "storefront"> {
+  return os === "ios" || os === "android"
+    ? { platform: os, storefront: null }
+    : { storefront: null };
 }
 
 /**
@@ -69,7 +88,7 @@ export interface CredentialReply {
  */
 export function credentialInjection(
   reply: CredentialReply,
-  hostedUrl = HOSTED_BREAK_URL,
+  hostedUrl: string,
 ): string {
   const json = JSON.stringify(
     JSON.stringify({

@@ -1,4 +1,9 @@
-import { resolveHostedOptions, addBridgeVersion } from "@levelmoment/sdk-core";
+import {
+  resolveHostedOptions,
+  addBridgeVersion,
+  type HostedMode,
+  toPublicAdErrorCode,
+} from "@levelmoment/sdk-core";
 // LevelMomentWebAd — thin loader over the hosted /break page (ADR-001).
 //
 // Mirrors the AdMob RewardedAd API: load() in the background, then show() in the ad slot.
@@ -51,6 +56,7 @@ export interface WebAdShowCallbacks {
 // this module's public surface before the split.
 export type { HostMessage } from "./breakFrame.js";
 import { BreakFrame, type HostMessage } from "./breakFrame.js";
+import { webEnvironment } from "./environment.js";
 
 interface WebAdSpec {
   placementId: string;
@@ -58,7 +64,7 @@ interface WebAdSpec {
   breakUrl: string;
   apiUrl?: string;
   studentToken?: string;
-  testing?: boolean;
+  hostedMode: HostedMode;
   mock?: boolean;
   /** Opaque game-server context, sent through the host handshake. */
   customData?: string;
@@ -110,12 +116,13 @@ export class LevelMomentWebAd {
       return;
     }
 
-    config = resolveHostedOptions(config);
+    const resolved = resolveHostedOptions(config, webEnvironment());
+    config = resolved;
     const ad = new LevelMomentWebAd({
       placementId: config.placementId,
       format: options.format ?? "quick_question",
-      breakUrl: resolveHostedOptions(config).breakUrl,
-      testing: !!config.unsafeTesting,
+      breakUrl: resolved.breakUrl,
+      hostedMode: resolved.mode,
       apiUrl: config.apiUrl,
       studentToken: config.studentToken,
       mock: config.mock,
@@ -205,8 +212,7 @@ export class LevelMomentWebAd {
             teardown();
             if (callbacks.onAdFailedToShow) {
               callbacks.onAdFailedToShow({
-                code:
-                  (msg.payload.code as LevelMomentAdError["code"]) ?? "unknown",
+                code: toPublicAdErrorCode(msg.payload.code),
                 message: msg.payload.message,
               });
             } else {
@@ -260,7 +266,7 @@ export class LevelMomentWebAd {
     // No credential rides on this URL. The page asks for one over the bridge
     // (`needCredential`) and gets it from deliverCredential() above, so a live
     // token never reaches a game's launch URL, a crash report, or a web log.
-    addBridgeVersion(params, this._spec.testing);
+    addBridgeVersion(params, this._spec.hostedMode);
     const sep = this._spec.breakUrl.includes("?") ? "&" : "?";
     return `${this._spec.breakUrl}${sep}${params.toString()}`;
   }

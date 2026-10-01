@@ -53,7 +53,7 @@
     "postpack": "rm -rf claude"
   },
   "dependencies": {
-    "@levelmoment/sdk-core": "^0.2.0"
+    "@levelmoment/sdk-core": "^0.3.0"
   },
   "devDependencies": {
     "react-native-keychain": "^10.0.0",

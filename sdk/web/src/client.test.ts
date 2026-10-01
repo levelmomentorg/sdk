@@ -217,6 +217,30 @@ describe("LevelMomentWebAd", () => {
     });
   });
 
+  describe("show — realPairing", () => {
+    it("builds a local URL with neither sandbox nor apiUrl", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      (
+        globalThis as unknown as { window: { location: unknown } }
+      ).window.location = {
+        href: "http://127.0.0.1:5173/",
+        origin: "http://127.0.0.1:5173",
+      };
+      const ad = await loadAd({
+        placementId: "placement-abc",
+        unsafeTesting: {
+          realPairing: true,
+          breakUrl: "http://localhost:3000/break",
+        },
+      });
+      ad.show({});
+      const url = new URL(body.children[0].src);
+      expect(url.origin).toBe("http://localhost:3000");
+      expect(url.searchParams.has("sandbox")).toBe(false);
+      expect(url.searchParams.has("apiUrl")).toBe(false);
+    });
+  });
+
   describe("show — URL building", () => {
     it("builds a live URL with apiUrl but no credential", async () => {
       const ad = await loadAd(LIVE, { format: "practice_set" });
@@ -255,6 +279,8 @@ describe("LevelMomentWebAd", () => {
           payload: {
             token: "student-tok-123",
             custody: false,
+            platform: "web",
+            storefront: null,
             customData: "order/42&x",
             protocolVersion: 1,
             sdkVersion: "0.2.0",
@@ -403,6 +429,8 @@ describe("LevelMomentWebAd", () => {
           payload: {
             token: "student-tok-123",
             custody: false,
+            platform: "web",
+            storefront: null,
             customData: undefined,
             protocolVersion: 1,
             sdkVersion: "0.2.0",
@@ -426,6 +454,8 @@ describe("LevelMomentWebAd", () => {
           payload: {
             token: "student-tok-123",
             custody: false,
+            platform: "web",
+            storefront: null,
             customData: undefined,
             slotType: "level_break",
             dimensions: { afterLevel: 4 },
@@ -450,6 +480,8 @@ describe("LevelMomentWebAd", () => {
           payload: {
             token: "",
             custody: false,
+            platform: "web",
+            storefront: null,
             customData: undefined,
             protocolVersion: 1,
             sdkVersion: "0.2.0",
@@ -515,6 +547,23 @@ describe("LevelMomentWebAd", () => {
       });
       expect(onAdDismissed).not.toHaveBeenCalled();
       expect(body.children).toHaveLength(0);
+    });
+
+    it("reports a store refusal as no_fill, never as invalid_token", async () => {
+      const onAdFailedToShow = vi.fn();
+      const ad = await loadAd(LIVE);
+      ad.show({ onAdFailedToShow });
+      emitMessage(
+        {
+          type: "error",
+          payload: { code: "store_unavailable", message: "x" },
+        },
+        HOST_ORIGIN,
+      );
+      expect(onAdFailedToShow).toHaveBeenCalledWith({
+        code: "no_fill",
+        message: "x",
+      });
     });
 
     it("'ready' is a no-op (iframe stays mounted)", async () => {

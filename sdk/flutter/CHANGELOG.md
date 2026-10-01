@@ -4,6 +4,21 @@ All notable changes to `levelmoment_ads` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 follows [Semver](https://semver.org).
 
+## [Unreleased]
+
+### Added
+
+- The credential reply carries `platform` (`ios` or `android`, from
+  `defaultTargetPlatform`) and `storefront: null`, so Level Moment can apply
+  its store rules. Other targets send no platform. Reading the App Store
+  storefront comes in a later release.
+
+### Changed
+
+- A store-policy refusal from the hosted page reaches
+  `onAdFailedToShowFullScreenContent` as `no_fill`, as it does in the web and
+  React Native SDKs, never as a credential failure.
+
 ## [0.2.0] — 2026-09-05
 
 **Preview:** Validate the WebView provider and hosted break on each target

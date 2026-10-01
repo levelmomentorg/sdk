@@ -35,8 +35,10 @@ import {
 import {
   applyCredentialMessage,
   credentialResponder,
+  credentialScope,
 } from "./credentialBridge.js";
 import { deviceCredentials } from "./tokenStore.js";
+import { nativeEnvironment } from "./environment.js";
 
 /** Default pre-`ready` load-timeout for the hosted page (ms). */
 export const DEFAULT_LOAD_TIMEOUT_MS = 15_000;
@@ -72,6 +74,15 @@ export interface SignInOptions extends HostedOptions {
   checkTimeoutMs?: number;
 }
 
+/** Resolve sign-in options once; resolving a resolved value is a no-op. */
+function resolveSignIn(options: SignInOptions) {
+  return resolveHostedOptions(options, nativeEnvironment());
+}
+
+function signInScope(options: SignInOptions) {
+  return credentialScope(resolveSignIn(options), options.placementId);
+}
+
 /**
  * Build the hosted gate URL. Exported for the unit tests; treat as internal.
  */
@@ -80,12 +91,12 @@ export function buildGateUrl(
   mode: "gate" | "check" | "clear",
   coordinatorPath?: "/access",
 ): string {
-  const resolved = resolveHostedOptions(options);
+  const resolved = resolveSignIn(options);
   const hostedUrl = coordinatorPath
     ? new URL(coordinatorPath, resolved.breakUrl).toString()
     : resolved.breakUrl;
   const params = new URLSearchParams();
-  addBridgeVersion(params, !!options.unsafeTesting);
+  addBridgeVersion(params, resolved.mode);
   params.set("mode", mode);
   params.set("placementId", options.placementId);
   if (options.mock) {
@@ -162,20 +173,13 @@ function runEnsureGate(
         url: buildGateUrl(options, "gate", coordinatorPath),
         loadTimeoutMs: options.loadTimeoutMs,
         onNeedCredential: credentialResponder(
-          options.placementId,
-          resolveHostedOptions(options).studentToken,
-          undefined,
-          undefined,
-          !!options.unsafeTesting,
+          signInScope(options),
+          resolveSignIn(options).studentToken,
         ),
         onMessage: (msg) => {
           // Pairing runs inside the gate, so this is where a first credential
           // is usually minted — keep it before deciding the gate's result.
-          if (
-            !options.unsafeTesting &&
-            applyCredentialMessage(msg, options.placementId)
-          )
-            return;
+          if (applyCredentialMessage(msg, signInScope(options))) return;
           const result = gateResultFor(msg);
           if (result) settle(result);
         },
@@ -276,20 +280,13 @@ function runCheck(
         hidden: true,
         loadTimeoutMs: options.loadTimeoutMs,
         onNeedCredential: credentialResponder(
-          options.placementId,
-          resolveHostedOptions(options).studentToken,
-          undefined,
-          undefined,
-          !!options.unsafeTesting,
+          signInScope(options),
+          resolveSignIn(options).studentToken,
         ),
         onMessage: (msg) => {
           // The check does not pair, but it does discard credentials the
           // server refuses — the keychain has to hear about that.
-          if (
-            !options.unsafeTesting &&
-            applyCredentialMessage(msg, options.placementId)
-          )
-            return;
+          if (applyCredentialMessage(msg, signInScope(options))) return;
           if (msg.type === "signedIn") settle(() => resolve(true));
           else if (msg.type === "dismissed") settle(() => resolve(false));
           else if (msg.type === "error") {
@@ -394,10 +391,11 @@ export function signOut(options: SignInOptions): Promise<void> {
       return;
     }
 
+    const scope = signInScope(options);
     void (
-      options.unsafeTesting
-        ? Promise.resolve()
-        : deviceCredentials.clear(options.placementId)
+      scope.useStore
+        ? deviceCredentials.clear(scope.origin, scope.placementId)
+        : Promise.resolve()
     ).then(() => {
       const totalMs = options.checkTimeoutMs ?? DEFAULT_CHECK_TIMEOUT_MS;
       if (totalMs > 0) {
@@ -420,8 +418,7 @@ export function signOut(options: SignInOptions): Promise<void> {
           onMessage: (msg) => {
             // `credentialInvalid` re-clears the keychain through the shared
             // path; `dismissed` is the page's terminal for this mode.
-            if (!options.unsafeTesting)
-              applyCredentialMessage(msg, options.placementId);
+            applyCredentialMessage(msg, scope);
             if (msg.type === "dismissed") settle(resolve);
             else if (msg.type === "error") {
               settle(() =>

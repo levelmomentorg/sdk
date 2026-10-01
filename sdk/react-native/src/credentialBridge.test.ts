@@ -7,9 +7,16 @@
 // keychain rather than touching the default instance.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { HOSTED_BREAK_URL } from "@levelmoment/sdk-core";
 
-import { credentialInjection } from "./hostMessage.js";
+import { credentialInjection, nativeStoreClaims } from "./hostMessage.js";
 import { KeychainTokenStore, credentialService } from "./tokenStore.js";
+import type { CredentialScope } from "./credentialBridge.js";
+
+const PROD = "https://levelmoment.com";
+function scope(placementId: string): CredentialScope {
+  return { placementId, origin: PROD, useStore: true };
+}
 import {
   applyCredentialMessage,
   credentialResponder,
@@ -75,32 +82,36 @@ describe("KeychainTokenStore", () => {
     const keychain = fakeKeychain();
     const store = storeOver(keychain);
 
-    await store.set("game-42", "cred-abc");
+    await store.set(PROD, "game-42", "cred-abc");
 
-    expect(keychain.entries.get(credentialService("game-42"))).toBe("cred-abc");
-    await expect(store.get("game-42")).resolves.toBe("cred-abc");
+    expect(keychain.entries.get(credentialService(PROD, "game-42"))).toBe(
+      "cred-abc",
+    );
+    await expect(store.get(PROD, "game-42")).resolves.toBe("cred-abc");
   });
 
   it("keeps two games' credentials apart", async () => {
     // A credential is scoped to one game. Sharing one entry would have the
     // second game overwrite the first's on every launch, re-pairing forever.
     const store = storeOver(fakeKeychain());
-    await store.set("game-a", "cred-a");
-    await store.set("game-b", "cred-b");
+    await store.set(PROD, "game-a", "cred-a");
+    await store.set(PROD, "game-b", "cred-b");
 
-    await expect(store.get("game-a")).resolves.toBe("cred-a");
-    await expect(store.get("game-b")).resolves.toBe("cred-b");
+    await expect(store.get(PROD, "game-a")).resolves.toBe("cred-a");
+    await expect(store.get(PROD, "game-b")).resolves.toBe("cred-b");
   });
 
   it("reports an empty credential for a placement it has never seen", async () => {
-    await expect(storeOver(fakeKeychain()).get("game-42")).resolves.toBe("");
+    await expect(storeOver(fakeKeychain()).get(PROD, "game-42")).resolves.toBe(
+      "",
+    );
   });
 
   it("clears one placement's credential", async () => {
     const store = storeOver(fakeKeychain());
-    await store.set("game-42", "cred-abc");
-    await store.clear("game-42");
-    await expect(store.get("game-42")).resolves.toBe("");
+    await store.set(PROD, "game-42", "cred-abc");
+    await store.clear(PROD, "game-42");
+    await expect(store.get(PROD, "game-42")).resolves.toBe("");
   });
 
   it("reads a failing keychain as an empty one rather than throwing", async () => {
@@ -108,16 +119,16 @@ describe("KeychainTokenStore", () => {
     // load. None of those should cost the player a break: the hosted page's own
     // storage still holds a credential, and pairing still works.
     const store = storeOver(fakeKeychain({ failing: true }));
-    await expect(store.get("game-42")).resolves.toBe("");
-    await expect(store.set("game-42", "cred")).resolves.toBeUndefined();
-    await expect(store.clear("game-42")).resolves.toBeUndefined();
+    await expect(store.get(PROD, "game-42")).resolves.toBe("");
+    await expect(store.set(PROD, "game-42", "cred")).resolves.toBeUndefined();
+    await expect(store.clear(PROD, "game-42")).resolves.toBeUndefined();
   });
 
   it("ignores writes with nothing to write", async () => {
     const keychain = fakeKeychain();
     const store = storeOver(keychain);
-    await store.set("", "cred");
-    await store.set("game-42", "");
+    await store.set(PROD, "", "cred");
+    await store.set(PROD, "game-42", "");
     expect(keychain.setGenericPassword).not.toHaveBeenCalled();
   });
 });
@@ -130,10 +141,10 @@ describe("credentialResponder", () => {
     // to it, so leading with it here is safe.
     const keychain = fakeKeychain();
     const store = storeOver(keychain);
-    await store.set("game-42", "stored-cred");
+    await store.set(PROD, "game-42", "stored-cred");
 
     const reply = await credentialResponder(
-      "game-42",
+      scope("game-42"),
       "explicit-cred",
       store,
     )();
@@ -143,9 +154,13 @@ describe("credentialResponder", () => {
 
   it("falls back to the keychain when the game configured nothing", async () => {
     const store = storeOver(fakeKeychain());
-    await store.set("game-42", "stored-cred");
+    await store.set(PROD, "game-42", "stored-cred");
 
-    const reply = await credentialResponder("game-42", undefined, store)();
+    const reply = await credentialResponder(
+      scope("game-42"),
+      undefined,
+      store,
+    )();
 
     expect(reply).toEqual({ token: "stored-cred", custody: true });
   });
@@ -155,7 +170,7 @@ describe("credentialResponder", () => {
     // storage. A host holding nothing still has to say so, or every launch on
     // an unpaired device spends that whole window for nothing.
     const reply = await credentialResponder(
-      "game-42",
+      scope("game-42"),
       undefined,
       storeOver(fakeKeychain()),
     )();
@@ -165,7 +180,7 @@ describe("credentialResponder", () => {
 
   it("claims custody when there is a keychain to keep a copy in", async () => {
     const reply = await credentialResponder(
-      "game-42",
+      scope("game-42"),
       "cred",
       storeOver(fakeKeychain()),
     )();
@@ -180,7 +195,7 @@ describe("credentialResponder", () => {
     // pre-keychain model, which still works.
     const store = storeOver(fakeKeychain({ failing: true }));
 
-    const reply = await credentialResponder("game-42", "cred", store)();
+    const reply = await credentialResponder(scope("game-42"), "cred", store)();
 
     expect(reply.custody).toBe(false);
     // The explicit token still travels — the page can use it for this launch
@@ -191,7 +206,7 @@ describe("credentialResponder", () => {
   it("probes the keychain once and reuses the answer", async () => {
     const keychain = fakeKeychain();
     const store = storeOver(keychain);
-    const respond = credentialResponder("game-42", undefined, store);
+    const respond = credentialResponder(scope("game-42"), undefined, store);
 
     await respond();
     await respond();
@@ -211,7 +226,11 @@ describe("pairing still works without a keychain", () => {
     // page keeps ownership, and nothing claims a durable copy that is not there.
     const store = storeOver(fakeKeychain({ failing: true }));
 
-    const reply = await credentialResponder("game-42", undefined, store)();
+    const reply = await credentialResponder(
+      scope("game-42"),
+      undefined,
+      store,
+    )();
     expect(reply).toEqual({ token: "", custody: false });
 
     // A credentialIssued that arrives anyway is still handled without throwing;
@@ -219,12 +238,12 @@ describe("pairing still works without a keychain", () => {
     expect(
       applyCredentialMessage(
         { type: "credentialIssued", payload: { token: "fresh" } },
-        "game-42",
+        scope("game-42"),
         store,
       ),
     ).toBe(true);
     await Promise.resolve();
-    await expect(store.get("game-42")).resolves.toBe("");
+    await expect(store.get(PROD, "game-42")).resolves.toBe("");
   });
 });
 
@@ -235,46 +254,93 @@ describe("applyCredentialMessage", () => {
     expect(
       applyCredentialMessage(
         { type: "credentialIssued", payload: { token: "fresh-cred" } },
-        "game-42",
+        scope("game-42"),
         store,
       ),
     ).toBe(true);
 
     // The write is fire-and-forget; let the microtask queue drain.
     await Promise.resolve();
-    await expect(store.get("game-42")).resolves.toBe("fresh-cred");
+    await expect(store.get(PROD, "game-42")).resolves.toBe("fresh-cred");
   });
 
   it("clears the credential the server refused", async () => {
     const store = storeOver(fakeKeychain());
-    await store.set("game-42", "dead-cred");
+    await store.set(PROD, "game-42", "dead-cred");
 
     expect(
-      applyCredentialMessage({ type: "credentialInvalid" }, "game-42", store),
+      applyCredentialMessage(
+        { type: "credentialInvalid" },
+        scope("game-42"),
+        store,
+      ),
     ).toBe(true);
 
     await Promise.resolve();
-    await expect(store.get("game-42")).resolves.toBe("");
+    await expect(store.get(PROD, "game-42")).resolves.toBe("");
   });
 
   it("leaves other messages alone", () => {
     const keychain = fakeKeychain();
     const store = storeOver(keychain);
 
-    expect(applyCredentialMessage({ type: "ready" }, "game-42", store)).toBe(
-      false,
-    );
     expect(
-      applyCredentialMessage({ type: "dismissed" }, "game-42", store),
+      applyCredentialMessage({ type: "ready" }, scope("game-42"), store),
+    ).toBe(false);
+    expect(
+      applyCredentialMessage({ type: "dismissed" }, scope("game-42"), store),
     ).toBe(false);
     expect(keychain.setGenericPassword).not.toHaveBeenCalled();
     expect(keychain.resetGenericPassword).not.toHaveBeenCalled();
   });
 });
 
+describe("nativeStoreClaims", () => {
+  it("claims ios or android from the OS, with no storefront yet", () => {
+    expect(nativeStoreClaims("ios")).toEqual({
+      platform: "ios",
+      storefront: null,
+    });
+    expect(nativeStoreClaims("android")).toEqual({
+      platform: "android",
+      storefront: null,
+    });
+  });
+
+  it("never claims web, even under react-native-web", () => {
+    for (const os of ["web", "windows", "macos"]) {
+      expect(nativeStoreClaims(os)).toEqual({ storefront: null });
+    }
+  });
+
+  it("rides on the injected reply next to the credential fields", () => {
+    const js = credentialInjection(
+      {
+        token: "cred-abc",
+        custody: true,
+        ...nativeStoreClaims("ios"),
+      },
+      HOSTED_BREAK_URL,
+    );
+    const deliver = vi.fn();
+    new Function("window", js)({
+      location: { origin: "https://levelmoment.com" },
+      __levelMomentDeliverCredential: deliver,
+    });
+    expect(JSON.parse(deliver.mock.calls[0]![0] as string)).toMatchObject({
+      token: "cred-abc",
+      platform: "ios",
+      storefront: null,
+    });
+  });
+});
+
 describe("credentialInjection", () => {
   it("calls the page's delivery hook with the credential", () => {
-    const js = credentialInjection({ token: "cred-abc", custody: true });
+    const js = credentialInjection(
+      { token: "cred-abc", custody: true },
+      HOSTED_BREAK_URL,
+    );
     expect(js).toContain("window.__levelMomentDeliverCredential");
     expect(js).toContain("cred-abc");
     expect(js).toContain("custody");
@@ -288,7 +354,10 @@ describe("credentialInjection", () => {
     // the hosted page. Evaluating the argument the way the page's runtime would
     // is the only assertion that actually proves the escaping.
     const hostile = '");alert(1);//\\"\n ';
-    const js = credentialInjection({ token: hostile, custody: false });
+    const js = credentialInjection(
+      { token: hostile, custody: false },
+      HOSTED_BREAK_URL,
+    );
 
     const deliver = vi.fn();
     new Function("window", js)({

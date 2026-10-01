@@ -1,7 +1,4 @@
-import {
-  addBridgeVersion,
-  type UnsafeTestingOptions,
-} from "@levelmoment/sdk-core";
+import { addBridgeVersion, type HostedMode } from "@levelmoment/sdk-core";
 // The startup sign-in gate for the web adapter.
 //
 // Both entry points open the hosted /break page in the same iframe + bridge
@@ -35,7 +32,8 @@ export interface GateSpec {
    * credential. Normally unset: a paired device has its own.
    */
   studentToken?: string;
-  unsafeTesting?: UnsafeTestingOptions;
+  /** Decides whether the page runs sandbox content; see resolveHostedOptions. */
+  hostedMode: HostedMode;
   mock?: boolean;
   loadTimeoutMs?: number;
   /**
@@ -66,7 +64,7 @@ export const DEFAULT_CHECK_TIMEOUT_MS = 30000;
 
 function gateUrl(spec: GateSpec, mode: "gate" | "check"): string {
   const params = new URLSearchParams();
-  addBridgeVersion(params, !!spec.unsafeTesting);
+  addBridgeVersion(params, spec.hostedMode);
   params.set("mode", mode);
   params.set("placementId", spec.placementId);
   if (spec.mock) {

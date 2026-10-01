@@ -13,6 +13,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -211,6 +212,20 @@ class OpenExternal extends HostMessage {
 const String kHostCapabilitiesParam = 'caps';
 const String kHostCapabilities = 'openExternal';
 
+/// The platform this shell claims in its credential reply: `ios` or
+/// `android`, or null on any other target. A native shell never claims `web`;
+/// the hosted page reads a missing platform as a missing claim.
+String? nativeStorePlatform() {
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.iOS:
+      return 'ios';
+    case TargetPlatform.android:
+      return 'android';
+    default:
+      return null;
+  }
+}
+
 /// What a host answers [NeedCredential] with.
 class CredentialReply {
   const CredentialReply({
@@ -247,6 +262,10 @@ class CredentialReply {
       'customData': customData,
       'slotType': slotType,
       'dimensions': dimensions,
+      // Store claims, next to the credential fields. The storefront stays
+      // null until this adapter reads it from StoreKit.
+      'platform': nativeStorePlatform(),
+      'storefront': null,
       'protocolVersion': kLevelMomentProtocolVersion,
       'sdkVersion': kLevelMomentSdkVersion,
     });

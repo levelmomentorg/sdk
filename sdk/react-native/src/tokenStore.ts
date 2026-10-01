@@ -24,10 +24,16 @@
 // is empty too.
 
 import * as Keychain from "react-native-keychain";
+import { credentialStoreKey } from "@levelmoment/sdk-core";
 
-/** Keychain service name for one placement's credential. */
-export function credentialService(placementId: string): string {
-  return `com.levelmoment.credential.${placementId}`;
+/**
+ * Keychain service name for one placement's credential on one hosted origin.
+ * The production origin keeps its original name; any other origin is kept
+ * under a separate prefix, so a test credential never touches a production
+ * one (docs/decisions/sdk-real-pairing-testing-2026-10-01.md, invariant 4).
+ */
+export function credentialService(origin: string, placementId: string): string {
+  return credentialStoreKey(origin, placementId);
 }
 
 // The keychain API is a username/password pair; only the password carries
@@ -67,7 +73,7 @@ export class KeychainTokenStore {
   private async probe(): Promise<boolean> {
     try {
       await this.keychain.getGenericPassword({
-        service: credentialService("availability-probe"),
+        service: "com.levelmoment.availability-probe",
       });
       return true;
     } catch {
@@ -76,11 +82,11 @@ export class KeychainTokenStore {
   }
 
   /** The credential stored for this placement, or "" if there is none. */
-  async get(placementId: string): Promise<string> {
+  async get(origin: string, placementId: string): Promise<string> {
     if (!placementId) return "";
     try {
       const result = await this.keychain.getGenericPassword({
-        service: credentialService(placementId),
+        service: credentialService(origin, placementId),
       });
       return result === false ? "" : result.password;
     } catch {
@@ -91,11 +97,11 @@ export class KeychainTokenStore {
   }
 
   /** Keep a credential the hosted page just minted for this placement. */
-  async set(placementId: string, token: string): Promise<void> {
+  async set(origin: string, placementId: string, token: string): Promise<void> {
     if (!placementId || !token) return;
     try {
       await this.keychain.setGenericPassword(CREDENTIAL_USERNAME, token, {
-        service: credentialService(placementId),
+        service: credentialService(origin, placementId),
       });
     } catch {
       // Unwritable keychain costs a re-pair after the WebView's own storage is
@@ -104,11 +110,11 @@ export class KeychainTokenStore {
   }
 
   /** Forget this placement's credential after the server refused it. */
-  async clear(placementId: string): Promise<void> {
+  async clear(origin: string, placementId: string): Promise<void> {
     if (!placementId) return;
     try {
       await this.keychain.resetGenericPassword({
-        service: credentialService(placementId),
+        service: credentialService(origin, placementId),
       });
     } catch {
       // Nothing to do: the page refuses the same value again next launch and
