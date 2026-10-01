@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 
 import 'credential_bridge.dart';
 import 'constants.dart';
+import 'hosted.dart';
 import 'token_store.dart';
 import 'widgets/level_moment_web_view.dart';
 
@@ -56,16 +57,19 @@ enum EnsureSignedInResult {
   technicalFailure,
 }
 
-/// Build the hosted gate URL for [mode] (`gate` or `check`).
+/// Build the hosted gate URL for [mode] (`gate`, `check` or `clear`) on
+/// [surface] of the resolved origin.
+///
+/// Takes only a [ResolvedHosted], so the mode is the one `initialize()`
+/// decided: `sandbox=true` only in sandbox mode, and no `apiUrl` under real
+/// pairing, where the page owns its API destination.
 /// Exposed for testing; treat as private elsewhere.
 @visibleForTesting
 String buildGateUrl({
-  required String breakUrl,
+  required ResolvedHosted hosted,
   required String placementId,
   required String mode,
-  String? apiUrl,
-  bool mock = false,
-  bool unsafeTesting = false,
+  HostedSurface surface = HostedSurface.breakPage,
 }) {
   final params = <String, String>{
     'mode': mode,
@@ -73,12 +77,13 @@ String buildGateUrl({
     'protocolVersion': '$kLevelMomentProtocolVersion',
     'sdkVersion': kLevelMomentSdkVersion,
   };
-  if (mock) {
+  final apiUrl = hosted.apiUrl;
+  if (hosted.mock) {
     params['mock'] = 'true';
   } else if (apiUrl != null && apiUrl.isNotEmpty) {
     params['apiUrl'] = apiUrl;
   }
-  if (unsafeTesting) params['sandbox'] = 'true';
+  if (hosted.sandbox) params['sandbox'] = 'true';
   // No credential on the URL — the page asks for one over the bridge.
   params[kHostCapabilitiesParam] = kHostCapabilities;
 
@@ -86,35 +91,24 @@ String buildGateUrl({
       .map((e) =>
           '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
       .join('&');
-  final sep = breakUrl.contains('?') ? '&' : '?';
-  return '$breakUrl$sep$query';
+  final base = hostedSurfaceUrl(hosted, surface);
+  final sep = base.contains('?') ? '&' : '?';
+  return '$base$sep$query';
 }
 
-/// Build the hosted access surface URL while preserving an explicitly chosen
-/// unsafe test origin. Production always uses the canonical `/access` page.
+/// Build the hosted access surface URL. Production always uses the canonical
+/// `/access` page; a test origin keeps its origin and changes only the path.
 @visibleForTesting
 String buildAccessUrl({
-  required String breakUrl,
+  required ResolvedHosted hosted,
   required String placementId,
   required String mode,
-  String? apiUrl,
-  bool mock = false,
-  bool unsafeTesting = false,
 }) {
-  final parsed = Uri.tryParse(breakUrl);
-  if (parsed == null || !parsed.hasScheme || !parsed.hasAuthority) {
-    throw ArgumentError.value(breakUrl, 'breakUrl', 'Must be an absolute URL.');
-  }
-  final accessUrl = breakUrl == kLevelMomentBreakUrl
-      ? kLevelMomentAccessUrl
-      : parsed.replace(path: '/access', query: null, fragment: null).toString();
   return buildGateUrl(
-    breakUrl: accessUrl,
+    hosted: hosted,
     placementId: placementId,
     mode: mode,
-    apiUrl: apiUrl,
-    mock: mock,
-    unsafeTesting: unsafeTesting,
+    surface: HostedSurface.access,
   );
 }
 
@@ -217,15 +211,13 @@ class LevelMomentSignInCheckError implements Exception {
 /// `LevelMomentAds.ensureSignedIn` for the public contract.
 Future<EnsureSignedInResult> runEnsureSignedIn({
   required BuildContext context,
-  required String breakUrl,
+  required ResolvedHosted hosted,
   required String placementId,
-  String? apiUrl,
   String? studentToken,
-  bool mock = false,
-  bool useDeviceStore = true,
   Duration loadTimeout = kBreakLoadTimeout,
+  HostedSurface surface = HostedSurface.breakPage,
 }) {
-  if (mock) return Future.value(EnsureSignedInResult.ready);
+  if (hosted.mock) return Future.value(EnsureSignedInResult.ready);
 
   final completer = Completer<EnsureSignedInResult>();
   void settle(EnsureSignedInResult result) {
@@ -241,39 +233,41 @@ Future<EnsureSignedInResult> runEnsureSignedIn({
   try {
     final navigator = Navigator.of(context, rootNavigator: true);
     final hostedUrl = buildGateUrl(
-      breakUrl: breakUrl,
+      hosted: hosted,
       placementId: placementId,
       mode: 'gate',
-      apiUrl: apiUrl,
-      mock: mock,
-      unsafeTesting: !useDeviceStore,
+      surface: surface,
     );
     late final MaterialPageRoute<void> route;
     route = MaterialPageRoute<void>(
       fullscreenDialog: true,
-      builder: (_) => LevelMomentWebView(
+      builder: (_) => hostedSurface(LevelMomentWebView(
         key: ValueKey(hostedUrl),
         url: hostedUrl,
         loadTimeout: loadTimeout,
         onNeedCredential: credentialResponder(
           placementId: placementId,
+          origin: hosted.origin,
+          useDeviceStore: hosted.usesCredentialStore,
           explicitToken: studentToken,
-          useDeviceStore: useDeviceStore,
-          origin: levelMomentOrigin(breakUrl),
         ),
         onMessage: (message) {
           // Pairing runs inside the gate, so this is where a first credential
           // is usually minted — keep it before the dispatcher reads the
           // message for a verdict.
-          applyCredentialMessage(message, placementId,
-              useDeviceStore: useDeviceStore);
+          applyCredentialMessage(
+            message,
+            placementId,
+            origin: hosted.origin,
+            useDeviceStore: hosted.usesCredentialStore,
+          );
           dispatcher.handle(message);
         },
         onLoadTimeout: () {
           dispatcher.fail('load_timeout');
           if (route.isActive) navigator.removeRoute(route);
         },
-      ),
+      )),
     );
     navigator.push(route);
   } catch (_) {
@@ -292,23 +286,18 @@ Future<EnsureSignedInResult> runEnsureSignedIn({
 /// remains on `/break`; this wrapper only changes the hosted page path.
 Future<EnsureSignedInResult> runEnsureAccess({
   required BuildContext context,
-  required String breakUrl,
+  required ResolvedHosted hosted,
   required String placementId,
-  String? apiUrl,
   String? studentToken,
-  bool mock = false,
-  bool useDeviceStore = true,
   Duration loadTimeout = kBreakLoadTimeout,
 }) {
   return runEnsureSignedIn(
     context: context,
-    breakUrl: _accessSurfaceUrl(breakUrl),
+    hosted: hosted,
     placementId: placementId,
-    apiUrl: apiUrl,
     studentToken: studentToken,
-    mock: mock,
-    useDeviceStore: useDeviceStore,
     loadTimeout: loadTimeout,
+    surface: HostedSurface.access,
   );
 }
 
@@ -316,16 +305,14 @@ Future<EnsureSignedInResult> runEnsureAccess({
 /// `LevelMomentAds.isSignedIn` for the public contract.
 Future<bool> runIsSignedIn({
   required BuildContext context,
-  required String breakUrl,
+  required ResolvedHosted hosted,
   required String placementId,
-  String? apiUrl,
   String? studentToken,
-  bool mock = false,
-  bool useDeviceStore = true,
   Duration loadTimeout = kBreakLoadTimeout,
   Duration checkTimeout = kSignInCheckTimeout,
+  HostedSurface surface = HostedSurface.breakPage,
 }) {
-  if (mock) return Future.value(true);
+  if (hosted.mock) return Future.value(true);
 
   final completer = Completer<bool>();
   void resolve(bool value) {
@@ -365,34 +352,36 @@ Future<bool> runIsSignedIn({
   try {
     final overlay = Overlay.of(context, rootOverlay: true);
     final hostedUrl = buildGateUrl(
-      breakUrl: breakUrl,
+      hosted: hosted,
       placementId: placementId,
       mode: 'check',
-      apiUrl: apiUrl,
-      mock: mock,
-      unsafeTesting: !useDeviceStore,
+      surface: surface,
     );
     entry = OverlayEntry(
-      builder: (_) => LevelMomentWebView(
+      builder: (_) => hostedSurface(LevelMomentWebView(
         key: ValueKey(hostedUrl),
         url: hostedUrl,
         hidden: true,
         loadTimeout: loadTimeout,
         onNeedCredential: credentialResponder(
           placementId: placementId,
+          origin: hosted.origin,
+          useDeviceStore: hosted.usesCredentialStore,
           explicitToken: studentToken,
-          useDeviceStore: useDeviceStore,
-          origin: levelMomentOrigin(breakUrl),
         ),
         onMessage: (message) {
           // The check does not pair, but it does discard credentials the
           // server refuses — the secure store has to hear about that.
-          applyCredentialMessage(message, placementId,
-              useDeviceStore: useDeviceStore);
+          applyCredentialMessage(
+            message,
+            placementId,
+            origin: hosted.origin,
+            useDeviceStore: hosted.usesCredentialStore,
+          );
           dispatcher.handle(message);
         },
         onLoadTimeout: () => dispatcher.fail('load_timeout'),
-      ),
+      )),
     );
     overlay.insert(entry!);
     // Armed only once the surface is really mounted, and only for the check:
@@ -416,52 +405,34 @@ Future<bool> runIsSignedIn({
 /// same false-versus-technical-error contract as [runIsSignedIn].
 Future<bool> runCheckAccess({
   required BuildContext context,
-  required String breakUrl,
+  required ResolvedHosted hosted,
   required String placementId,
-  String? apiUrl,
   String? studentToken,
-  bool mock = false,
-  bool useDeviceStore = true,
   Duration loadTimeout = kBreakLoadTimeout,
   Duration checkTimeout = kSignInCheckTimeout,
 }) {
   return runIsSignedIn(
     context: context,
-    breakUrl: _accessSurfaceUrl(breakUrl),
+    hosted: hosted,
     placementId: placementId,
-    apiUrl: apiUrl,
     studentToken: studentToken,
-    mock: mock,
-    useDeviceStore: useDeviceStore,
     loadTimeout: loadTimeout,
     checkTimeout: checkTimeout,
+    surface: HostedSurface.access,
   );
-}
-
-String _accessSurfaceUrl(String breakUrl) {
-  final parsed = Uri.tryParse(breakUrl);
-  if (parsed == null || !parsed.hasScheme || !parsed.hasAuthority) {
-    throw ArgumentError.value(breakUrl, 'breakUrl', 'Must be an absolute URL.');
-  }
-  return breakUrl == kLevelMomentBreakUrl
-      ? kLevelMomentAccessUrl
-      : parsed.replace(path: '/access', query: null, fragment: null).toString();
 }
 
 /// Sign this device out for one placement. See `LevelMomentAds.signOut` for the
 /// public contract.
 Future<void> runSignOut({
   required BuildContext context,
-  required String breakUrl,
+  required ResolvedHosted hosted,
   required String placementId,
-  String? apiUrl,
-  bool mock = false,
   Duration loadTimeout = kBreakLoadTimeout,
   Duration checkTimeout = kSignInCheckTimeout,
   LevelMomentTokenStore? store,
-  bool useDeviceStore = true,
 }) {
-  if (mock) return Future.value();
+  if (hosted.mock) return Future.value();
 
   final completer = Completer<void>();
   void succeed() {
@@ -509,21 +480,19 @@ Future<void> runSignOut({
   // normal message path, so the fragile half runs last and repairs the durable
   // half on its way out.
   final target = store ?? deviceCredentials;
-  final clear =
-      useDeviceStore ? target.clear(placementId) : Future<void>.value();
+  final clear = hosted.usesCredentialStore
+      ? target.clear(hosted.origin, placementId)
+      : Future<void>.value();
   clear.then((_) {
     try {
       final overlay = Overlay.of(context, rootOverlay: true);
       final hostedUrl = buildGateUrl(
-        breakUrl: breakUrl,
+        hosted: hosted,
         placementId: placementId,
         mode: 'clear',
-        apiUrl: apiUrl,
-        mock: mock,
-        unsafeTesting: !useDeviceStore,
       );
       entry = OverlayEntry(
-        builder: (_) => LevelMomentWebView(
+        builder: (_) => hostedSurface(LevelMomentWebView(
           key: ValueKey(hostedUrl),
           url: hostedUrl,
           hidden: true,
@@ -532,13 +501,14 @@ Future<void> runSignOut({
             applyCredentialMessage(
               message,
               placementId,
+              origin: hosted.origin,
+              useDeviceStore: hosted.usesCredentialStore,
               store: store,
-              useDeviceStore: useDeviceStore,
             );
             dispatcher.handle(message);
           },
           onLoadTimeout: () => dispatcher.fail('load_timeout'),
-        ),
+        )),
       );
       overlay.insert(entry!);
       if (checkTimeout > Duration.zero) {

@@ -8,10 +8,28 @@ follows [Semver](https://semver.org).
 
 ### Added
 
+- `UnsafeTesting.realPairing` runs pairing, a learner session and the
+  learner's own topics against a hosted page on
+  `http://localhost:<port>` or `http://127.0.0.1:<port>`. Debug builds only;
+  `initialize()` throws in release and profile builds, for any other URL, and
+  for a token, an `apiUrl`, a top-level `breakUrl` or `mock`. A per-call
+  `studentToken` is refused at the call. No `apiUrl` or `sandbox` flag is sent.
+- `LevelMomentAds.instance.mode` reports the resolved `LevelMomentHostedMode`:
+  `production`, `sandbox` or `realPairing`.
 - The credential reply carries `platform` (`ios` or `android`, from
   `defaultTargetPlatform`) and `storefront: null`, so Level Moment can apply
   its store rules. Other targets send no platform. Reading the App Store
   storefront comes in a later release.
+
+### Changed — BREAKING
+
+- `credentialKey(origin, placementId)` and the token store's `get`, `set` and
+  `clear` take the hosted page origin first. The production origin keeps the
+  key `com.levelmoment.credential.<placementId>`, so stored credentials need no
+  migration. Any other origin uses
+  `com.levelmoment.test-credential.<encodedOrigin>.<placementId>`.
+- `LevelMomentAds.instance.apiUrl` is a `String?`: it is null under
+  `realPairing`.
 
 ### Changed
 

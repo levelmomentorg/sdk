@@ -102,7 +102,10 @@ namespace LevelMoment
         {
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
-            config.Validate();
+            // Throws on a bad config, and on UnsafeTesting.RealPairing outside
+            // the editor or a development build. Under RealPairing it also
+            // logs one warning naming the local origin.
+            config.Resolve();
 
             Config = config;
 
@@ -346,7 +349,7 @@ namespace LevelMoment
             if (!IsInitialized)
                 throw new InvalidOperationException(
                     "Call LevelMomentAds.Initialize() before the sign-in gate.");
-            return BreakUrl.BuildGate(Config, placementId, mode);
+            return BreakUrl.BuildGate(Config.Resolve(), placementId, mode);
         }
 
         private static string BuildAccessUrl(string placementId, string mode)
@@ -354,16 +357,57 @@ namespace LevelMoment
             if (!IsInitialized)
                 throw new InvalidOperationException(
                     "Call LevelMomentAds.Initialize() before the access gate.");
-            return BreakUrl.BuildAccess(Config, placementId, mode);
+            return BreakUrl.BuildAccess(Config.Resolve(), placementId, mode);
         }
 
+        /// <summary>
+        /// The token a surface answers the page's <c>needCredential</c> with.
+        /// Every per-call <c>studentToken</c> — RewardedAd.Load,
+        /// InterstitialAd.Load, and the four gate methods — comes through here.
+        /// Under <see cref="UnsafeTesting.RealPairing"/> any token is refused:
+        /// the page pairs the device itself.
+        /// </summary>
         internal static string ResolveStudentToken(string token)
         {
+            var resolved = Config != null ? Config.Resolve() : null;
+            if (resolved != null && resolved.Mode == HostedMode.RealPairing)
+            {
+                if (!string.IsNullOrEmpty(token))
+                    throw new ArgumentException(
+                        "UnsafeTesting.RealPairing: takes no token; the page pairs the device itself.");
+                return null;
+            }
             if (string.IsNullOrEmpty(token))
-                return Config != null && Config.UnsafeTesting != null ? Config.UnsafeTesting.Token : null;
-            if (Config == null || Config.UnsafeTesting == null || !LevelMomentConfig.IsSandboxToken(token))
+                return resolved != null && resolved.Mode == HostedMode.Sandbox ? resolved.Token : null;
+            if (resolved == null || resolved.Mode != HostedMode.Sandbox || !LevelMomentConfig.IsSandboxToken(token))
                 throw new ArgumentException("studentToken is available only for eply_sbx_ credentials in UnsafeTesting.");
             return token;
+        }
+
+        /// <summary>
+        /// The token to put in a credential reply, decided when the page asks
+        /// rather than when the surface was loaded: a game can call
+        /// Initialize again between Load and Show, and a sandbox token kept
+        /// from Load must reach only a sandbox page. Null in mock mode, in
+        /// production, under real pairing, or when the current config no
+        /// longer resolves.
+        /// </summary>
+        internal static string TokenForReply(string tokenAtLoad)
+        {
+            if (Config == null)
+                return null;
+            ResolvedHostedConfig resolved;
+            try
+            {
+                resolved = Config.Resolve();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+            // Only a sandbox page may receive a token; production and real
+            // pairing never do, whatever was resolved at Load.
+            return resolved.Mode == HostedMode.Sandbox && !resolved.Mock ? tokenAtLoad : null;
         }
 
         // ---- Internal helpers ----------------------------------------------
@@ -384,6 +428,8 @@ namespace LevelMoment
             CheckTimeoutSeconds = DefaultCheckTimeoutSeconds;
             StorefrontProvider = new DeviceStorefrontProvider();
             LevelMomentRuntime.SkipDriver = false;
+            LevelMomentConfig.DevelopmentBuildOverrideForTests = null;
+            RealPairingUrl.ResetWarningsForTests();
         }
     }
 }

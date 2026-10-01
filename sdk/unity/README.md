@@ -89,9 +89,15 @@ honor it for git- or file-referenced packages.
 ### 5. Allow plain-HTTP for local development
 
 iOS App Transport Security blocks the WebView from loading a local `/break`
-page over HTTP. For development builds, add
-`NSAppTransportSecurity > NSAllowsArbitraryLoads` to the exported Xcode
-project's Info.plist. Production uses HTTPS and needs no exception.
+page over HTTP. In development builds only, add
+`NSAppTransportSecurity > NSAllowsLocalNetworking` (true) to the exported
+Xcode project's Info.plist, for example from a post-process build step that
+checks `BuildOptions.Development`. It lets the WebView load
+`http://localhost`. Leave it out of release builds; production uses HTTPS
+and needs no exception.
+
+**Note:** iOS ignores `NSAllowsArbitraryLoads` in a dict that also contains
+`NSAllowsLocalNetworking`.
 
 ### macOS standalone players
 
@@ -391,6 +397,55 @@ Runtime divergences worth knowing before you rely on this facade:
   not run immediately or dropped — it runs once the break ends, so
   `OnAdLoadedEvent`/`OnAdLoadFailedEvent` for that reload arrive AFTER
   `OnAdHiddenEvent`, not before or during.
+
+---
+
+## Test real pairing against a local stack
+
+`UnsafeTesting.BreakUrl` on its own runs the sandbox: the page serves sandbox
+questions and never pairs. To exercise pairing, a learner session, and the
+learner's own topics against a hosted page on your machine, set
+`RealPairing`:
+
+```csharp
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+LevelMomentAds.Initialize(new LevelMomentConfig {
+    UnsafeTesting = new UnsafeTesting {
+        RealPairing = true,
+        BreakUrl = "http://localhost:3000/break",
+    },
+});
+#endif
+```
+
+Prerequisites:
+
+- The web app running on port 3000, with the API's `APP_BASE_URL` set to
+  `http://localhost:3000` so the pairing code and the browser approval link
+  point at the local `/link` page.
+- On Android, `adb reverse tcp:3000 tcp:3000` and `adb reverse tcp:8080 tcp:8080`,
+  plus a debug-only network security config that allows cleartext to
+  `localhost` and `127.0.0.1`.
+- On iOS, the simulator. A physical iPhone has no route to your machine's
+  `localhost`.
+
+The SDK checks the configuration at `Initialize` and throws
+`ArgumentException` when any of these is true:
+
+- The build is not the editor or a development build. Real pairing compiles
+  only under `UNITY_EDITOR` or `DEVELOPMENT_BUILD`.
+- `BreakUrl` is not `http://localhost:<port>/…` or `http://127.0.0.1:<port>/…`
+  with an explicit port. A query, fragment, userinfo, backslash, whitespace,
+  `@`, or non-ASCII character is refused, and so is any other host, including
+  `10.0.2.2`, `[::1]`, LAN addresses, and the production origin.
+- `Token`, `ApiUrl`, `Mock`, or the deprecated top-level `ApiUrl` or
+  `BreakUrl` is set. The local page pairs the device and uses its own API.
+
+A per-call `studentToken` passed to `RewardedAd.Load`, `InterstitialAd.Load`,
+or a gate method fails the call. Under real pairing the break URL carries no
+`sandbox` and no `apiUrl` parameter, and the SDK answers the page's credential
+request only on the local origin. `Initialize` logs one warning naming that
+origin. Remove the setting before you build a release.
 
 ---
 

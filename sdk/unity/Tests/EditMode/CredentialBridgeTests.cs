@@ -15,6 +15,8 @@ namespace LevelMoment.Tests.EditMode
 {
     public class CredentialBridgeTests
     {
+        private const string ProductionOrigin = "https://levelmoment.com";
+
         // ---- Fakes ------------------------------------------------------------
         //
         // Neither fake ever raises OnMessage/OnClosed — these tests drive
@@ -60,14 +62,14 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void BuildInjection_CallsTheDeliverCredentialHook()
         {
-            var js = CredentialBridge.BuildInjection("tok-1");
+            var js = CredentialBridge.BuildInjection(ProductionOrigin, "tok-1");
             StringAssert.Contains("window.__levelMomentDeliverCredential", js);
         }
 
         [Test]
         public void BuildInjection_CarriesTheToken()
         {
-            var js = CredentialBridge.BuildInjection("tok-1");
+            var js = CredentialBridge.BuildInjection(ProductionOrigin, "tok-1");
             StringAssert.Contains("tok-1", js);
         }
 
@@ -76,7 +78,7 @@ namespace LevelMoment.Tests.EditMode
         {
             // Fixed false: Unity has no secure store, so it never asks to be
             // told about a newly minted credential.
-            var js = CredentialBridge.BuildInjection("tok-1");
+            var js = CredentialBridge.BuildInjection(ProductionOrigin, "tok-1");
             StringAssert.Contains("\\\"custody\\\":false", js);
         }
 
@@ -84,7 +86,7 @@ namespace LevelMoment.Tests.EditMode
         public void BuildInjection_BindsReplyToExpectedOriginAndProtocol()
         {
             var js = CredentialBridge.BuildInjection(
-                "tok-1", "impression-7", "https://levelmoment.com");
+                ProductionOrigin, "tok-1", "impression-7");
 
             StringAssert.Contains("window.location.origin ===", js);
             StringAssert.Contains("https://levelmoment.com", js);
@@ -96,7 +98,7 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void BuildInjection_EmptyToken_StillProducesAValidCall()
         {
-            var js = CredentialBridge.BuildInjection("");
+            var js = CredentialBridge.BuildInjection(ProductionOrigin, "");
             StringAssert.Contains("window.__levelMomentDeliverCredential", js);
             StringAssert.Contains("\\\"token\\\":\\\"\\\"", js);
         }
@@ -104,7 +106,7 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void BuildInjection_NullToken_IsTreatedAsEmpty()
         {
-            var js = CredentialBridge.BuildInjection(null);
+            var js = CredentialBridge.BuildInjection(ProductionOrigin, null);
             StringAssert.Contains("\\\"token\\\":\\\"\\\"", js);
         }
 
@@ -119,7 +121,7 @@ namespace LevelMoment.Tests.EditMode
         public void BuildInjection_TokenWithQuoteAndBackslash_CannotBreakOutOfTheJsStringLiteral()
         {
             var token = "abc\"; alert(1); //\\";
-            var js = CredentialBridge.BuildInjection(token);
+            var js = CredentialBridge.BuildInjection(ProductionOrigin, token);
 
             // Reading the reply back the way the page's runtime does is the only
             // assertion that actually proves the escaping. Substring matching on
@@ -237,7 +239,7 @@ namespace LevelMoment.Tests.EditMode
         public void Deliver_ScriptableWebView_EvaluatesTheInjection()
         {
             var fake = new ScriptableWebView();
-            CredentialBridge.Deliver(fake, "tok-1");
+            CredentialBridge.Deliver(fake, ProductionOrigin, "tok-1");
 
             Assert.AreEqual(1, fake.EvaluateJSCount);
             StringAssert.Contains("tok-1", fake.LastJS);
@@ -251,7 +253,7 @@ namespace LevelMoment.Tests.EditMode
         public void Deliver_PlainWebView_IsASilentNoOp()
         {
             var fake = new PlainWebView();
-            Assert.DoesNotThrow(() => CredentialBridge.Deliver(fake, "tok-1"));
+            Assert.DoesNotThrow(() => CredentialBridge.Deliver(fake, ProductionOrigin, "tok-1"));
         }
     }
 }

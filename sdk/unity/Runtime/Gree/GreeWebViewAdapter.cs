@@ -73,8 +73,10 @@ namespace LevelMoment
             // gree applies this allow pattern to every navigation, including
             // redirects. Keep the hosted origin in the WebView and leave
             // parent approval links to the explicit openExternal bridge.
-            var parsed = new Uri(url);
-            var authority = Regex.Escape(parsed.GetLeftPart(UriPartial.Authority));
+            var origin = HostedOrigin.Of(url);
+            if (origin == null)
+                throw new InvalidOperationException("The break URL is not an absolute http(s) URL.");
+            var authority = Regex.Escape(origin);
             // gree defaults unmatched URLs to allowed. A deny-all fallback is
             // therefore required even with an allow pattern: the allow match
             // wins, while every other navigation (including redirects) is

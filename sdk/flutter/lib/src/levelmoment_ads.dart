@@ -3,27 +3,14 @@
 // Mirrors: MobileAds.instance
 // ---------------------------------------------------------------------------
 
+import 'package:meta/meta.dart' show internal;
 import 'package:flutter/widgets.dart';
 
-import 'constants.dart';
 import 'gate.dart';
+import 'hosted.dart';
 import 'widgets/level_moment_web_view.dart' show kBreakLoadTimeout;
 
-/// Explicit opt-in configuration for local or sandbox testing.
-///
-/// Production integrations must use the hosted defaults. This object is the
-/// only way to point the SDK at a different URL or provide a test credential.
-class UnsafeTesting {
-  const UnsafeTesting({
-    this.breakUrl,
-    this.apiUrl,
-    this.token,
-  });
-
-  final String? breakUrl;
-  final String? apiUrl;
-  final String? token;
-}
+export 'hosted.dart' show UnsafeTesting, LevelMomentHostedMode;
 
 /// Initialise once at app start, before loading any ads.
 ///
@@ -42,10 +29,7 @@ class LevelMomentAds {
   /// Mirrors: MobileAds.instance
   static final LevelMomentAds instance = LevelMomentAds._();
 
-  String? _apiUrl;
-  String? _breakUrl;
-  bool _mock = false;
-  bool _initialized = false;
+  ResolvedHosted? _hosted;
   UnsafeTesting? _unsafeTesting;
 
   /// Mirrors: MobileAds.instance.initialize()
@@ -55,80 +39,70 @@ class LevelMomentAds {
   /// defaults to `https://levelmoment.com/break`. Set [mock] to render bundled
   /// mock questions instead of hitting the live API. Mirrors the optional
   /// `mock` option in the other native SDKs.
+  ///
+  /// The options are resolved here, once, into a single
+  /// [LevelMomentHostedMode]. With [UnsafeTesting.realPairing] it throws
+  /// [ArgumentError] outside a debug build (`kDebugMode`, so profile builds are
+  /// refused too), for any break URL other than `http://localhost:<port>` or
+  /// `http://127.0.0.1:<port>`, and for a token, an `apiUrl`, a top-level
+  /// `breakUrl`, or [mock]. A failed call leaves the previous configuration in
+  /// place.
   Future<void> initialize({
     String? apiUrl,
     String? breakUrl,
     bool mock = false,
     UnsafeTesting? unsafeTesting,
   }) async {
-    final effectiveApiUrl =
-        unsafeTesting?.apiUrl ?? apiUrl ?? kLevelMomentApiUrl;
-    final effectiveBreakUrl =
-        unsafeTesting?.breakUrl ?? breakUrl ?? kLevelMomentBreakUrl;
-    _validateEndpoint(
-        effectiveApiUrl, kLevelMomentApiUrl, 'apiUrl', unsafeTesting);
-    _validateEndpoint(
-      effectiveBreakUrl,
-      kLevelMomentBreakUrl,
-      'breakUrl',
-      unsafeTesting,
+    _hosted = resolveHostedOptions(
+      apiUrl: apiUrl,
+      breakUrl: breakUrl,
+      mock: mock,
+      unsafeTesting: unsafeTesting,
     );
-    if (unsafeTesting?.token != null &&
-        !isSandboxToken(unsafeTesting!.token!)) {
-      throw ArgumentError.value(
-        unsafeTesting.token,
-        'unsafeTesting.token',
-        'Test credentials must start with eply_sbx_.',
-      );
-    }
-    _apiUrl = effectiveApiUrl;
-    _breakUrl = effectiveBreakUrl;
-    _mock = mock;
     _unsafeTesting = unsafeTesting;
-    _initialized = true;
   }
 
-  static bool isSandboxToken(String token) => token.startsWith('eply_sbx_');
-
-  void _validateEndpoint(
-    String value,
-    String canonical,
-    String name,
-    UnsafeTesting? unsafeTesting,
-  ) {
-    if (unsafeTesting != null) {
-      final uri = Uri.tryParse(value);
-      if (uri == null ||
-          !uri.hasScheme ||
-          !uri.hasAuthority ||
-          (uri.scheme != 'http' && uri.scheme != 'https') ||
-          uri.userInfo.isNotEmpty ||
-          uri.hasQuery ||
-          uri.hasFragment) {
-        throw ArgumentError.value(value, name, 'Must be an absolute URL.');
-      }
-      return;
-    }
-    if (value != canonical) {
-      throw ArgumentError.value(
-        value,
-        name,
-        'Use the canonical Level Moment endpoint, or configure unsafeTesting for tests.',
-      );
-    }
-  }
+  static bool isSandboxToken(String token) => isSandboxTokenValue(token);
 
   UnsafeTesting? get unsafeTesting => _unsafeTesting;
 
-  bool get isUnsafeTesting => _unsafeTesting != null;
+  /// The mode `initialize()` resolved: production, sandbox or real pairing.
+  /// Asserts initialized.
+  LevelMomentHostedMode get mode => hosted.mode;
+
+  /// True in sandbox and real-pairing modes.
+  bool get isUnsafeTesting =>
+      _hosted != null && _hosted!.mode != LevelMomentHostedMode.production;
+
+  /// The resolved configuration every URL builder and credential call site
+  /// reads. Internal to the SDK; asserts initialized.
+  @internal
+  ResolvedHosted get hosted {
+    assert(
+      _hosted != null,
+      'LevelMomentAds.instance.initialize() must be called before loading ads.',
+    );
+    return _hosted!;
+  }
 
   /// Resolve the deprecated per-call token field without ever accepting a
-  /// production credential. Unsafe testing keeps the token out of the device
-  /// secure store and accepts sandbox credentials only.
+  /// production credential. Sandbox mode keeps the token out of the device
+  /// secure store and accepts sandbox credentials only. Production and real
+  /// pairing accept no token at all: under real pairing the page pairs the
+  /// device itself, so a per-call token is refused here, at the call.
   String? resolveStudentToken(String? legacyToken) {
-    final configured = _unsafeTesting?.token;
+    final hosted = _hosted;
+    final configured = hosted?.token;
     if (legacyToken == null || legacyToken.isEmpty) return configured;
-    if (_unsafeTesting == null || !isSandboxToken(legacyToken)) {
+    if (hosted?.mode == LevelMomentHostedMode.realPairing) {
+      throw ArgumentError.value(
+        legacyToken,
+        'studentToken',
+        'unsafeTesting.realPairing takes no token; the page pairs the device itself.',
+      );
+    }
+    if (hosted?.mode != LevelMomentHostedMode.sandbox ||
+        !isSandboxToken(legacyToken)) {
       throw ArgumentError.value(
         legacyToken,
         'studentToken',
@@ -138,27 +112,17 @@ class LevelMomentAds {
     return legacyToken;
   }
 
-  String get apiUrl {
-    assert(
-      _initialized,
-      'LevelMomentAds.instance.initialize() must be called before loading ads.',
-    );
-    return _apiUrl!;
-  }
+  /// The API base sent to the hosted page, or null under real pairing, where
+  /// the page uses its own. Asserts initialized.
+  String? get apiUrl => hosted.apiUrl;
 
   /// Hosted `/break` page URL. Asserts initialized.
-  String get breakUrl {
-    assert(
-      _initialized,
-      'LevelMomentAds.instance.initialize() must be called before loading ads.',
-    );
-    return _breakUrl!;
-  }
+  String get breakUrl => hosted.breakUrl;
 
   /// Whether the hosted page should use bundled mock questions.
-  bool get mock => _mock;
+  bool get mock => _hosted?.mock ?? false;
 
-  bool get isInitialized => _initialized;
+  bool get isInitialized => _hosted != null;
 
   // -------------------------------------------------------------------------
   // Startup sign-in gate
@@ -188,7 +152,7 @@ class LevelMomentAds {
     String? studentToken,
     Duration loadTimeout = kBreakLoadTimeout,
   }) {
-    if (!_initialized)
+    if (!isInitialized)
       return Future.value(EnsureSignedInResult.technicalFailure);
     String? token;
     try {
@@ -198,12 +162,9 @@ class LevelMomentAds {
     }
     return runEnsureSignedIn(
       context: context,
-      breakUrl: _breakUrl!,
+      hosted: _hosted!,
       placementId: placementId,
-      apiUrl: _apiUrl,
       studentToken: token,
-      mock: _mock,
-      useDeviceStore: _unsafeTesting == null,
       loadTimeout: loadTimeout,
     );
   }
@@ -217,7 +178,7 @@ class LevelMomentAds {
     String? studentToken,
     Duration loadTimeout = kBreakLoadTimeout,
   }) {
-    if (!_initialized) {
+    if (!isInitialized) {
       return Future.value(EnsureSignedInResult.technicalFailure);
     }
     String? token;
@@ -228,12 +189,9 @@ class LevelMomentAds {
     }
     return runEnsureAccess(
       context: context,
-      breakUrl: _breakUrl!,
+      hosted: _hosted!,
       placementId: placementId,
-      apiUrl: _apiUrl,
       studentToken: token,
-      mock: _mock,
-      useDeviceStore: _unsafeTesting == null,
       loadTimeout: loadTimeout,
     );
   }
@@ -261,7 +219,7 @@ class LevelMomentAds {
     Duration loadTimeout = kBreakLoadTimeout,
     Duration checkTimeout = kSignInCheckTimeout,
   }) {
-    if (!_initialized) {
+    if (!isInitialized) {
       return Future.error(const LevelMomentSignInCheckError(
         'not_initialized',
         'Call LevelMomentAds.instance.initialize() before isSignedIn().',
@@ -270,20 +228,17 @@ class LevelMomentAds {
     String? token;
     try {
       token = resolveStudentToken(studentToken);
-    } catch (err) {
+    } catch (_) {
       return Future.error(const LevelMomentSignInCheckError(
         'invalid_request',
-        'Production sign-in checks cannot receive a studentToken.',
+        'Sign-in checks accept a studentToken only in sandbox testing.',
       ));
     }
     return runIsSignedIn(
       context: context,
-      breakUrl: _breakUrl!,
+      hosted: _hosted!,
       placementId: placementId,
-      apiUrl: _apiUrl,
       studentToken: token,
-      mock: _mock,
-      useDeviceStore: _unsafeTesting == null,
       loadTimeout: loadTimeout,
       checkTimeout: checkTimeout,
     );
@@ -300,7 +255,7 @@ class LevelMomentAds {
     Duration loadTimeout = kBreakLoadTimeout,
     Duration checkTimeout = kSignInCheckTimeout,
   }) {
-    if (!_initialized) {
+    if (!isInitialized) {
       return Future.error(const LevelMomentSignInCheckError(
         'not_initialized',
         'Call LevelMomentAds.instance.initialize() before checkAccess().',
@@ -312,17 +267,14 @@ class LevelMomentAds {
     } catch (_) {
       return Future.error(const LevelMomentSignInCheckError(
         'invalid_request',
-        'Production access checks cannot receive a studentToken.',
+        'Access checks accept a studentToken only in sandbox testing.',
       ));
     }
     return runCheckAccess(
       context: context,
-      breakUrl: _breakUrl!,
+      hosted: _hosted!,
       placementId: placementId,
-      apiUrl: _apiUrl,
       studentToken: token,
-      mock: _mock,
-      useDeviceStore: _unsafeTesting == null,
       loadTimeout: loadTimeout,
       checkTimeout: checkTimeout,
     );
@@ -349,7 +301,7 @@ class LevelMomentAds {
     Duration loadTimeout = kBreakLoadTimeout,
     Duration checkTimeout = kSignInCheckTimeout,
   }) {
-    if (!_initialized) {
+    if (!isInitialized) {
       return Future.error(const LevelMomentSignInCheckError(
         'not_initialized',
         'Call LevelMomentAds.instance.initialize() before signOut().',
@@ -357,13 +309,10 @@ class LevelMomentAds {
     }
     return runSignOut(
       context: context,
-      breakUrl: _breakUrl!,
+      hosted: _hosted!,
       placementId: placementId,
-      apiUrl: _apiUrl,
-      mock: _mock,
       loadTimeout: loadTimeout,
       checkTimeout: checkTimeout,
-      useDeviceStore: _unsafeTesting == null,
     );
   }
 }

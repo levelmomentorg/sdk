@@ -64,6 +64,7 @@ class LevelMomentRewardedAd {
   /// Sent in the credential handshake so the page stamps it on every
   /// impression it records and echoes it on reward.earned.
   final String? customData;
+
   /// Registered reporting group and values for this break.
   final String? slotType;
   final Map<String, Object>? dimensions;
@@ -182,6 +183,7 @@ class LevelMomentRewardedAd {
     // _shown/dismissedRef discipline in the react-native SDK.
     var terminal = false;
     var rewardDelivered = false;
+    final hosted = LevelMomentAds.instance.hosted;
 
     void handleMessage(HostMessage message) {
       // Keep the secure store in step with the page: store what pairing
@@ -190,8 +192,8 @@ class LevelMomentRewardedAd {
       if (applyCredentialMessage(
         message,
         placementId,
-        useDeviceStore: !LevelMomentAds.instance.mock &&
-            LevelMomentAds.instance.unsafeTesting == null,
+        origin: hosted.origin,
+        useDeviceStore: hosted.usesCredentialStore,
       )) {
         return;
       }
@@ -239,21 +241,20 @@ class LevelMomentRewardedAd {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
-        builder: (_) => LevelMomentWebView(
+        builder: (_) => hostedSurface(LevelMomentWebView(
           key: ValueKey(hostedUrl),
           url: hostedUrl,
           onMessage: handleMessage,
           onNeedCredential: credentialResponder(
             placementId: placementId,
+            origin: hosted.origin,
+            useDeviceStore: hosted.usesCredentialStore,
             explicitToken: studentToken,
             customData: customData,
             slotType: slotType,
             dimensions: dimensions,
-            useDeviceStore: !LevelMomentAds.instance.mock &&
-                LevelMomentAds.instance.unsafeTesting == null,
-            origin: levelMomentOrigin(LevelMomentAds.instance.breakUrl),
           ),
-        ),
+        )),
       ),
     );
   }
@@ -281,10 +282,13 @@ class LevelMomentRewardedAd {
       params['targetDurationSeconds'] = '$targetDurationSeconds';
     }
     if (rewardAmount != null) params['rewardAmount'] = '$rewardAmount';
-    if (LevelMomentAds.instance.mock) {
+    final hosted = LevelMomentAds.instance.hosted;
+    final apiUrl = hosted.apiUrl;
+    if (hosted.mock) {
       params['mock'] = 'true';
-    } else {
-      params['apiUrl'] = LevelMomentAds.instance.apiUrl;
+    } else if (apiUrl != null) {
+      // Unset under real pairing: the page owns its API destination.
+      params['apiUrl'] = apiUrl;
     }
     // No credential rides on this URL. The page asks over the bridge
     // (`needCredential`) and the answer comes from the secure store, so a live
@@ -292,15 +296,13 @@ class LevelMomentRewardedAd {
     params[kHostCapabilitiesParam] = kHostCapabilities;
     params['protocolVersion'] = '$kLevelMomentProtocolVersion';
     params['sdkVersion'] = kLevelMomentSdkVersion;
-    if (LevelMomentAds.instance.isUnsafeTesting) {
-      params['sandbox'] = 'true';
-    }
+    if (hosted.sandbox) params['sandbox'] = 'true';
 
     final query = params.entries
         .map((e) =>
             '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
         .join('&');
-    final breakUrl = LevelMomentAds.instance.breakUrl;
+    final breakUrl = hosted.breakUrl;
     final sep = breakUrl.contains('?') ? '&' : '?';
     return '$breakUrl$sep$query';
   }

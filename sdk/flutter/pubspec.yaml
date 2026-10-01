@@ -19,6 +19,9 @@ dependencies:
   # (Keychain / EncryptedSharedPreferences) instead of only inside the
   # WebView, whose data the OS may clear. See lib/src/token_store.dart.
   flutter_secure_storage: ^9.2.2
+  # `@internal` on SDK members that must stay out of game code. Flutter pins
+  # this package itself, so it adds nothing to the dependency graph.
+  meta: ^1.12.0
   # Opens the parent approval page in the device's browser instead of inside
   # the game's WebView. A parent's password must never be typed into a surface
   # the game hosts. See lib/src/widgets/level_moment_web_view.dart.

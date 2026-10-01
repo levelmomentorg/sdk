@@ -19,6 +19,7 @@
 // server uses them to decide store policy.
 // ---------------------------------------------------------------------------
 
+using System;
 using System.Text;
 
 namespace LevelMoment
@@ -35,15 +36,25 @@ namespace LevelMoment
         /// token is an opaque server string, but it comes from outside this
         /// method, and splicing it raw into a script would make any quote or
         /// backslash in it executable code inside the page.
+        /// <para>
+        /// <paramref name="expectedOrigin"/> is required, with no production
+        /// default: it is the origin of the URL this surface opened, which is
+        /// the resolved break URL's origin, so under real pairing the reply is
+        /// answered only to that local page. The script checks it inside the
+        /// page before handing anything over.
+        /// </para>
         /// </summary>
         public static string BuildInjection(
+            string expectedOrigin,
             string token,
             string customData = null,
-            string expectedOrigin = "https://levelmoment.com",
             LevelMomentAdSlot slot = null,
             string platform = null,
             string storefront = null)
         {
+            if (string.IsNullOrEmpty(expectedOrigin))
+                throw new ArgumentException("expectedOrigin is required", nameof(expectedOrigin));
+
             // custody is fixed false: nothing here can outlive the WebView's
             // own storage, so asking to be told about minted credentials would
             // pull a token into a process with nowhere safer to put it.
@@ -133,21 +144,25 @@ namespace LevelMoment
         /// provider can run script. A provider that cannot is not an error: the
         /// page waits its short window and then uses its own stored credential,
         /// which is where a paired device's credential lives anyway.
+        /// <para>
+        /// A null or empty <paramref name="expectedOrigin"/> (the surface's URL
+        /// had no usable origin) also sends nothing, for the same reason.
+        /// </para>
         /// </summary>
         public static void Deliver(
             ILevelMomentWebView webView,
+            string expectedOrigin,
             string token,
             string customData = null,
-            string expectedOrigin = "https://levelmoment.com",
             LevelMomentAdSlot slot = null,
             string platform = null,
             string storefront = null)
         {
             var scriptable = webView as ILevelMomentScriptableWebView;
-            if (scriptable == null)
+            if (scriptable == null || string.IsNullOrEmpty(expectedOrigin))
                 return;
             scriptable.EvaluateJS(BuildInjection(
-                token, customData, expectedOrigin, slot, platform, storefront));
+                expectedOrigin, token, customData, slot, platform, storefront));
         }
     }
 }

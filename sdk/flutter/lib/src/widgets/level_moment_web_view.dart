@@ -13,7 +13,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -234,7 +234,7 @@ class CredentialReply {
     this.customData,
     this.slotType,
     this.dimensions,
-    this.origin = 'https://levelmoment.com',
+    required this.origin,
   });
 
   /// The credential this host holds for the placement, or `''` if none.
@@ -245,6 +245,11 @@ class CredentialReply {
   final String? customData;
   final String? slotType;
   final Map<String, Object>? dimensions;
+
+  /// The page origin this reply may be delivered to; the injected script
+  /// checks it against `window.location.origin`. Required, with no production
+  /// default: a test page would silently drop a reply defaulted to production,
+  /// so a missing origin fails to compile instead.
   final String origin;
 
   /// The JavaScript that hands this reply to the page.
@@ -277,6 +282,20 @@ class CredentialReply {
         ';';
   }
 }
+
+/// Replaces every hosted surface the SDK builds, in tests only.
+///
+/// Mounting [LevelMomentWebView] needs a WebView platform that `flutter test`
+/// does not have. A test sets this to receive the configured view (its URL and
+/// its credential and message handlers) and returns a placeholder in its
+/// place, so the real gate and break wiring can be driven without one.
+/// Honoured in debug builds only, like real pairing itself.
+@visibleForTesting
+Widget Function(LevelMomentWebView view)? debugHostedSurfaceOverride;
+
+/// The widget a gate or break pushes for [view].
+Widget hostedSurface(LevelMomentWebView view) =>
+    kDebugMode ? (debugHostedSurfaceOverride?.call(view) ?? view) : view;
 
 // ---------------------------------------------------------------------------
 // LevelMomentWebView — mirrors sdk/react-native/src/LevelMomentAdModal.tsx

@@ -30,10 +30,11 @@ See [`MIGRATION.md`](MIGRATION.md) for a line-by-line swap guide.
 - **`LevelMomentWebView`** — fullscreen `WebView` pointing at the hosted `/break` page, with a JavaScript channel that handles `ready`, `earnedReward`, `signedIn`, `dismissed`, and `error`. Break messages drive the ad callbacks; `signedIn` resolves the sign-in gate. With `hidden: true` the widget renders nothing at all while still loading the page for the headless credential check
 - **postMessage bridge** — terminal-once dismiss semantics. `onUserEarnedReward` fires once when a graded break passes; `rewardId` equals its server-owned break ID. Dedupe game grants by that ID, and resume once on either terminal callback.
 - **Pre-`ready` watchdog** — 15 seconds, mirroring `sdk/web`, `sdk/react-native`, and `sdk/unity`. An unreachable or crashed break page resolves as a clean dismissal; a main-frame load failure fires `onAdFailedToShowFullScreenContent` with code `network_error`. After `ready` there is no timeout.
-- **Dart unit tests** — `test/rewarded_ad_test.dart` covers URL building, the `not_loaded` guard, `HostMessage` parsing, and terminal-once; `test/gate_test.dart` covers the gate URL (gate/check mode, mock/live, `?`/`&`), the `signedIn` verdict, the `SignInDispatcher` mapping and its settle-exactly-once discipline, mock mode, and the no-navigator paths for both entry points
+- **Dart unit tests** — `test/rewarded_ad_test.dart` covers URL building, the `not_loaded` guard, `HostMessage` parsing, and terminal-once; `test/gate_test.dart` covers the gate URL (gate/check mode, mock/live), the `signedIn` verdict, the `SignInDispatcher` mapping and its settle-exactly-once discipline, mock mode, and the no-navigator paths for both entry points; `test/real_pairing_test.dart` covers the real-pairing URL vectors, refusals, per-origin secure-store keys, and that no entry point touches the production credential under real pairing
 - **`MIGRATION.md`** — complete line-by-line swap guide
 - **Parent approval opens in the system browser** (`url_launcher: ^6.3.0`) — when a parent chooses to approve the game in a browser rather than scan the pairing code, the page posts `{type:"openExternal",payload:{url}}` and the shell launches it with `LaunchMode.externalApplication`. It never loads in the WebView: parent sign-in happens outside the WebView because the game can inspect that surface. Never collect a Level Moment email code or other parent credential inside it (RFC 8252). The browser does not redirect to the WebView. After approval, return to the game; the break resumes polling and completes the connection automatically. Only HTTP and HTTPS URLs on the Level Moment origin the SDK loaded (`breakUrl`) are passed to the OS, which blocks custom-scheme links; verified Universal Links or App Links may still open an associated app (`OpenExternal.launchableFrom`). Break and gate URLs include `caps=openExternal`. The hosted page shows **Approve in your browser** when this capability is present; otherwise it shows only the QR code and typed-code options.
-- **Platform secure-store credential storage** — the SDK keeps its own copy of a paired device's credential, scoped per placement. It answers the page's `needCredential` from the secure store, writes what pairing issues, and clears what the server refuses. `studentToken` is optional everywhere: a paired device needs none. The deprecated field is accepted only for `eply_sbx_` testing credentials under `unsafeTesting`.
+- **Real pairing against a local stack** — `UnsafeTesting(realPairing: true, breakUrl: 'http://localhost:3000/break')` runs pairing and a learner session against a hosted page on your machine, in debug builds only. See [Test real pairing against a local stack](#test-real-pairing-against-a-local-stack).
+- **Platform secure-store credential storage** — the SDK keeps its own copy of a paired device's credential, scoped per placement and per hosted origin. It answers the page's `needCredential` from the secure store, writes what pairing issues, and clears what the server refuses. `studentToken` is optional everywhere: a paired device needs none. The deprecated field is accepted only for `eply_sbx_` testing credentials under `unsafeTesting`.
 - **Secure-store availability probe** — the store is probed on first use. When it will not register, the SDK tells the page it is not keeping custody, so the hosted origin keeps ownership of the credential instead of the SDK dropping writes silently.
 - **`LevelMomentAds.instance.signOut(context:, placementId:)`** — clears the secure-store copy, then clears the hosted origin's copy. See [Sign out](#sign-out) below.
 
@@ -180,6 +181,66 @@ Do not call the token store's `clear()` to sign a device out. It empties the sec
 credential this SDK handed over is never announced back, and neither is one the
 page found in its own storage. Browser hosts receive no credential at all. See
 See the hosted integration documentation for credential handling.
+
+---
+
+## Test real pairing against a local stack
+
+`unsafeTesting.realPairing` runs the real path against a hosted page on your
+machine: pairing, a learner session, and the learner's own topics. Plain
+`unsafeTesting` serves sandbox content only.
+
+Prerequisites:
+
+- A debug build. `initialize()` throws in release and profile builds.
+- The Level Moment web app on `http://localhost:3000`, with the API on
+  `http://localhost:8080` and `APP_BASE_URL=http://localhost:3000`.
+- An Android emulator or device, or the iOS simulator. An iOS physical device
+  has no route to your machine's loopback address.
+- A debug-only cleartext exception for `localhost` and `127.0.0.1` in your
+  game: an Android network security config, and `NSAllowsLocalNetworking` on
+  iOS. Keep both out of release builds.
+
+1. On Android, forward both ports to your machine:
+
+   ```bash
+   adb reverse tcp:3000 tcp:3000
+   adb reverse tcp:8080 tcp:8080
+   ```
+
+2. Initialize with `realPairing`:
+
+   ```dart
+   await LevelMomentAds.instance.initialize(
+     unsafeTesting: const UnsafeTesting(
+       realPairing: true,
+       breakUrl: 'http://localhost:3000/break',
+     ),
+   );
+   ```
+
+3. Call `ensureSignedIn()` and pair the device with a parent account on the
+   local stack.
+
+`breakUrl` must be `http://localhost:<port>/…` or `http://127.0.0.1:<port>/…`
+with an explicit port. `initialize()` throws for any other URL, for `mock`,
+for a `token`, for an `apiUrl`, and for a top-level `breakUrl`. A
+`studentToken` passed to a later call is refused at that call. The SDK sends no
+`apiUrl` and no `sandbox` flag, so the local page uses its own API base.
+
+**Note:** The SDK keeps the credential a local stack issues in a separate
+secure-store entry, keyed on the page origin
+(`com.levelmoment.test-credential.http_localhost_3000.<placementId>`). A
+real-pairing run never reads, writes or deletes the production credential.
+
+### Verify real pairing
+
+- After `initialize()`, the debug console prints one warning that starts
+  `[LevelMoment] unsafeTesting.realPairing is on` and names
+  `http://localhost:3000`.
+- `ensureSignedIn()` shows the pairing card and completes with
+  `EnsureSignedInResult.ready` after the parent approves on the local `/link`
+  page.
 
 ---
 

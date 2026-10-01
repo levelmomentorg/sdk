@@ -19,6 +19,9 @@ import 'package:levelmoment_ads/levelmoment_ads.dart';
 import 'package:levelmoment_ads/src/credential_bridge.dart';
 import 'package:levelmoment_ads/src/widgets/level_moment_web_view.dart';
 
+/// The production hosted origin, whose secure-store slot keeps the original key.
+const _prod = 'https://levelmoment.com';
+
 /// Recover the reply an injection carries, the way the hosted page's runtime
 /// does: unwrap the JS string literal, then parse the JSON inside it.
 ///
@@ -47,7 +50,8 @@ void main() {
   group('CredentialReply.toInjection', () {
     test('calls window.__levelMomentDeliverCredential with the token', () {
       final js =
-          const CredentialReply(token: 'tok-123', custody: true).toInjection();
+          const CredentialReply(token: 'tok-123', custody: true, origin: _prod)
+              .toInjection();
 
       expect(js, contains('window.__levelMomentDeliverCredential'));
       expect(decodeInjection(js), {
@@ -74,7 +78,8 @@ void main() {
       // character and still land inside exactly one string argument.
       const evilToken = 'tok"); alert(1); //\\';
       final js =
-          const CredentialReply(token: evilToken, custody: true).toInjection();
+          const CredentialReply(token: evilToken, custody: true, origin: _prod)
+              .toInjection();
 
       // The call must still parse as: identifier(single-string-literal);
       final match = RegExp(
@@ -99,7 +104,8 @@ void main() {
     });
 
     test('custody: false is carried through', () {
-      final js = const CredentialReply(token: '', custody: false).toInjection();
+      final js = const CredentialReply(token: '', custody: false, origin: _prod)
+          .toInjection();
       expect(decodeInjection(js), {
         'token': '',
         'custody': false,
@@ -119,14 +125,16 @@ void main() {
         debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
         expect(
           decodeInjection(
-            const CredentialReply(token: '', custody: false).toInjection(),
+            const CredentialReply(token: '', custody: false, origin: _prod)
+                .toInjection(),
           )['platform'],
           'ios',
         );
         debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
         expect(
           decodeInjection(
-            const CredentialReply(token: '', custody: false).toInjection(),
+            const CredentialReply(token: '', custody: false, origin: _prod)
+                .toInjection(),
           )['platform'],
           isNull,
         );
@@ -139,10 +147,12 @@ void main() {
   group('credentialResponder', () {
     test('an explicit token wins over the store', () async {
       final store = LevelMomentTokenStore();
-      await store.set('placement-a', 'stored-token');
+      await store.set(_prod, 'placement-a', 'stored-token');
 
       final responder = credentialResponder(
         placementId: 'placement-a',
+        origin: _prod,
+        useDeviceStore: true,
         explicitToken: 'explicit-token',
         store: store,
       );
@@ -154,10 +164,12 @@ void main() {
 
     test('falls back to the store when no explicit token is given', () async {
       final store = LevelMomentTokenStore();
-      await store.set('placement-a', 'stored-token');
+      await store.set(_prod, 'placement-a', 'stored-token');
 
       final responder = credentialResponder(
         placementId: 'placement-a',
+        origin: _prod,
+        useDeviceStore: true,
         store: store,
       );
       final reply = await responder();
@@ -169,10 +181,12 @@ void main() {
         'an empty explicit token is treated as none — falls back to the '
         'store', () async {
       final store = LevelMomentTokenStore();
-      await store.set('placement-a', 'stored-token');
+      await store.set(_prod, 'placement-a', 'stored-token');
 
       final responder = credentialResponder(
         placementId: 'placement-a',
+        origin: _prod,
+        useDeviceStore: true,
         explicitToken: '',
         store: store,
       );
@@ -188,6 +202,8 @@ void main() {
 
       final responder = credentialResponder(
         placementId: 'placement-a',
+        origin: _prod,
+        useDeviceStore: true,
         store: store,
       );
       final reply = await responder().timeout(const Duration(seconds: 1));
@@ -206,6 +222,8 @@ void main() {
 
       final reply = await credentialResponder(
         placementId: 'placement-a',
+        origin: _prod,
+        useDeviceStore: true,
         explicitToken: 'explicit-token',
         store: store,
       )();
@@ -219,17 +237,18 @@ void main() {
     test('unsafe testing never reads the production credential store',
         () async {
       final store = LevelMomentTokenStore();
-      await store.set('placement-a', 'production-token');
+      await store.set(_prod, 'placement-a', 'production-token');
 
       final reply = await credentialResponder(
         placementId: 'placement-a',
+        origin: _prod,
         store: store,
         useDeviceStore: false,
       )();
 
       expect(reply.token, isEmpty);
       expect(reply.custody, isFalse);
-      expect(await store.get('placement-a'), 'production-token');
+      expect(await store.get(_prod, 'placement-a'), 'production-token');
     });
   });
 
@@ -240,6 +259,8 @@ void main() {
       final handled = applyCredentialMessage(
         const CredentialIssued('minted-token'),
         'placement-a',
+        origin: _prod,
+        useDeviceStore: true,
         store: store,
       );
 
@@ -248,27 +269,29 @@ void main() {
       // (it does not await), so give the microtask queue a turn before
       // reading it back.
       await Future<void>.delayed(Duration.zero);
-      expect(await store.get('placement-a'), 'minted-token');
+      expect(await store.get(_prod, 'placement-a'), 'minted-token');
     });
 
     test('clears the stored token on CredentialInvalid', () async {
       final store = LevelMomentTokenStore();
-      await store.set('placement-a', 'dead-token');
+      await store.set(_prod, 'placement-a', 'dead-token');
 
       final handled = applyCredentialMessage(
         const CredentialInvalid(),
         'placement-a',
+        origin: _prod,
+        useDeviceStore: true,
         store: store,
       );
 
       expect(handled, isTrue);
       await Future<void>.delayed(Duration.zero);
-      expect(await store.get('placement-a'), '');
+      expect(await store.get(_prod, 'placement-a'), '');
     });
 
     test('returns false and touches nothing for every other message', () async {
       final store = LevelMomentTokenStore();
-      await store.set('placement-a', 'untouched-token');
+      await store.set(_prod, 'placement-a', 'untouched-token');
 
       for (final message in <HostMessage>[
         const Ready(),
@@ -278,12 +301,12 @@ void main() {
         const ErrorMsg('code', 'message'),
         const NeedCredential(),
       ]) {
-        final handled =
-            applyCredentialMessage(message, 'placement-a', store: store);
+        final handled = applyCredentialMessage(message, 'placement-a',
+            origin: _prod, useDeviceStore: true, store: store);
         expect(handled, isFalse, reason: '$message should not be handled');
       }
 
-      expect(await store.get('placement-a'), 'untouched-token');
+      expect(await store.get(_prod, 'placement-a'), 'untouched-token');
     });
   });
 }

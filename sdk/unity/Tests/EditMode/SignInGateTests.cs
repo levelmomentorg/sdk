@@ -183,7 +183,7 @@ namespace LevelMoment.Tests.EditMode
         public void BuildGate_CarriesModePlacementAndApiUrl_ButNeverACredential()
         {
             var url = BreakUrl.BuildGate(
-                LevelMomentAds.Config, "p1", "gate");
+                LevelMomentAds.Config.Resolve(), "p1", "gate");
 
             StringAssert.StartsWith("https://app.example.com/break?", url);
             StringAssert.Contains("mode=gate", url);
@@ -267,14 +267,14 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void BuildGate_CheckModeUsesModeCheck()
         {
-            var url = BreakUrl.BuildGate(LevelMomentAds.Config, "p1", "check");
+            var url = BreakUrl.BuildGate(LevelMomentAds.Config.Resolve(), "p1", "check");
             StringAssert.Contains("mode=check", url);
         }
 
         [Test]
         public void BuildAccess_UsesAccessPathAndPreservesUnsafeOrigin()
         {
-            var url = BreakUrl.BuildAccess(LevelMomentAds.Config, "p1", "check");
+            var url = BreakUrl.BuildAccess(LevelMomentAds.Config.Resolve(), "p1", "check");
 
             StringAssert.StartsWith("https://app.example.com/access?", url);
             StringAssert.Contains("mode=check", url);
@@ -285,7 +285,7 @@ namespace LevelMoment.Tests.EditMode
         public void BuildGate_MockOmitsApiUrlAndToken()
         {
             LevelMomentAds.Config.Mock = true;
-            var url = BreakUrl.BuildGate(LevelMomentAds.Config, "p1", "gate");
+            var url = BreakUrl.BuildGate(LevelMomentAds.Config.Resolve(), "p1", "gate");
 
             StringAssert.Contains("mock=true", url);
             StringAssert.DoesNotContain("apiUrl=", url);
@@ -297,7 +297,7 @@ namespace LevelMoment.Tests.EditMode
         {
             LevelMomentAds.Config.UnsafeTesting.BreakUrl = "https://app.example.com/break?theme=dark";
             Assert.Throws<ArgumentException>(() =>
-                BreakUrl.BuildGate(LevelMomentAds.Config, "p1", "gate"));
+                BreakUrl.BuildGate(LevelMomentAds.Config.Resolve(), "p1", "gate"));
         }
 
         // ---- EnsureSignedIn — message mapping -------------------------------
@@ -675,7 +675,7 @@ namespace LevelMoment.Tests.EditMode
             var results = new List<bool>();
             string error = null;
             var gate = SignInGate.Open(
-                BreakUrl.BuildAccess(LevelMomentAds.Config, "p1", "check"),
+                BreakUrl.BuildAccess(LevelMomentAds.Config.Resolve(), "p1", "check"),
                 true,
                 () => results.Add(true),
                 () => results.Add(false),

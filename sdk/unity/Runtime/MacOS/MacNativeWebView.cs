@@ -92,7 +92,8 @@ namespace LevelMoment
         {
             if (_instance != IntPtr.Zero)
                 throw new InvalidOperationException("This WebView is already open; create a new one per surface.");
-            var origin = MacWebViewEntry.OriginOf(url);
+            // The origin the native host fences navigation to; null refuses.
+            var origin = HostedOrigin.Of(url);
             if (origin == null)
                 throw new InvalidOperationException("The break URL is not an absolute http(s) URL.");
             _instance = LevelMomentWebView_Create(Utf8(origin));

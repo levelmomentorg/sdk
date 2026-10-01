@@ -16,19 +16,19 @@ namespace LevelMoment.Tests.EditMode
         {
             Assert.AreEqual(
                 "http://localhost:3000",
-                MacWebViewEntry.OriginOf("http://localhost:3000/break?placementId=pl_1"));
+                HostedOrigin.Of("http://localhost:3000/break?placementId=pl_1"));
             Assert.AreEqual(
                 "https://app.levelmoment.com",
-                MacWebViewEntry.OriginOf("https://app.levelmoment.com/break"));
+                HostedOrigin.Of("https://app.levelmoment.com/break"));
         }
 
         [Test]
         public void OriginOf_RefusesNonHttpAndRelativeUrls()
         {
-            Assert.IsNull(MacWebViewEntry.OriginOf("file:///tmp/break.html"));
-            Assert.IsNull(MacWebViewEntry.OriginOf("javascript:alert(1)"));
-            Assert.IsNull(MacWebViewEntry.OriginOf("/break"));
-            Assert.IsNull(MacWebViewEntry.OriginOf(null));
+            Assert.IsNull(HostedOrigin.Of("file:///tmp/break.html"));
+            Assert.IsNull(HostedOrigin.Of("javascript:alert(1)"));
+            Assert.IsNull(HostedOrigin.Of("/break"));
+            Assert.IsNull(HostedOrigin.Of(null));
         }
 
         [Test]

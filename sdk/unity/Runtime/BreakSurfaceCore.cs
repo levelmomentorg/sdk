@@ -209,7 +209,7 @@ namespace LevelMoment
             _inPublisherCallback = false;
             _callbacks = callbacks;
 
-            var url = BreakUrl.Build(LevelMomentAds.Config, _placementId, _format, _kind, _slot);
+            var url = BreakUrl.Build(LevelMomentAds.Config.Resolve(), _placementId, _format, _kind, _slot);
             _hostedUrl = url;
 
             try
@@ -289,12 +289,12 @@ namespace LevelMoment
                     // lives on the hosted origin.
                     CredentialBridge.Deliver(
                         _webView,
-                        LevelMomentAds.Config.Mock ? null : _studentToken,
-                        LevelMomentAds.Config.CustomData,
-                        OriginOf(_hostedUrl),
-                        _slot,
-                        LevelMomentAds.Platform,
-                        LevelMomentAds.Storefront);
+                        expectedOrigin: HostedOrigin.Of(_hostedUrl),
+                        token: LevelMomentAds.TokenForReply(_studentToken),
+                        customData: LevelMomentAds.Config.CustomData,
+                        slot: _slot,
+                        platform: LevelMomentAds.Platform,
+                        storefront: LevelMomentAds.Storefront);
                     break;
                 case HostMessageType.CredentialIssued:
                 case HostMessageType.CredentialInvalid:
@@ -422,16 +422,6 @@ namespace LevelMoment
             _inPublisherCallback = true;
             fire();
             _inPublisherCallback = false;
-        }
-
-        private static string OriginOf(string url)
-        {
-            Uri parsed;
-            if (!Uri.TryCreate(url, UriKind.Absolute, out parsed))
-                return string.Empty;
-            if (parsed.IsDefaultPort)
-                return parsed.Scheme + "://" + parsed.Host;
-            return parsed.GetLeftPart(UriPartial.Authority);
         }
     }
 }

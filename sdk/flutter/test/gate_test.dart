@@ -9,16 +9,27 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:levelmoment_ads/levelmoment_ads.dart';
 import 'package:levelmoment_ads/src/gate.dart';
+import 'package:levelmoment_ads/src/hosted.dart';
 import 'package:levelmoment_ads/src/widgets/level_moment_web_view.dart';
+
+/// A sandbox-mode resolution, the way `initialize()` builds one.
+ResolvedHosted sandboxHosted({
+  String breakUrl = 'https://app.levelmoment.com/break',
+  String apiUrl = 'https://api.levelmoment.com',
+  bool mock = false,
+}) =>
+    resolveHostedOptions(
+      unsafeTesting: UnsafeTesting(breakUrl: breakUrl, apiUrl: apiUrl),
+      mock: mock,
+    );
 
 void main() {
   group('buildGateUrl', () {
     test('live mode carries mode, placement and apiUrl — never a token', () {
       final uri = Uri.parse(buildGateUrl(
-        breakUrl: 'https://app.levelmoment.com/break',
+        hosted: sandboxHosted(),
         placementId: 'game-42',
         mode: 'gate',
-        apiUrl: 'https://api.levelmoment.com',
       ));
 
       expect(uri.origin + uri.path, 'https://app.levelmoment.com/break');
@@ -33,7 +44,7 @@ void main() {
 
     test('uses mode=check for the headless check', () {
       final uri = Uri.parse(buildGateUrl(
-        breakUrl: 'https://app.levelmoment.com/break',
+        hosted: sandboxHosted(),
         placementId: 'g',
         mode: 'check',
       ));
@@ -42,11 +53,9 @@ void main() {
 
     test('mock mode omits apiUrl and token', () {
       final uri = Uri.parse(buildGateUrl(
-        breakUrl: 'https://app.levelmoment.com/break',
+        hosted: sandboxHosted(mock: true),
         placementId: 'g',
         mode: 'gate',
-        apiUrl: 'https://api.levelmoment.com',
-        mock: true,
       ));
       expect(uri.queryParameters['mock'], 'true');
       expect(uri.queryParameters.containsKey('apiUrl'), isFalse);
@@ -57,31 +66,28 @@ void main() {
         'announces openExternal support — an old shell that cannot open a '
         'browser must not be offered the button', () {
       final uri = Uri.parse(buildGateUrl(
-        breakUrl: 'https://app.levelmoment.com/break',
+        hosted: sandboxHosted(),
         placementId: 'game-42',
         mode: 'gate',
       ));
       expect(uri.queryParameters['caps'], 'openExternal');
     });
 
-    test('appends with & when breakUrl already has a query', () {
-      final url = buildGateUrl(
-        breakUrl: 'https://app.levelmoment.com/break?theme=dark',
-        placementId: 'g',
-        mode: 'gate',
-      );
+    test('a test breakUrl with a query never reaches the builder', () {
+      // The builder only takes a resolved value, and resolution refuses a
+      // query, so the builder never has to merge one.
       expect(
-        url.startsWith('https://app.levelmoment.com/break?theme=dark&'),
-        isTrue,
+        () => sandboxHosted(
+            breakUrl: 'https://app.levelmoment.com/break?theme=dark'),
+        throwsArgumentError,
       );
-      expect(Uri.parse(url).queryParameters['theme'], 'dark');
     });
   });
 
   group('buildAccessUrl', () {
     test('uses the canonical access path for production', () {
       final uri = Uri.parse(buildAccessUrl(
-        breakUrl: 'https://levelmoment.com/break',
+        hosted: resolveHostedOptions(),
         placementId: 'game-42',
         mode: 'check',
       ));
@@ -90,15 +96,17 @@ void main() {
       expect(uri.queryParameters['mode'], 'check');
       expect(uri.queryParameters['protocolVersion'], '1');
       expect(uri.queryParameters['sdkVersion'], '0.2.0');
+      expect(uri.queryParameters.containsKey('sandbox'), isFalse);
     });
 
     test('keeps an unsafe test origin while changing only the path', () {
       final uri = Uri.parse(buildAccessUrl(
-        breakUrl: 'http://localhost:3000/break',
+        hosted: sandboxHosted(
+          breakUrl: 'http://localhost:3000/break',
+          apiUrl: 'http://localhost:3000/api',
+        ),
         placementId: 'game-42',
         mode: 'gate',
-        apiUrl: 'http://localhost:3000/api',
-        unsafeTesting: true,
       ));
 
       expect(uri.origin + uri.path, 'http://localhost:3000/access');
@@ -255,7 +263,10 @@ void main() {
     test('ready and earnedReward end nothing', () {
       final t = make();
       expect(t.dispatcher.handle(const Ready()), isFalse);
-      expect(t.dispatcher.handle(const EarnedReward('break-1', '2026-09-22T00:00:00.000Z')), isFalse);
+      expect(
+          t.dispatcher.handle(
+              const EarnedReward('break-1', '2026-09-22T00:00:00.000Z')),
+          isFalse);
       expect(t.log, isEmpty);
       expect(t.dispatcher.isSettled, isFalse);
     });
@@ -444,7 +455,7 @@ void main() {
       );
       FlutterSecureStorage.setMockInitialValues({});
       final store = LevelMomentTokenStore();
-      await store.set('g', 'stored-token');
+      await store.set('https://levelmoment.com', 'g', 'stored-token');
 
       var done = false;
       await tester.pumpWidget(MaterialApp(
@@ -465,17 +476,16 @@ void main() {
       expect(done, isTrue);
       // A mock run has no real household to sign out of, so it must not touch
       // a store a developer is using for an offline demo.
-      expect(await store.get('g'), 'stored-token');
+      expect(await store.get('https://levelmoment.com', 'g'), 'stored-token');
     });
   });
 
   group('buildGateUrl for sign-out', () {
     test('uses mode=clear and carries no credential', () {
       final uri = Uri.parse(buildGateUrl(
-        breakUrl: 'https://app.levelmoment.com/break',
+        hosted: sandboxHosted(),
         placementId: 'game-42',
         mode: 'clear',
-        apiUrl: 'https://api.levelmoment.com',
       ));
 
       expect(uri.queryParameters['mode'], 'clear');

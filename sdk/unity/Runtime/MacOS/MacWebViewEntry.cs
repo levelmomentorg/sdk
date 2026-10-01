@@ -12,22 +12,6 @@ namespace LevelMoment
     internal static class MacWebViewEntry
     {
         /// <summary>
-        /// The origin the native host fences navigation to, e.g.
-        /// <c>https://levelmoment.com</c> or <c>http://localhost:3000</c>. Null
-        /// when <paramref name="url"/> is not an absolute http(s) URL, which the
-        /// adapter treats as a refusal to open.
-        /// </summary>
-        public static string OriginOf(string url)
-        {
-            Uri parsed;
-            if (!Uri.TryCreate(url, UriKind.Absolute, out parsed))
-                return null;
-            if (parsed.Scheme != Uri.UriSchemeHttps && parsed.Scheme != Uri.UriSchemeHttp)
-                return null;
-            return parsed.GetLeftPart(UriPartial.Authority);
-        }
-
-        /// <summary>
         /// Turn one entry drained from the native queue into the raw bridge JSON
         /// the SDK parses. The host prefixes page messages with <c>M</c> and
         /// native load failures with <c>E</c>; a failure becomes the same

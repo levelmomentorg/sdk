@@ -5,7 +5,9 @@
 //   {breakUrl}?placementId=…&format=…&apiUrl=…&caps=…   (live)
 //   {breakUrl}?placementId=…&format=…&mock=true&caps=…  (mock)
 // &caps=… names what this shell can do, so the page only offers the parts of
-// the pairing screen this build can carry out.
+// the pairing screen this build can carry out. `sandbox=true` is added only in
+// the Sandbox mode; under RealPairing no apiUrl is sent either, because the
+// page owns its API destination.
 //
 // NO CREDENTIAL rides on this URL. The page asks for one over the bridge
 // (`needCredential`) and the SDK answers by running script in the page — see
@@ -51,7 +53,7 @@ namespace LevelMoment
         /// see sdk/unity/README.md → InterstitialAd.
         /// </summary>
         public static string Build(
-            LevelMomentConfig config,
+            ResolvedHostedConfig config,
             string placementId,
             string format,
             string kind = null,
@@ -59,7 +61,6 @@ namespace LevelMoment
         {
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
-            config.Validate();
             if (string.IsNullOrEmpty(placementId))
                 throw new ArgumentException("placementId is required", nameof(placementId));
 
@@ -84,21 +85,10 @@ namespace LevelMoment
                 }
             }
 
-            if (config.Mock)
-            {
-                Append(query, "mock", "true");
-            }
-            else
-                Append(query, "apiUrl", config.EffectiveApiUrl);
+            AppendHostParams(query, config);
 
-            Append(query, CapabilitiesParam, Capabilities);
-            Append(query, "protocolVersion", LevelMomentEndpoints.ProtocolVersion.ToString());
-            Append(query, "sdkVersion", LevelMomentEndpoints.SdkVersion);
-            if (config.UnsafeTesting != null)
-                Append(query, "sandbox", "true");
-
-            var separator = config.EffectiveBreakUrl.IndexOf('?') >= 0 ? "&" : "?";
-            return config.EffectiveBreakUrl + separator + query.ToString();
+            var separator = config.BreakUrl.IndexOf('?') >= 0 ? "&" : "?";
+            return config.BreakUrl + separator + query.ToString();
         }
 
         /// <summary>
@@ -108,17 +98,16 @@ namespace LevelMoment
         /// gate shows no question. Mirrors gateUrl() in sdk/web/src/gate.ts.
         /// </summary>
         public static string BuildGate(
-            LevelMomentConfig config,
+            ResolvedHostedConfig config,
             string placementId,
             string mode)
         {
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
-            config.Validate();
             if (string.IsNullOrEmpty(placementId))
                 throw new ArgumentException("placementId is required", nameof(placementId));
 
-            return BuildGateAt(config, config.EffectiveBreakUrl, placementId, mode);
+            return BuildGateAt(config, config.BreakUrl, placementId, mode);
         }
 
         /// <summary>
@@ -127,24 +116,23 @@ namespace LevelMoment
         /// keeps its scheme and authority while changing only the path.
         /// </summary>
         public static string BuildAccess(
-            LevelMomentConfig config,
+            ResolvedHostedConfig config,
             string placementId,
             string mode)
         {
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
-            config.Validate();
             if (string.IsNullOrEmpty(placementId))
                 throw new ArgumentException("placementId is required", nameof(placementId));
 
-            var accessBase = config.EffectiveBreakUrl == LevelMomentEndpoints.BreakUrl
+            var accessBase = config.BreakUrl == LevelMomentEndpoints.BreakUrl
                 ? LevelMomentEndpoints.AccessUrl
-                : AccessSurfaceUrl(config.EffectiveBreakUrl);
+                : AccessSurfaceUrl(config.BreakUrl);
             return BuildGateAt(config, accessBase, placementId, mode);
         }
 
         private static string BuildGateAt(
-            LevelMomentConfig config,
+            ResolvedHostedConfig config,
             string surfaceUrl,
             string placementId,
             string mode)
@@ -155,22 +143,30 @@ namespace LevelMoment
             var query = new StringBuilder();
             Append(query, "mode", mode);
             Append(query, "placementId", placementId);
+            AppendHostParams(query, config);
 
+            var separator = surfaceUrl.IndexOf('?') >= 0 ? "&" : "?";
+            return surfaceUrl + separator + query.ToString();
+        }
+
+        /// <summary>
+        /// The parameters every surface carries, decided by the resolved mode:
+        /// <c>mock=true</c> or the API base (never under RealPairing, where the
+        /// page uses its own), the capabilities, the bridge version, and
+        /// <c>sandbox=true</c> in the Sandbox mode only.
+        /// </summary>
+        private static void AppendHostParams(StringBuilder query, ResolvedHostedConfig config)
+        {
             if (config.Mock)
-            {
                 Append(query, "mock", "true");
-            }
-            else
-                Append(query, "apiUrl", config.EffectiveApiUrl);
+            else if (config.Mode != HostedMode.RealPairing && !string.IsNullOrEmpty(config.ApiUrl))
+                Append(query, "apiUrl", config.ApiUrl);
 
             Append(query, CapabilitiesParam, Capabilities);
             Append(query, "protocolVersion", LevelMomentEndpoints.ProtocolVersion.ToString());
             Append(query, "sdkVersion", LevelMomentEndpoints.SdkVersion);
-            if (config.UnsafeTesting != null)
+            if (config.Mode == HostedMode.Sandbox)
                 Append(query, "sandbox", "true");
-
-            var separator = surfaceUrl.IndexOf('?') >= 0 ? "&" : "?";
-            return surfaceUrl + separator + query.ToString();
         }
 
         private static string AccessSurfaceUrl(string breakUrl)

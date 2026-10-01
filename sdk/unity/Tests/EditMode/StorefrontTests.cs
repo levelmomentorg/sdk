@@ -12,6 +12,8 @@ namespace LevelMoment.Tests.EditMode
 {
     public class StorefrontTests
     {
+        private const string ProductionOrigin = "https://levelmoment.com";
+
         // ---- Fakes ------------------------------------------------------------
 
         private class FakeStorefrontProvider : IStorefrontProvider
@@ -84,7 +86,7 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void BuildInjection_NoPlatformOrStorefront_BothNull()
         {
-            var js = CredentialBridge.BuildInjection("tok-1");
+            var js = CredentialBridge.BuildInjection(ProductionOrigin, "tok-1");
             StringAssert.Contains("\\\"platform\\\":null", js);
             StringAssert.Contains("\\\"storefront\\\":null", js);
         }
@@ -93,7 +95,7 @@ namespace LevelMoment.Tests.EditMode
         public void BuildInjection_CarriesPlatformAndStorefront()
         {
             var js = CredentialBridge.BuildInjection(
-                "tok-1", platform: "ios", storefront: "USA");
+                ProductionOrigin, "tok-1", platform: "ios", storefront: "USA");
             StringAssert.Contains("\\\"platform\\\":\\\"ios\\\"", js);
             StringAssert.Contains("\\\"storefront\\\":\\\"USA\\\"", js);
         }
@@ -102,7 +104,7 @@ namespace LevelMoment.Tests.EditMode
         public void BuildInjection_AndroidPlatform_StorefrontStillNullable()
         {
             var js = CredentialBridge.BuildInjection(
-                "tok-1", platform: "android", storefront: null);
+                ProductionOrigin, "tok-1", platform: "android", storefront: null);
             StringAssert.Contains("\\\"platform\\\":\\\"android\\\"", js);
             StringAssert.Contains("\\\"storefront\\\":null", js);
         }

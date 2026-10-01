@@ -8,6 +8,13 @@ versioning follows [Semver](https://semver.org).
 
 ### Added
 
+- `UnsafeTesting.RealPairing` runs the real pairing path against a hosted page
+  on `http://localhost:<port>` or `http://127.0.0.1:<port>`, in the editor and
+  development builds only. Any other build throws at `Initialize`. Under it the
+  break and gate URLs carry no `sandbox` and no `apiUrl`, every token input is
+  refused, and the credential reply is bound to the local origin. See
+  "Test real pairing against a local stack" in the README.
+
 - The credential-bridge reply to the hosted page's `needCredential` message now
   carries `platform` (`"ios"` / `"android"`, from the running OS; null on
   macOS and every other standalone target, and in the Editor) and
