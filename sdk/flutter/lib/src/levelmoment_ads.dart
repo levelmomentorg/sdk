@@ -133,8 +133,8 @@ class LevelMomentAds {
   ///
   /// It pushes a fullscreen Level Moment route. A device that already holds a
   /// valid credential for this game passes through in a moment; otherwise the
-  /// surface runs the ask-a-parent pairing flow and waits for the answer, for
-  /// as long as a parent takes.
+  /// surface runs the device pairing flow and waits for the answer, for as
+  /// long as approval takes.
   ///
   /// Completes exactly once, and never with an error:
   /// - [EnsureSignedInResult.ready] — start the game.

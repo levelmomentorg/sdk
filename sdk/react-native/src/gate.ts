@@ -130,7 +130,7 @@ const NOT_MOUNTED =
  *
  * It opens the hosted Level Moment surface in a fullscreen modal. A device that
  * already holds a valid credential for this game passes through in a moment;
- * otherwise the surface runs the ask-a-parent pairing flow and waits for the
+ * otherwise the surface runs the device pairing flow and waits for the
  * answer.
  *
  * Resolves exactly once:

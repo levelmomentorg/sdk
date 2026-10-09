@@ -123,8 +123,8 @@ namespace LevelMoment
         ///
         /// It opens the hosted Level Moment surface fullscreen. A device that
         /// already holds a valid credential for this game passes through in a
-        /// moment; otherwise the surface runs the ask-a-parent pairing flow and
-        /// waits for the answer, for as long as a parent takes.
+        /// moment; otherwise the surface runs the device pairing flow and waits
+        /// for the answer, for as long as approval takes.
         ///
         /// The callback runs exactly once, and this method never throws:
         /// <list type="bullet">

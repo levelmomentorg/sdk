@@ -90,8 +90,8 @@ export class LevelMomentWebClient {
    *
    * It opens the hosted Level Moment surface in a fullscreen iframe. When the
    * device already holds a valid credential for this game the surface closes
-   * almost immediately; otherwise it runs the ask-a-parent pairing flow and
-   * waits for approval.
+   * almost immediately; otherwise it runs the device pairing flow and waits
+   * for approval.
    *
    * Resolves exactly once:
    * - `"ready"` — start the game.
