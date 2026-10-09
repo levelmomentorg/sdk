@@ -59,6 +59,9 @@ try {
 ```
 
 Use `ensureSignedIn()` or `isSignedIn()` only for identity-only features.
+A `ready` result means the household had a subscription, or complimentary
+access, when the parent linked the game; a lapse afterward does not unlink the
+device.
 
 ## 4. Replace rewarded loading
 

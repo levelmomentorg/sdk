@@ -59,6 +59,9 @@ try {
 `checkAccess()` rejects on technical failure. `ensureAccess()` resolves
 `ready`, `canceled`, or `technicalFailure`. Keep `ensureSignedIn()` and
 `isSignedIn()` for identity-only features.
+A `ready` result means the household had a subscription, or complimentary
+access, when the parent linked the game; a lapse afterward does not unlink the
+device.
 
 ## 4. Replace rewarded loading
 

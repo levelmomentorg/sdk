@@ -50,8 +50,10 @@ try {
 
 `false` means the player must take action. A rejected check is a technical
 failure and does not prove that access is unavailable. Keep
-`ensureSignedIn()` or `isSignedIn()` only where the feature needs identity
-without checking access.
+`ensureSignedIn()` or `isSignedIn()` only where the feature needs identity.
+A `ready` result means the household had a subscription, or complimentary
+access, when the parent linked the game; a lapse afterward does not unlink the
+device.
 
 ## 4. Replace rewarded loading
 
