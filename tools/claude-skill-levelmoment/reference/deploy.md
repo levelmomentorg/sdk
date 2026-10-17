@@ -34,7 +34,7 @@ Fix anything here before step 3.
   fail and load failure each grant correctly and resume once. If there's no
   record of that, ask the developer for their test log, or run those checks
   now in a sandbox build before continuing.
-- The SDK is pinned to the exact version tested, such as `0.3.0`, with no
+- The SDK is pinned to the exact version tested, such as `0.3.1`, with no
   range, in the manifest and the lockfile.
 - No file in the repository still describes or drives a mock or placeholder
   break. Grep for the mock's names in source, CSS class names, comments,

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 — 2026-10-17
 
 - BREAKING: a release build (`__DEV__` false) refuses `unsafeTesting.token` or a sandbox `studentToken`. `createForAdRequest()` and `checkAccess()` throw; `ensureAccess()` and `ensureSignedIn()` resolve `technicalFailure`. A release build that kept the token would serve every player unpaid sandbox breaks with no pairing. Debug builds are unchanged.
 - A break no longer shows the native close button (×), and the Android back button does nothing on it, once the break page confirms it ends the break itself. The break URL carries `leave=page`, and the page's `ready` answers with `leaveSupported`; until then, and on a page that never answers, the button and back stay. A player can't close a break partway: it ends in a pass, a fail, or a load failure, and a mid-break pairing card offers **Not now**. The sign-in gate keeps its close button, which is a parent's "not now".

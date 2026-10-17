@@ -1,7 +1,7 @@
 # levelmoment_ads (Flutter)
 
 **Preview:** Validate the WebView provider and hosted break on each target
-device before release. The repository version is `0.3.0` and is not published
+device before release. The repository version is `0.3.1` and is not published
 to `pub.dev`. Use the immutable preview artifact or reference supplied for your
 partner integration.
 
@@ -46,7 +46,7 @@ failure callbacks.
 ## What's Not Done
 
 - [ ] No example app in `sdk/flutter/example/`
-- [ ] Repository version is `0.3.0` — the preview is not yet published to `pub.dev`
+- [ ] Repository version is `0.3.1` — the preview is not yet published to `pub.dev`
 - [ ] No native pre-warm — `load()` resolves immediately; `show()` triggers the WebView fetch, adding a small visible delay when the ad slot opens
 
 ---
@@ -61,7 +61,7 @@ flutter analyze
 flutter test
 ```
 
-Install the immutable `0.3.0` preview artifact or reference supplied for your
+Install the immutable `0.3.1` preview artifact or reference supplied for your
 partner integration; do not use `flutter pub add levelmoment_ads`, because the
 preview is not on `pub.dev`. Its package manifest already installs
 `flutter_secure_storage` and `url_launcher` as transitive dependencies.

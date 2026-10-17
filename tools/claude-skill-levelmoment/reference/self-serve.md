@@ -31,7 +31,7 @@ ask. Everything else has one right answer in the docs; don't ask about it.
    game on the Games page at https://levelmoment.com/games ("Register
    game", webhook URL optional), commit the public placement ID as a source
    constant such as `PLACEMENT_ID` in `src/levelmoment.ts` with no mock
-   fallback, install the SDK at exactly 0.3.0, declare a slot per moment
+   fallback, install the SDK at exactly 0.3.1, declare a slot per moment
    sized by what it buys (30 seconds for a reward, 18 for resuming play) with
    `format: "practice_set"` on rewarded slots, and call `ensureAccess()` from
    the player's tap (in sandbox it resolves `ready` at once); for a break that

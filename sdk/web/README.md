@@ -9,10 +9,10 @@ browser before release.
 
 ## Install
 
-Install version `0.3.0` from npm:
+Install version `0.3.1` from npm:
 
 ```bash
-npm install @levelmoment/sdk-web@0.3.0
+npm install @levelmoment/sdk-web@0.3.1
 ```
 
 Earlier npm releases predate slot declarations, the current break format

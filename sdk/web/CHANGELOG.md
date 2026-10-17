@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 — 2026-10-17
 
 - The break URL carries `leave=page`, so a mid-break pairing card offers **Not now**, which ends the break with no reward.
 

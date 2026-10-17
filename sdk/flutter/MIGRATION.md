@@ -5,7 +5,7 @@
 - Flutter 3.22 or later
 
 The Flutter package is not published on pub.dev. Install it from the public
-SDK repository at the `sdk-v0.3.0` tag.
+SDK repository at the `sdk-v0.3.1` tag.
 
 ## 1. Replace the dependency
 
@@ -16,7 +16,7 @@ dependencies:
   levelmoment_ads:
     git:
       url: https://github.com/levelmomentorg/sdk.git
-      ref: sdk-v0.3.0
+      ref: sdk-v0.3.1
       path: sdk/flutter
 ```
 

@@ -1,7 +1,7 @@
 # LevelMoment Unity SDK (`com.levelmoment.sdk`)
 
 **Preview:** Validate the WebView provider and hosted break on each target
-device before release. The repository version is `0.3.0`; use the immutable
+device before release. The repository version is `0.3.1`; use the immutable
 preview artifact or reference supplied for your partner integration.
 
 Give a coding agent the placement ID, immutable SDK source, target slot, reward
@@ -28,7 +28,7 @@ Unity has **no built-in WebView**, so the SDK needs a WebView provider. The bund
 
 ### 1. Install this package
 
-In Unity Package Manager, add the immutable `0.3.0` preview artifact or
+In Unity Package Manager, add the immutable `0.3.1` preview artifact or
 reference supplied for your partner integration. Do not point a partner build
 at a moving branch.
 

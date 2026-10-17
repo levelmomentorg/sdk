@@ -12,7 +12,7 @@ Add the pinned SDK and WebView packages to `Packages/manifest.json`:
 ```json
 {
   "dependencies": {
-    "com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.3.0",
+    "com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.3.1",
     "net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment#PINNED_GREE_COMMIT",
     "com.unity.inputsystem": "1.11.2",
     "com.unity.modules.jsonserialize": "1.0.0"

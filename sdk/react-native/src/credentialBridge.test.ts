@@ -368,7 +368,7 @@ describe("credentialInjection", () => {
       token: hostile,
       custody: false,
       protocolVersion: 1,
-      sdkVersion: "0.3.0",
+      sdkVersion: "0.3.1",
     });
 
     const wrongOrigin = vi.fn();

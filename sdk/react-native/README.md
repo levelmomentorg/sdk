@@ -8,13 +8,13 @@ device before release.
 
 ## Install
 
-Install version `0.3.0` from npm. Earlier npm releases predate slot
+Install version `0.3.1` from npm. Earlier npm releases predate slot
 declarations, the current break format names, and the single reward per break
 described here. Add `react-native-webview` and, when durable native credentials
 are needed, `react-native-keychain` as peer dependencies.
 
 ```bash
-npm install @levelmoment/sdk-react-native@0.3.0 react-native-webview
+npm install @levelmoment/sdk-react-native@0.3.1 react-native-webview
 ```
 
 Give a coding agent the placement ID, SDK version, target slot, reward

@@ -3,7 +3,7 @@ description: >
   LevelMoment educational ad replacement SDK for Flutter.
   Drop-in replacement for google_mobile_ads rewarded ads.
   Replaces mobile ad impressions with short educational questions.
-version: 0.3.0
+version: 0.3.1
 homepage: https://github.com/levelmomentorg/sdk/tree/main/sdk/flutter
 repository: https://github.com/levelmomentorg/sdk
 issue_tracker: https://github.com/levelmomentorg/sdk/issues

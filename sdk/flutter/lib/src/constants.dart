@@ -1,7 +1,7 @@
 const String kLevelMomentBreakUrl = 'https://levelmoment.com/break';
 const String kLevelMomentAccessUrl = 'https://levelmoment.com/access';
 const String kLevelMomentApiUrl = 'https://levelmoment.com/api';
-const String kLevelMomentSdkVersion = '0.3.0';
+const String kLevelMomentSdkVersion = '0.3.1';
 const int kLevelMomentProtocolVersion = 1;
 
 String levelMomentOrigin(String url) {
