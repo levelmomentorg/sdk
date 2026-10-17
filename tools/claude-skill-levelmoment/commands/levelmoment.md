@@ -1,6 +1,6 @@
 ---
-description: Set up Level Moment in a game (self-serve or from a supplied handoff). Subcommands: setup, port, install, doctor, sandbox.
-argument-hint: "[setup|port|install|doctor|sandbox] [handoff path]"
+description: Set up Level Moment in a game (self-serve or from a supplied handoff), then move it to production. Subcommands: setup, deploy, port, install, doctor, sandbox.
+argument-hint: "[setup|deploy|port|install|doctor|sandbox] [handoff path]"
 ---
 
 # /levelmoment
@@ -15,6 +15,7 @@ Interpret the first token of `$ARGUMENTS` as one of these actions:
 | Action                              | Read next                                            |
 | ----------------------------------- | ---------------------------------------------------- |
 | `setup` or no action, no handoff    | `.claude/skills/levelmoment/reference/self-serve.md` |
+| `deploy`                            | `.claude/skills/levelmoment/reference/deploy.md`     |
 | `port`, or no action with a handoff | `.claude/skills/levelmoment/reference/port.md`       |
 | `install`                           | `.claude/skills/levelmoment/reference/install.md`    |
 | `doctor`                            | `.claude/skills/levelmoment/reference/doctor.md`     |

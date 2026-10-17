@@ -5,9 +5,10 @@ setup step; the docs are the canonical guide, and anyone can set up a game from
 them without this packet. When you change the packet, change the docs first,
 then keep each link's one-line summary in the packet in step with its page.
 
-Use this packet to set up a developer's own game from the public docs, or with
-a partner-supplied SDK artifact and handoff manifest to replace one existing
-rewarded slot with a Level Moment break.
+Use this packet to set up a developer's own game from the public docs, to move
+a working sandbox integration to production, or with a partner-supplied SDK
+artifact and handoff manifest to replace one existing rewarded slot with a
+Level Moment break.
 
 Read [AGENT-INSTRUCTIONS.md](AGENT-INSTRUCTIONS.md) directly in any coding
 agent. It uses only paths inside this packet and does not require an installer.
@@ -28,7 +29,8 @@ picked from a registry.
 
 - `AGENT-INSTRUCTIONS.md` contains the shared integration flow.
 - `reference/` contains platform mapping, installation, diagnosis, and preview
-  guidance.
+  guidance, plus `self-serve.md` (sandbox setup) and `deploy.md` (sandbox to
+  production).
 - `templates/` contains examples with a fresh handle per break, one bonus for
   one game-owned bonus per server-confirmed passed break, and one game resume
   per terminal result.

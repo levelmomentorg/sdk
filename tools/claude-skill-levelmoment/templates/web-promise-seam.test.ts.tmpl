@@ -1,0 +1,159 @@
+// Unit tests for the break function made from web-promise-seam.ts.tmpl.
+// Documented at https://levelmoment.com/docs/own-break-interface; keep the
+// two in step. They mock the SDK, so they run with no network or token.
+// GAME HOOK: point the import below at the file that holds
+// createLevelMomentBreaks, and use the game's own slot type if it has one.
+// If the function maps the outcomes to the game's own names, change the
+// expected "finished", "ended" and "none" values to match.
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+type ShowCallbacks = {
+  onUserEarnedReward: (reward: { rewardId: string }) => void;
+  onAdDismissed: () => void;
+  onAdFailedToShow: () => void;
+};
+type LoadCallbacks = {
+  onAdLoaded: (ad: unknown) => void;
+  onAdFailedToLoad: () => void;
+};
+
+const sdk = vi.hoisted(() => ({
+  inits: [] as Array<Record<string, unknown>>,
+  clients: [] as Array<{
+    loads: LoadCallbacks[];
+    ensureAccess: ReturnType<typeof vi.fn>;
+  }>,
+  access: "ready" as string,
+  shows: [] as ShowCallbacks[],
+  showThrows: false,
+}));
+
+vi.mock("@levelmoment/sdk-web", () => ({
+  LevelMomentWebClient: {
+    initialize: (config: Record<string, unknown>) => {
+      sdk.inits.push(config);
+      const client = {
+        loads: [] as LoadCallbacks[],
+        ensureAccess: vi.fn(() => Promise.resolve(sdk.access)),
+        loadAd(callbacks: LoadCallbacks) {
+          client.loads.push(callbacks);
+        },
+      };
+      sdk.clients.push(client);
+      return client;
+    },
+  },
+}));
+
+import { createLevelMomentBreaks } from "./levelmoment-breaks";
+
+const handle = {
+  show(callbacks: ShowCallbacks) {
+    if (sdk.showThrows) throw new Error("show failed");
+    sdk.shows.push(callbacks);
+  },
+};
+const CONTINUE = { id: "continue", targetDurationSeconds: 30, rewardAmount: 1 };
+const COINS = { id: "coins", targetDurationSeconds: 20, rewardAmount: 100 };
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+/** Prepares the slot with a loaded handle and opens a break on it. */
+async function openBreak(breaks: ReturnType<typeof createLevelMomentBreaks>) {
+  breaks.prepare(CONTINUE);
+  const client = sdk.clients[0]!;
+  client.loads[client.loads.length - 1]!.onAdLoaded(handle);
+  const outcome = breaks.showBreak(CONTINUE);
+  await settle();
+  return outcome;
+}
+
+beforeEach(() => {
+  sdk.inits.length = 0;
+  sdk.clients.length = 0;
+  sdk.shows.length = 0;
+  sdk.access = "ready";
+  sdk.showThrows = false;
+});
+
+describe("Level Moment breaks", () => {
+  it("resolves finished once for a passed break and loads a new handle", async () => {
+    const breaks = createLevelMomentBreaks("PLACEMENT_ID");
+    const outcome = openBreak(breaks);
+    await settle();
+    const show = sdk.shows[0]!;
+    show.onUserEarnedReward({ rewardId: "r1" });
+    show.onUserEarnedReward({ rewardId: "r1" });
+    show.onAdDismissed();
+    show.onAdFailedToShow();
+    expect(await outcome).toBe("finished");
+    expect(sdk.clients[0]!.loads).toHaveLength(2);
+  });
+
+  it("grants nothing when the break ends without a reward", async () => {
+    const breaks = createLevelMomentBreaks("PLACEMENT_ID");
+    const outcome = openBreak(breaks);
+    await settle();
+    sdk.shows[0]!.onAdDismissed();
+    expect(await outcome).toBe("ended");
+  });
+
+  it("grants nothing when the break fails to show or load", async () => {
+    const breaks = createLevelMomentBreaks("PLACEMENT_ID");
+    const shown = openBreak(breaks);
+    await settle();
+    sdk.shows[0]!.onAdFailedToShow();
+    expect(await shown).toBe("none");
+
+    sdk.clients[0]!.loads[1]!.onAdFailedToLoad();
+    expect(await breaks.showBreak(CONTINUE)).toBe("none");
+    expect(sdk.shows).toHaveLength(1);
+  });
+
+  it("resolves none when show throws", async () => {
+    sdk.showThrows = true;
+    const breaks = createLevelMomentBreaks("PLACEMENT_ID");
+    expect(await openBreak(breaks)).toBe("none");
+  });
+
+  it.each(["canceled", "technicalFailure"])(
+    "resolves none without a break when access is %s",
+    async (access) => {
+      sdk.access = access;
+      const breaks = createLevelMomentBreaks("PLACEMENT_ID");
+      expect(await openBreak(breaks)).toBe("none");
+      expect(sdk.shows).toHaveLength(0);
+    },
+  );
+
+  it("calls ensureAccess synchronously from the tap", () => {
+    const breaks = createLevelMomentBreaks("PLACEMENT_ID");
+    void breaks.showBreak(CONTINUE);
+    expect(sdk.clients[0]!.ensureAccess).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens one break at a time on a slot", async () => {
+    const breaks = createLevelMomentBreaks("PLACEMENT_ID");
+    const first = openBreak(breaks);
+    await settle();
+    expect(await breaks.showBreak(CONTINUE)).toBe("none");
+    expect(sdk.shows).toHaveLength(1);
+    sdk.shows[0]!.onAdDismissed();
+    await first;
+  });
+
+  it("gives each moment its own slot and passes the token only when set", () => {
+    const sandbox = createLevelMomentBreaks("PLACEMENT_ID", "SANDBOX_TOKEN");
+    sandbox.prepare(CONTINUE);
+    sandbox.prepare(COINS);
+    sandbox.prepare(CONTINUE);
+    expect(sdk.inits).toHaveLength(2);
+    expect(sdk.inits[0]).toMatchObject({
+      placementId: "PLACEMENT_ID",
+      slot: { adType: "rewarded", targetDurationSeconds: 30, rewardAmount: 1 },
+      unsafeTesting: { token: "SANDBOX_TOKEN" },
+    });
+    sdk.inits.length = 0;
+    createLevelMomentBreaks("PLACEMENT_ID").prepare(CONTINUE);
+    expect(sdk.inits[0]).not.toHaveProperty("unsafeTesting");
+  });
+});

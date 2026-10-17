@@ -25,24 +25,37 @@ answer in the docs; don't ask about it.
 ## 2. Follow the docs in order
 
 1. [Quickstart](https://levelmoment.com/docs/getting-started): register the
-   game ("Register game", webhook URL optional), commit the public placement
-   ID in game config with no mock fallback, install the SDK at exactly 0.3.0,
+   game on the Games page at https://levelmoment.com/games ("Register
+   game", webhook URL optional), commit the public placement ID as a source
+   constant such as `PLACEMENT_ID` in `src/levelmoment.ts` with no mock
+   fallback, install the SDK at exactly 0.3.0,
    declare a slot per moment (5 to 300 seconds), and call `ensureAccess()`
    from the player's tap (in sandbox it resolves `ready` at once). A
    signed-in non-developer account sees "Use the right account for this
-   page" instead of the Games page.
+   page" instead of the Games page. Don't guess other portal URLs.
 2. [Testing and sandbox](https://levelmoment.com/docs/testing): one token
-   per developer, kept in a file only sandbox builds read (Vite
-   `.env.sandbox.local` with `--mode sandbox`, Expo `.env.development.local`,
-   never `.env.local`) behind a build guard, passed only as
-   `unsafeTesting: { token }`; check each slot's pass, fail and load failure,
-   then grep a production build for `eply_sbx_`.
+   per developer, kept in a gitignored file only sandbox builds read (Vite
+   `.env.sandbox.local`, Expo `.env.development.local`, never `.env.local`;
+   add `.env*.local` or the platform's file to `.gitignore` if
+   `git check-ignore` prints nothing) behind a build guard (with Vitest's
+   `defineConfig`, import `loadEnv` from `vite`), passed only as
+   `unsafeTesting: { token }`. For Vite, the everyday `dev` script runs
+   `vite --mode sandbox`, `build:sandbox` runs `vite build --mode sandbox`,
+   and `build` stays production. Check each slot's pass, fail and load
+   failure (a load failure reaches the same not-granted path as a failed
+   break, so the player copy covers both, such as "No reward this time"),
+   then grep a production build for `eply_sbx_`, searching only Capacitor
+   folders that exist and treating only grep's exit 1 as clean.
 3. [Your own break interface](https://levelmoment.com/docs/own-break-interface):
    when the game already has a promise-based break function, keep it and its
-   call sites and implement it with `templates/web-promise-seam.ts.tmpl`. Give
-   each moment its own `BreakSlotSpec` id and `rewardAmount` (none for a moment
-   that grants nothing), adding both to the game's own slot type if it lacks
-   them. The await is the pause; grant on `"finished"`. Keep the game's own
+   call sites and implement it with `templates/web-promise-seam.ts.tmpl`,
+   passing it the committed `PLACEMENT_ID`. Give each moment its own
+   `BreakSlotSpec` id and `rewardAmount` (none for a moment that grants
+   nothing). The game's own slot type can replace `BreakSlotSpec`: add `id`
+   and `rewardAmount` if it lacks them and drop fields the template doesn't
+   read, such as `format` or `adType`. Unit-test it with
+   `templates/web-promise-seam.test.ts.tmpl` (Vitest, SDK mocked): copy it
+   beside the function and fix its import. The await is the pause; grant on `"finished"`. Keep the game's own
    outcome names and map to them in one line where the function returns. Free-break counts and plan
    status aren't available to partner integrations.
 4. [Web views and Capacitor](https://levelmoment.com/docs/web-views): for a
@@ -54,7 +67,7 @@ answer in the docs; don't ask about it.
    a removed mock overlay.
 6. [Going live](https://levelmoment.com/docs/going-live): what changes from a
    sandbox build to production. Don't start it without the developer's
-   approval.
+   approval; when they approve, follow `reference/deploy.md`.
 
 Apply the lifecycle and checks in AGENT-INSTRUCTIONS.md to every slot.
 
@@ -101,13 +114,24 @@ Apply the lifecycle and checks in AGENT-INSTRUCTIONS.md to every slot.
   screenshot and click its coordinates, or in Playwright use
   `page.frameLocator('iframe[src^="https://levelmoment.com/break"]')` with
   `getByRole` or `getByText`.
-- **Update the game's own scripts.** If the game's screenshot or playtest
-  scripts drove the old mock overlay, update them to the real break page in
-  the same change.
+- **Wait for the break to move on.** After an answer the options lock while
+  the break advances. Wait for the next question's text to change, or for
+  "Back to the game", before reading again; a loop that re-reads at once
+  sees the old question and hangs.
+- **Update the game's own scripts and docs.** If the game's screenshot or
+  playtest scripts drove the old mock overlay, update them to the real break
+  page in the same change. Rewrite README and docs lines that describe a mock
+  or placeholder break, and say which command runs sandbox and which builds
+  production.
+- **Leave no mock behind.** Before reporting done, grep the repository for
+  the removed mock's names (its component, file and function names, and
+  words such as "mock overlay"). Don't report done while any file still
+  refers to it.
 
 ## 3. Report
 
 Report the game name and placement ID (never the token), each slot and its
-duration, files changed, commands run and their results, and what remains to
+duration, the sandbox and production commands, the mock-name grep and its
+result, files changed, commands run and their results, and what remains to
 check on a real device. Name going live as the next step; it needs the
 developer's approval.

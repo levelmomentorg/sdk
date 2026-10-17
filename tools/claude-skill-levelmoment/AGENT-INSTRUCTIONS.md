@@ -14,6 +14,10 @@ checks below. The sandbox token is the one exception to the credential rule in
 "Integrate one rewarded slot", as
 [Testing and sandbox](https://levelmoment.com/docs/testing) describes.
 
+Moving a working sandbox integration to production? Follow
+[`reference/deploy.md`](reference/deploy.md), which links
+[Going live](https://levelmoment.com/docs/going-live) for each step.
+
 1. Read the partner's handoff JSON. Use
    [`handoff.example.json`](handoff.example.json) as its field contract.
 2. Require the platform, placement ID, target slot, reward action, install

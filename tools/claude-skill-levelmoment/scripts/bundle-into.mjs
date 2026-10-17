@@ -31,6 +31,9 @@ function copy(src, dst) {
     fs.mkdirSync(dst, { recursive: true });
     for (const entry of fs.readdirSync(src)) {
       if (EXCLUDE.has(entry)) continue;
+      // Scratch folders a killed packet test run can leave behind.
+      if (entry.startsWith(".compile-") || entry.startsWith(".vitest-"))
+        continue;
       copy(path.join(src, entry), path.join(dst, entry));
     }
   } else {

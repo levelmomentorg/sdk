@@ -1,6 +1,6 @@
 ---
 name: levelmoment
-description: Set up Level Moment learning breaks in a game, from registering it to verified sandbox breaks, or integrate a supplied handoff manifest. Use when a developer asks to add, set up, port or diagnose Level Moment in a game.
+description: Set up Level Moment learning breaks in a game, from registering it to verified sandbox breaks, integrate a supplied handoff manifest, or move a working sandbox integration to production. Use when a developer asks to add, set up, port, diagnose, ship or go live with Level Moment in a game.
 ---
 
 # Level Moment partner integration
@@ -23,6 +23,10 @@ Choose the path first:
   `reference/self-serve.md`, which registers the game, gets a sandbox token,
   installs the published SDK and wires the slots. Then apply the lifecycle and
   checks in AGENT-INSTRUCTIONS.md.
+- **The integration already passes its sandbox checks and the developer wants
+  to ship it:** follow `reference/deploy.md`, which removes the sandbox token
+  from release builds, checks them, and prepares the review email. The
+  developer sends that email, runs the device test and uploads the build.
 
 Read a docs page as page text through a browser, such as the browser tool's
 page-text read. A fetch tool that summarizes pages, such as WebFetch, drops the

@@ -82,6 +82,34 @@ test("TypeScript templates compile against the installed SDK exports", () => {
   typecheckTypeScriptTemplate("templates/web-promise-seam.ts.tmpl");
 });
 
+test("the promise template passes its own unit-test template", () => {
+  const temp = fs.mkdtempSync(path.join(packetRoot, "test", ".vitest-"));
+  try {
+    fs.copyFileSync(
+      path.join(packetRoot, "templates/web-promise-seam.ts.tmpl"),
+      path.join(temp, "levelmoment-breaks.ts"),
+    );
+    fs.copyFileSync(
+      path.join(packetRoot, "templates/web-promise-seam.test.ts.tmpl"),
+      path.join(temp, "levelmoment-breaks.test.ts"),
+    );
+    const vitest = path.join(
+      path.dirname(require.resolve("vitest/package.json")),
+      "vitest.mjs",
+    );
+    try {
+      execFileSync(process.execPath, [vitest, "run", "--root", temp], {
+        cwd: packetRoot,
+        stdio: "pipe",
+      });
+    } catch (error) {
+      throw new Error(`${error.stdout}${error.stderr}`);
+    }
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
 test("self-serve links every setup step to the public docs", () => {
   const selfServe = read("reference/self-serve.md");
   for (const page of [
@@ -97,6 +125,38 @@ test("self-serve links every setup step to the public docs", () => {
       new RegExp(`https://levelmoment\\.com/docs/${page}`),
     );
   }
+});
+
+test("deploy links every going-live step and hands human steps back", () => {
+  const deploy = read("reference/deploy.md");
+  for (const page of [
+    "going-live",
+    "going-live#token",
+    "going-live#disclosures",
+    "going-live#testing-track",
+    "going-live#device-test",
+    "going-live#review",
+    "going-live#verify",
+    "testing#verify",
+    "testing#production-build",
+    "data-safety",
+    "web-views",
+  ]) {
+    assert.match(deploy, new RegExp(`https://levelmoment\\.com/docs/${page}`));
+  }
+  const stops = deploy.slice(deploy.indexOf("## Stop conditions"));
+  for (const step of [
+    /sending the review email/,
+    /uploading a test build to TestFlight/,
+    /submitting for store review or publishing/,
+    /accepting any terms/,
+    /signing in/,
+    /parent account with a plan or a physical device/,
+  ]) {
+    assert.match(stops, step);
+  }
+  assert.match(read("commands/levelmoment.md"), /reference\/deploy\.md/);
+  assert.match(read("SKILL.md"), /reference\/deploy\.md/);
 });
 
 test("native templates pass the terminal reward ID to game-owned grants", () => {
@@ -410,7 +470,7 @@ test("the installed command resolves every instruction in the partner project", 
     const references = [
       ...command.matchAll(/`(\.claude\/skills\/levelmoment\/[^`]+)`/g),
     ];
-    assert.equal(references.length, 6);
+    assert.equal(references.length, 7);
     for (const [, reference] of references) {
       assert.ok(fs.existsSync(path.join(project, reference)), reference);
     }
