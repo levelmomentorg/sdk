@@ -98,7 +98,8 @@ target slot handles these cases:
 - A completed-and-passed graded break grants one bonus by `rewardId`.
 - A duplicate callback or webhook for that ID grants no second bonus.
 - A failed or abandoned break grants no bonus, even after a correct child answer.
-- Closing the break resumes once.
+- A failed break resumes once and grants nothing.
+- A load failure resumes once and grants nothing.
 - A show failure resumes once and does not revoke an earlier bonus.
 
 Report the artifact checksum you verified, files changed, commands run, and

@@ -171,7 +171,7 @@ test("promise template opens access, resolves once, and guards a second tap", as
     { LevelMomentWebClient: { initialize: () => client } },
   );
   const breaks = createLevelMomentBreaks("partner-placement");
-  const slot = { targetDurationSeconds: 30 };
+  const slot = { id: "continue", targetDurationSeconds: 30, rewardAmount: 1 };
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
   // The first break opens even without prepare().
@@ -187,7 +187,7 @@ test("promise template opens access, resolves once, and guards a second tap", as
   await settle();
   assert.notEqual(handles[1], handles[0]);
   handles[1].callbacks.onAdDismissed();
-  assert.equal(await second, "closed");
+  assert.equal(await second, "ended");
 
   access = "canceled";
   assert.equal(await breaks.showBreak(slot), "none");
@@ -198,7 +198,7 @@ test("promise template opens access, resolves once, and guards a second tap", as
   const third = breaks.showBreak(slot);
   await settle();
   handles[2].callbacks.onAdDismissed();
-  assert.equal(await third, "closed");
+  assert.equal(await third, "ended");
 });
 
 test("promise template resolves none on a load failure, then loads afresh", async () => {
@@ -226,7 +226,7 @@ test("promise template resolves none on a load failure, then loads afresh", asyn
     { LevelMomentWebClient: { initialize: () => client } },
   );
   const breaks = createLevelMomentBreaks("partner-placement");
-  const slot = { targetDurationSeconds: 20 };
+  const slot = { id: "continue", targetDurationSeconds: 20, rewardAmount: 1 };
   breaks.prepare(slot);
   fail = false;
   assert.equal(await breaks.showBreak(slot), "none");
@@ -234,7 +234,46 @@ test("promise template resolves none on a load failure, then loads afresh", asyn
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(handles.length, 1);
   handles[0].callbacks.onAdDismissed();
-  assert.equal(await next, "closed");
+  assert.equal(await next, "ended");
+});
+
+test("promise template keys one client per moment and declares its reward", () => {
+  const configs = [];
+  const { createLevelMomentBreaks } = loadTemplate(
+    "templates/web-promise-seam.ts.tmpl",
+    {
+      LevelMomentWebClient: {
+        initialize: (config) => {
+          configs.push(config);
+          return { loadAd() {}, ensureAccess: async () => "ready" };
+        },
+      },
+    },
+  );
+  const breaks = createLevelMomentBreaks("partner-placement");
+  const cont = { id: "continue", targetDurationSeconds: 30, rewardAmount: 1 };
+  const coins = { id: "coins", targetDurationSeconds: 30, rewardAmount: 100 };
+  const between = { id: "between", targetDurationSeconds: 60 };
+  const bonus = { id: "bonus", targetDurationSeconds: 20, rewardAmount: 0 };
+  breaks.prepare(cont);
+  breaks.prepare(coins);
+  breaks.prepare(between);
+  breaks.prepare(bonus);
+  breaks.prepare(cont);
+
+  // Two moments with the same duration still get a client each.
+  assert.equal(configs.length, 4);
+  assert.deepEqual(
+    // The template runs in its own realm, so compare plain copies.
+    JSON.parse(JSON.stringify(configs.map((config) => config.slot))),
+    [
+      { adType: "rewarded", targetDurationSeconds: 30, rewardAmount: 1 },
+      { adType: "rewarded", targetDurationSeconds: 30, rewardAmount: 100 },
+      { adType: "interstitial", targetDurationSeconds: 60 },
+      // A reward of 0 grants nothing, so it is an interstitial too.
+      { adType: "interstitial", targetDurationSeconds: 20 },
+    ],
+  );
 });
 
 test("React Native template resumes once for load failure and dismissal", () => {

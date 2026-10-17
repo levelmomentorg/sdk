@@ -24,5 +24,9 @@ Choose the path first:
   installs the published SDK and wires the slots. Then apply the lifecycle and
   checks in AGENT-INSTRUCTIONS.md.
 
+Read a docs page as page text through a browser, such as the browser tool's
+page-text read. A fetch tool that summarizes pages, such as WebFetch, drops the
+code samples the steps depend on.
+
 Every path in this packet is relative to this file's folder, wherever it sits.
 Don't replace another ad network's slots unless the developer asks.

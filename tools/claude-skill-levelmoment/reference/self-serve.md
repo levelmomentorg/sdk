@@ -5,7 +5,7 @@ handoff manifest. It takes the game from no Level Moment code to verified
 sandbox breaks. Going live is a later step the developer approves.
 
 The public docs are the guide; this page adds only what an agent needs on top.
-Open each page before its step and follow it. Without web access, the one-line
+Open each page before its step and follow it, reading it as page text through a browser (see SKILL.md). Without web access, the one-line
 summary beside each link says what the step is; ask the developer to open the
 page if you need its detail.
 
@@ -31,12 +31,13 @@ answer in the docs; don't ask about it.
    from the player's tap (in sandbox it resolves `ready` at once).
 2. [Testing and sandbox](https://levelmoment.com/docs/testing): one sandbox
    token per developer, shared by all their games; keep it in a gitignored
-   env file, pass it only as `unsafeTesting: { token }`, check every slot, and
-   confirm a production build contains no `eply_sbx_`.
+   env file, pass it only as `unsafeTesting: { token }`, and confirm a
+   production build contains no `eply_sbx_`. Check every slot for a pass, a fail and a load failure (a blocked break page clears after the 15-second load timeout). Sandbox serves single-digit addition as multiple choice.
 3. [Your own break interface](https://levelmoment.com/docs/own-break-interface):
    when the game already has a promise-based break function, keep it and its
-   call sites and implement it with `templates/web-promise-seam.ts.tmpl`. The
-   await is the pause; grant on `"finished"`. Free-break counts and plan
+   call sites and implement it with `templates/web-promise-seam.ts.tmpl`. Give
+   each moment its own `BreakSlotSpec` id and `rewardAmount` (none for a moment
+   that grants nothing). The await is the pause; grant on `"finished"`. Free-break counts and plan
    status aren't available to partner integrations.
 4. [Web views and Capacitor](https://levelmoment.com/docs/web-views): for a
    web game in a native shell, allow `https://levelmoment.com` as a frame,
@@ -76,6 +77,12 @@ Apply the lifecycle and checks in AGENT-INSTRUCTIONS.md to every slot.
   browser confirmation that automation may not be able to dismiss, and it can
   freeze the tab. Ask the developer to click it, or reopen the tab afterwards.
 - **Never print the token** in chat, a log, a commit, a URL or your report.
+- **Drive a sandbox break by its visible text.** To answer one in automation,
+  click by what the player sees: "Next" on a lesson panel, "Start questions", the answer options, "Got it" and "Back to the game". The break page's CSS selectors aren't a public
+  contract and can change without notice.
+- **Update the game's own scripts.** If the game's screenshot or playtest
+  scripts drove the old mock overlay, update them to the real break page in
+  the same change.
 
 ## 3. Report
 

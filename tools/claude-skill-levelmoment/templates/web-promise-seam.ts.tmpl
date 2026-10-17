@@ -6,13 +6,23 @@
 import { LevelMomentWebClient, type LevelMomentWebAd } from "@levelmoment/sdk-web";
 
 // finished: the break ended with a reward (a passed graded break).
-// closed: the break ended without a reward (failed, abandoned or closed).
+// ended: the break ended without a reward: an interstitial break, passed or
+//   failed; a failed rewarded break; or a break page that didn't load before
+//   the SDK's load timeout.
 // none: no break could be shown; the game carries on without one.
-export type BreakOutcome = "finished" | "closed" | "none";
+export type BreakOutcome = "finished" | "ended" | "none";
 
 export interface BreakSlotSpec {
+  /** Names the moment, such as "continue" or "double-coins". One slot per id. */
+  id: string;
   /** How long this moment can hold the player, in seconds (5 to 300). */
   targetDurationSeconds: number;
+  /**
+   * What a passed break grants, in the game's own units (1 to 1,000,000).
+   * Omit it, or pass 0, for a moment that grants nothing; that slot is
+   * declared as an interstitial.
+   */
+  rewardAmount?: number;
 }
 
 interface SlotEntry {
@@ -24,7 +34,7 @@ interface SlotEntry {
 }
 
 export function createLevelMomentBreaks(placementId: string, sandboxToken?: string) {
-  const entries = new Map<number, SlotEntry>();
+  const entries = new Map<string, SlotEntry>();
 
   const load = (client: LevelMomentWebClient) =>
     new Promise<LevelMomentWebAd | undefined>((resolve) => {
@@ -34,22 +44,30 @@ export function createLevelMomentBreaks(placementId: string, sandboxToken?: stri
       });
     });
 
-  // One client per slot, so each declares its own duration.
+  // One client per moment, so each declares its own duration and reward.
+  // The first spec seen for an id fixes its slot, so pass the same spec for
+  // a moment every time.
   const entryFor = (spec: BreakSlotSpec): SlotEntry => {
-    let entry = entries.get(spec.targetDurationSeconds);
+    let entry = entries.get(spec.id);
     if (!entry) {
       const client = LevelMomentWebClient.initialize({
         placementId,
-        slot: {
-          adType: "rewarded",
-          targetDurationSeconds: spec.targetDurationSeconds,
-          rewardAmount: 1,
-        },
+        slot:
+          !spec.rewardAmount || spec.rewardAmount <= 0
+            ? {
+                adType: "interstitial",
+                targetDurationSeconds: spec.targetDurationSeconds,
+              }
+            : {
+                adType: "rewarded",
+                targetDurationSeconds: spec.targetDurationSeconds,
+                rewardAmount: spec.rewardAmount,
+              },
         // Sandbox builds only. A production build passes no unsafeTesting.
         ...(sandboxToken ? { unsafeTesting: { token: sandboxToken } } : {}),
       });
       entry = { client, next: load(client) };
-      entries.set(spec.targetDurationSeconds, entry);
+      entries.set(spec.id, entry);
     }
     return entry;
   };
@@ -86,7 +104,7 @@ export function createLevelMomentBreaks(placementId: string, sandboxToken?: stri
           onUserEarnedReward: () => {
             rewarded = true;
           },
-          onAdDismissed: () => finish(rewarded ? "finished" : "closed"),
+          onAdDismissed: () => finish(rewarded ? "finished" : "ended"),
           onAdFailedToShow: () => finish(rewarded ? "finished" : "none"),
         });
       } catch {
