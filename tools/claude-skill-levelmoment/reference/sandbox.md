@@ -5,10 +5,10 @@ the preview, test or build commands it supplies.
 
 **Without one:** follow
 [Testing and sandbox](https://levelmoment.com/docs/testing): one `eply_sbx_`
-token per developer, kept in a gitignored env file and passed only as
-`unsafeTesting: { token }` in sandbox builds; check every slot; confirm a
-production build contains no `eply_sbx_`. The agent-only notes in
-[self-serve.md](self-serve.md) cover moving the token without reading it.
+token per developer, kept in a file only sandbox builds read and passed only
+as `unsafeTesting: { token }`; a production build must contain no
+`eply_sbx_`. The agent-only notes in [self-serve.md](self-serve.md) cover
+moving the token without reading it and failing each break type.
 
 Either way, check each slot: one reward for a passed graded break, no reward for
 a failed break, and a load or show failure that resumes with no reward. A player can't

@@ -28,16 +28,22 @@ answer in the docs; don't ask about it.
    game ("Register game", webhook URL optional), commit the public placement
    ID in game config with no mock fallback, install the SDK at exactly 0.3.0,
    declare a slot per moment (5 to 300 seconds), and call `ensureAccess()`
-   from the player's tap (in sandbox it resolves `ready` at once).
-2. [Testing and sandbox](https://levelmoment.com/docs/testing): one sandbox
-   token per developer, shared by all their games; keep it in a gitignored
-   env file, pass it only as `unsafeTesting: { token }`, and confirm a
-   production build contains no `eply_sbx_`. Check every slot for a pass, a fail and a load failure (a blocked break page clears after the 15-second load timeout). Sandbox serves single-digit addition as multiple choice.
+   from the player's tap (in sandbox it resolves `ready` at once). A
+   signed-in non-developer account sees "Use the right account for this
+   page" instead of the Games page.
+2. [Testing and sandbox](https://levelmoment.com/docs/testing): one token
+   per developer, kept in a file only sandbox builds read (Vite
+   `.env.sandbox.local` with `--mode sandbox`, Expo `.env.development.local`,
+   never `.env.local`) behind a build guard, passed only as
+   `unsafeTesting: { token }`; check each slot's pass, fail and load failure,
+   then grep a production build for `eply_sbx_`.
 3. [Your own break interface](https://levelmoment.com/docs/own-break-interface):
    when the game already has a promise-based break function, keep it and its
    call sites and implement it with `templates/web-promise-seam.ts.tmpl`. Give
    each moment its own `BreakSlotSpec` id and `rewardAmount` (none for a moment
-   that grants nothing). The await is the pause; grant on `"finished"`. Free-break counts and plan
+   that grants nothing), adding both to the game's own slot type if it lacks
+   them. The await is the pause; grant on `"finished"`. Keep the game's own
+   outcome names and map to them in one line where the function returns. Free-break counts and plan
    status aren't available to partner integrations.
 4. [Web views and Capacitor](https://levelmoment.com/docs/web-views): for a
    web game in a native shell, allow `https://levelmoment.com` as a frame,
@@ -54,32 +60,47 @@ Apply the lifecycle and checks in AGENT-INSTRUCTIONS.md to every slot.
 
 ## Agent-only notes
 
-- **Use the developer's signed-in browser.** Drive the portal pages in a
-  browser where the developer is already signed in to a developer account. If
-  you can't drive a browser, ask the developer to register the game and paste
-  the placement ID; the token goes straight into the env file, never into chat.
-- **Check every browser.** More than one browser or profile may be connected,
-  each with its own session. Check each one you can drive for a developer
-  session before asking the developer to sign in.
+- **Find the developer's browser by checking, not by name.** Before the first
+  portal step: if the developer named a browser, use only that one and match
+  it by device ID when they give one, since display names change. Otherwise
+  open `https://levelmoment.com/developer` in each connected browser and use
+  the one that shows the developer dashboard ("Welcome back, ..."). If none
+  does, stop and ask the developer. If you can't drive a browser, ask the
+  developer to register the game and paste the placement ID; the token goes
+  straight into the env file, never into chat.
 - **Never sign in or switch accounts.** Don't enter credentials. If a page
-  says "You're signed in, but this page is for developer accounts", stop and
-  ask the developer; don't choose **Switch account** yourself.
+  says "Use the right account for this page" (the body reads "You're signed
+  in, but this page is for developer accounts"), stop and ask the developer; don't choose **Switch account** yourself.
 - **Move the token without reading it.** Don't read the token from the page
   text, accessibility tree or a screenshot. Choose the page's **Copy** button,
   then write the clipboard straight into the env file, for example on macOS:
-  `printf 'VITE_LM_SANDBOX_TOKEN=%s\n' "$(pbpaste)" > .env.local`. Confirm the
+  `printf 'VITE_LM_SANDBOX_TOKEN=%s\n' "$(pbpaste)" > .env.sandbox.local`. Confirm the
   file is gitignored first.
 - **Reuse before regenerating.** If another of the developer's games already
-  holds the token, copy it from that env file the same way. Ask the developer
+  holds the token, move its line without printing it, for example
+  `grep '^VITE_LM_SANDBOX_TOKEN=' ../FIRST_GAME/.env.sandbox.local >> .env.sandbox.local`
+  (adjust the variable and file for the platform). A game whose `.env.local`
+  already holds the token needs the line moved the same way (`grep -v` it out
+  of `.env.local` afterwards). Ask the developer
   before choosing **Regenerate token**: it revokes the token for all their
   games.
 - **The confirmation dialog may need the developer.** Regenerating opens a
   browser confirmation that automation may not be able to dismiss, and it can
   freeze the tab. Ask the developer to click it, or reopen the tab afterwards.
 - **Never print the token** in chat, a log, a commit, a URL or your report.
-- **Drive a sandbox break by its visible text.** To answer one in automation,
-  click by what the player sees: "Next" on a lesson panel, "Start questions", the answer options, "Got it" and "Back to the game". The break page's CSS selectors aren't a public
-  contract and can change without notice.
+- **Drive a sandbox break by its visible text.** Click by what the player
+  sees, never by CSS selectors, which aren't a public contract. Every break
+  opens on "Begin"; an interstitial break may show "Next" and "Start
+  questions" on a lesson panel. A correct answer moves on by itself with no
+  button; a wrong answer shows "Got it"; the last screen has "Back to the
+  game". To fail a rewarded break, answer every question wrong; to fail an
+  interstitial break, keep answering one question wrong until its 3 attempts
+  run out.
+- **The break is a cross-origin iframe.** DOM selectors and text lookups
+  from the game page can't reach inside it. Find the visible text in a
+  screenshot and click its coordinates, or in Playwright use
+  `page.frameLocator('iframe[src^="https://levelmoment.com/break"]')` with
+  `getByRole` or `getByText`.
 - **Update the game's own scripts.** If the game's screenshot or playtest
   scripts drove the old mock overlay, update them to the real break page in
   the same change.
