@@ -3,9 +3,6 @@
 Level Moment is a rewarded break for iOS and Android games. This package
 follows the load/show lifecycle used by common rewarded-ad SDKs.
 
-**Preview:** Validate the hosted break and WebView provider on every target
-device before release.
-
 ## Install
 
 Install version `0.3.1` from npm. Earlier npm releases predate slot

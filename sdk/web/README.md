@@ -4,9 +4,6 @@ Level Moment is a rewarded break for browser and HTML5 games. The SDK opens
 the hosted experience in a fullscreen iframe and reports familiar rewarded
 placement events.
 
-**Preview:** Validate the hosted break and browser behavior in every target
-browser before release.
-
 ## Install
 
 Install version `0.3.1` from npm:

@@ -3,11 +3,9 @@
 Read `tools/claude-skill-levelmoment/AGENT-INSTRUCTIONS.md` first. Use the
 matching guide under `reference/` for Web, React Native, Flutter, or Unity.
 
-Use the immutable preview release
-[`v0.2.0-preview.1`](https://github.com/levelmomentorg/sdk/releases/tag/v0.2.0-preview.1).
-It is not production-certified. Download the paired core and platform tarballs
-linked in the repository README; do not substitute an unpinned npm version,
-invent credentials, or rely on gated documentation.
+Use SDK 0.3.1. Install the exact version shown in the repository README: npm
+packages at `0.3.1`, and the `sdk-v0.3.1` tag for Flutter and Unity. Do not
+use an unpinned version or invent credentials.
 
 Keep the integration inside the game. Do not copy platform, billing, parent
 account, or operator code into a game repository.

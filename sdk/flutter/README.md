@@ -1,9 +1,7 @@
 # levelmoment_ads (Flutter)
 
-**Preview:** Validate the WebView provider and hosted break on each target
-device before release. The repository version is `0.3.1` and is not published
-to `pub.dev`. Use the immutable preview artifact or reference supplied for your
-partner integration.
+Version `0.3.1` is not published to `pub.dev`. Install it from the public
+repository's `sdk-v0.3.1` tag.
 
 Give a coding agent the placement ID, immutable SDK source, target slot, reward
 action, and verification commands. Require it to load the current
@@ -46,7 +44,7 @@ failure callbacks.
 ## What's Not Done
 
 - [ ] No example app in `sdk/flutter/example/`
-- [ ] Repository version is `0.3.1` — the preview is not yet published to `pub.dev`
+- [ ] Not published to `pub.dev`; install from the `sdk-v0.3.1` Git tag
 - [ ] No native pre-warm — `load()` resolves immediately; `show()` triggers the WebView fetch, adding a small visible delay when the ad slot opens
 
 ---
@@ -61,9 +59,19 @@ flutter analyze
 flutter test
 ```
 
-Install the immutable `0.3.1` preview artifact or reference supplied for your
-partner integration; do not use `flutter pub add levelmoment_ads`, because the
-preview is not on `pub.dev`. Its package manifest already installs
+Install `0.3.1` from the Git tag below. Do not use
+`flutter pub add levelmoment_ads`, because the package is not on `pub.dev`.
+
+```yaml
+dependencies:
+  levelmoment_ads:
+    git:
+      url: https://github.com/levelmomentorg/sdk.git
+      ref: sdk-v0.3.1
+      path: sdk/flutter
+```
+
+The package manifest already installs
 `flutter_secure_storage` and `url_launcher` as transitive dependencies.
 
 **Note:** The SDK keeps a second copy of a paired device's credential in the

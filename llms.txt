@@ -3,10 +3,7 @@
 Read [AGENTS.md](./AGENTS.md), then the complete integration packet in
 [tools/claude-skill-levelmoment](./tools/claude-skill-levelmoment/).
 
-Use the immutable preview release
-[v0.2.0-preview.1](https://github.com/levelmomentorg/sdk/releases/tag/v0.2.0-preview.1).
-It is not production-certified. The README has anonymous download links for
-the paired core and platform tarballs.
+Use SDK 0.3.1. The README has the exact install line for each platform.
 
 Package guides:
 

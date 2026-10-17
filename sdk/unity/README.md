@@ -1,8 +1,6 @@
 # LevelMoment Unity SDK (`com.levelmoment.sdk`)
 
-**Preview:** Validate the WebView provider and hosted break on each target
-device before release. The repository version is `0.3.1`; use the immutable
-preview artifact or reference supplied for your partner integration.
+Version `0.3.1` installs from the public repository's `sdk-v0.3.1` tag.
 
 Give a coding agent the placement ID, immutable SDK source, target slot, reward
 action, and generated port plan. Require it to load the current
@@ -28,9 +26,11 @@ Unity has **no built-in WebView**, so the SDK needs a WebView provider. The bund
 
 ### 1. Install this package
 
-In Unity Package Manager, add the immutable `0.3.1` preview artifact or
-reference supplied for your partner integration. Do not point a partner build
-at a moving branch.
+Add the package to `Packages/manifest.json`. Pin the tag, not a branch:
+
+```json
+"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.3.1"
+```
 
 ### 2. Install gree/unity-webview and the Input System package
 
@@ -449,7 +449,7 @@ origin. Remove the setting before you build a release.
 
 ---
 
-## Preview verification
+## Release verification
 
 Automated C# checks do not replace validation in a real Unity editor, an
 il2cpp build, and each target device. Before release:

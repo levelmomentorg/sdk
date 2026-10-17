@@ -2,82 +2,67 @@
 
 Client SDKs for [Level Moment](https://levelmoment.com). Add a break to your
 game, connect it to a placement, and show a short educational activity when
-play reaches a natural pause.
+play reaches a natural pause. The current release is 0.3.1.
 
-`v0.2.0-preview.1` is an immutable preview release. It is not
-production-certified. The release assets and this repository can be read and
-downloaded without signing in.
+## Install
 
-## Packages
-
-| Platform                     | Release artifacts                                                                                                                                                                                                                                             |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web / HTML5                  | [`sdk-core`](https://github.com/levelmomentorg/sdk/releases/download/v0.2.0-preview.1/levelmoment-sdk-core-0.2.0.tgz) + [`sdk-web`](https://github.com/levelmomentorg/sdk/releases/download/v0.2.0-preview.1/levelmoment-sdk-web-0.2.0.tgz)                   |
-| React Native (iOS + Android) | [`sdk-core`](https://github.com/levelmomentorg/sdk/releases/download/v0.2.0-preview.1/levelmoment-sdk-core-0.2.0.tgz) + [`sdk-react-native`](https://github.com/levelmomentorg/sdk/releases/download/v0.2.0-preview.1/levelmoment-sdk-react-native-0.2.0.tgz) |
-| Unity                        | `com.levelmoment.sdk` via the immutable Git tag below                                                                                                                                                                                                         |
-| Flutter                      | `levelmoment_ads` via the immutable Git tag below                                                                                                                                                                                                             |
+Pin the exact version and commit your lockfile so every build runs the one you tested.
 
 ### Web
 
-Install both artifacts from the preview release:
-
 ```sh
-npm install \
-  https://github.com/levelmomentorg/sdk/releases/download/v0.2.0-preview.1/levelmoment-sdk-core-0.2.0.tgz \
-  https://github.com/levelmomentorg/sdk/releases/download/v0.2.0-preview.1/levelmoment-sdk-web-0.2.0.tgz
+npm install --save-exact @levelmoment/sdk-web@0.3.1
 ```
 
 ### React Native
 
-Install both artifacts and the WebView dependency:
-
 ```sh
-npm install \
-  https://github.com/levelmomentorg/sdk/releases/download/v0.2.0-preview.1/levelmoment-sdk-core-0.2.0.tgz \
-  https://github.com/levelmomentorg/sdk/releases/download/v0.2.0-preview.1/levelmoment-sdk-react-native-0.2.0.tgz \
-  react-native-webview
-```
-
-### Unity
-
-In the Unity Package Manager, choose **Add package from git URL** and enter:
-
-```
-https://github.com/levelmomentorg/sdk.git?path=sdk/unity#v0.2.0-preview.1
+npm install --save-exact @levelmoment/sdk-react-native@0.3.1 react-native-webview
 ```
 
 ### Flutter
+
+Add the package to `pubspec.yaml`:
 
 ```yaml
 dependencies:
   levelmoment_ads:
     git:
       url: https://github.com/levelmomentorg/sdk.git
-      ref: v0.2.0-preview.1
+      ref: sdk-v0.3.1
       path: sdk/flutter
 ```
 
+### Unity
+
+In `Packages/manifest.json`, add:
+
+```json
+"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.3.1"
+```
+
+Unity also needs a WebView provider. The
+[Unity package README](./sdk/unity/README.md#requirements) lists the steps.
+
+## Documentation
+
+- [Getting started](https://levelmoment.com/docs/getting-started)
+- [Testing](https://levelmoment.com/docs/testing)
+- [Going live](https://levelmoment.com/docs/going-live)
+
+Changelogs:
+[web](./sdk/web/CHANGELOG.md),
+[React Native](./sdk/react-native/CHANGELOG.md),
+[core](./sdk/core/CHANGELOG.md),
+[Flutter](./sdk/flutter/CHANGELOG.md),
+[Unity](./sdk/unity/CHANGELOG.md).
+
 ## Integration packet
 
-Start with [tools/claude-skill-levelmoment](./tools/claude-skill-levelmoment/).
-It contains `AGENT-INSTRUCTIONS.md`, the handoff template, platform guides,
-and integration templates. Give an agent that complete directory when it ports
-an existing game.
-
-Bots can begin at [AGENTS.md](./AGENTS.md) or [llms.txt](./llms.txt).
-
-## Getting started
-
-Follow the packet's local guides to integrate and test the SDK. Register a
-game and obtain its placement ID through the Level Moment developer portal.
-
-Before release, certify each target device in preview. Test sign-in, the
-fullscreen break, answer and reward callbacks, dismissal, and offline failure
-handling on every supported OS and screen size. Preview traffic does not count
-as production activity.
-
-The web and React Native packages bundle the same skill under `claude/` in
-their published tarballs.
+[tools/claude-skill-levelmoment](./tools/claude-skill-levelmoment/) holds the
+agent instructions, handoff template, platform guides, and integration
+templates. Give an agent that whole directory when it ports a game. Bots can
+begin at [AGENTS.md](./AGENTS.md) or [llms.txt](./llms.txt).
 
 ## License
 
