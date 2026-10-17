@@ -138,17 +138,34 @@ final Set<String> _warnedOrigins = <String>{};
 Never _refuseRealPairing(String reason) =>
     throw ArgumentError('unsafeTesting.realPairing: $reason');
 
-/// Lets a test run the release-build refusal from a debug test run.
+/// Lets a test run the release-build refusals from a debug test run.
 ///
 /// It can only narrow: setting it to `false` makes a debug build behave like a
-/// release build for real pairing, and nothing can make a profile or release
-/// build look like a debug one, because the check reads `kDebugMode` first.
+/// release build for real pairing and for sandbox tokens, and nothing can make
+/// a profile or release build look like a debug one, because the checks read
+/// `kDebugMode` and `kReleaseMode` first.
 @visibleForTesting
 bool? debugBuildOverride;
 
 /// Whether real pairing may run: `kDebugMode`, narrowed by
 /// [debugBuildOverride] in tests.
 bool get _isDebugBuild => kDebugMode && (debugBuildOverride ?? true);
+
+/// Whether this is a release build: `kReleaseMode`, or a test run that set
+/// [debugBuildOverride] to `false`. A sandbox token is refused here.
+bool get isReleaseBuild => kReleaseMode || debugBuildOverride == false;
+
+/// Refuse a sandbox token in a release build. A release build that carried
+/// one would serve every player unpaid sandbox breaks with no pairing, so it
+/// fails at startup instead, the way real pairing does. The message never
+/// includes the token.
+void refuseSandboxTokenInRelease(String name) {
+  if (!isReleaseBuild) return;
+  throw ArgumentError(
+    '$name: a sandbox token is refused in a release build. Pass it only in '
+    'debug and profile builds, for example behind kReleaseMode.',
+  );
+}
 
 /// Resolve the options `initialize()` receives. Not exported from the
 /// package.
@@ -202,12 +219,12 @@ ResolvedHosted resolveHostedOptions({
       effectiveBreakUrl, kLevelMomentBreakUrl, 'breakUrl', unsafeTesting);
   final token = unsafeTesting?.token;
   if (token != null && !isSandboxTokenValue(token)) {
-    throw ArgumentError.value(
-      token,
-      'unsafeTesting.token',
-      'Test credentials must start with eply_sbx_.',
+    // No value: the error text must never carry a credential.
+    throw ArgumentError(
+      'unsafeTesting.token: test credentials must start with eply_sbx_.',
     );
   }
+  if (token != null) refuseSandboxTokenInRelease('unsafeTesting.token');
   return ResolvedHosted._(
     mode: unsafeTesting == null
         ? LevelMomentHostedMode.production

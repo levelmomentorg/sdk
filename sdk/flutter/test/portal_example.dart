@@ -6,10 +6,15 @@ Future<void> initializeLearning() => LevelMomentAds.instance.initialize();
 
 // Call from the player's tap. The reward fires at most once per break; if a
 // game server also grants from the webhook, record rewardId there too.
-Future<void> showLearningBreak(BuildContext context, void Function(String rewardId) grantBonus, VoidCallback resumeGame) async {
-  final access = await LevelMomentAds.instance.ensureAccess(context: context, placementId: "YOUR_PLACEMENT_ID");
+Future<void> showLearningBreak(BuildContext context,
+    void Function(String rewardId) grantBonus, VoidCallback resumeGame) async {
+  final access = await LevelMomentAds.instance
+      .ensureAccess(context: context, placementId: "YOUR_PLACEMENT_ID");
   if (!context.mounted) return;
-  if (access != EnsureSignedInResult.ready) { resumeGame(); return; }
+  if (access != EnsureSignedInResult.ready) {
+    resumeGame();
+    return;
+  }
   var earned = false;
   await LevelMomentRewardedAd.load(
     placementId: "YOUR_PLACEMENT_ID",
@@ -17,13 +22,28 @@ Future<void> showLearningBreak(BuildContext context, void Function(String reward
     adType: 'rewarded',
     targetDurationSeconds: 30,
     rewardAmount: 1,
+    // A rewarded slot asks for a practice set at least; see Quickstart, step 3.
+    format: 'practice_set',
     adLoadCallback: LevelMomentAdLoadCallback(
       onAdLoaded: (ad) {
         ad.fullScreenContentCallback = LevelMomentFullScreenContentCallback(
-          onAdDismissedFullScreenContent: (ad) { ad.dispose(); resumeGame(); },
-          onAdFailedToShowFullScreenContent: (ad, error) { ad.dispose(); resumeGame(); },
+          onAdDismissedFullScreenContent: (ad) {
+            ad.dispose();
+            resumeGame();
+          },
+          onAdFailedToShowFullScreenContent: (ad, error) {
+            ad.dispose();
+            resumeGame();
+          },
         );
-        ad.show(context: context, onUserEarnedReward: (ad, reward) { if (reward.rewardId.isNotEmpty && !earned) { earned = true; grantBonus(reward.rewardId); } });
+        ad.show(
+            context: context,
+            onUserEarnedReward: (ad, reward) {
+              if (reward.rewardId.isNotEmpty && !earned) {
+                earned = true;
+                grantBonus(reward.rewardId);
+              }
+            });
       },
       onAdFailedToLoad: (error) => resumeGame(),
     ),

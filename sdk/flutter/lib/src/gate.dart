@@ -244,6 +244,8 @@ Future<EnsureSignedInResult> runEnsureSignedIn({
       builder: (_) => hostedSurface(LevelMomentWebView(
         key: ValueKey(hostedUrl),
         url: hostedUrl,
+        // The gate keeps a way out: closing it is a parent's "not now".
+        closeButton: true,
         loadTimeout: loadTimeout,
         onNeedCredential: credentialResponder(
           placementId: placementId,

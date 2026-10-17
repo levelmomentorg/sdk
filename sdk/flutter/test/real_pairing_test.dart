@@ -213,6 +213,49 @@ void main() {
     });
   });
 
+  group('a sandbox token in a release build', () {
+    // A release build carrying a sandbox token would serve every player
+    // unpaid sandbox breaks with no pairing, so it fails at startup, the way
+    // real pairing does. Debug and profile builds keep it.
+    tearDown(() => debugBuildOverride = null);
+
+    test('is refused by initialize(), without echoing the token', () async {
+      debugBuildOverride = false;
+      await expectLater(
+        LevelMomentAds.instance.initialize(
+          unsafeTesting: const UnsafeTesting(token: 'eply_sbx_secret'),
+        ),
+        throwsA(isA<ArgumentError>()
+            .having((e) => e.message, 'message', contains('release build'))
+            .having((e) => e.toString(), 'text',
+                isNot(contains('eply_sbx_secret')))),
+      );
+    });
+
+    test('is refused per call as well', () async {
+      await LevelMomentAds.instance.initialize(
+        unsafeTesting:
+            const UnsafeTesting(breakUrl: 'http://localhost:3000/break'),
+      );
+      debugBuildOverride = false;
+      expect(
+        () => LevelMomentAds.instance.resolveStudentToken('eply_sbx_secret'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('still runs sandbox in a debug build, and production with no token',
+        () async {
+      await LevelMomentAds.instance.initialize(
+        unsafeTesting: const UnsafeTesting(token: 'eply_sbx_secret'),
+      );
+      expect(LevelMomentAds.instance.mode, LevelMomentHostedMode.sandbox);
+      debugBuildOverride = false;
+      await LevelMomentAds.instance.initialize();
+      expect(LevelMomentAds.instance.mode, LevelMomentHostedMode.production);
+    });
+  });
+
   group('mode and the hosted URLs', () {
     final production = resolveHostedOptions();
     final sandbox = resolveHostedOptions(

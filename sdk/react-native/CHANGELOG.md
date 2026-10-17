@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- BREAKING: a release build (`__DEV__` false) refuses `unsafeTesting.token` or a sandbox `studentToken`. `createForAdRequest()` and `checkAccess()` throw; `ensureAccess()` and `ensureSignedIn()` resolve `technicalFailure`. A release build that kept the token would serve every player unpaid sandbox breaks with no pairing. Debug builds are unchanged.
+- A break no longer shows the native close button (×), and the Android back button does nothing on it, once the break page confirms it ends the break itself. The break URL carries `leave=page`, and the page's `ready` answers with `leaveSupported`; until then, and on a page that never answers, the button and back stay. A player can't close a break partway: it ends in a pass, a fail, or a load failure, and a mid-break pairing card offers **Not now**. The sign-in gate keeps its close button, which is a parent's "not now".
+- When the break page reloads itself after pairing, the load watchdog is re-armed until the new page is ready. If the web view's content process stops, the break ends with an `error` event.
+
 ## 0.3.0 — 2026-10-16
 
 - BREAKING: the `earnedReward` event fires at most once per break, when a passed break ends, with `{ type, rewardId, earnedAt }`. `amount` is gone. Only `quick_question` and `practice_set` report one; `mastery_round` and `intro_lesson` never do. Grant once per `rewardId` when it fires, and resume the game on dismiss or error.

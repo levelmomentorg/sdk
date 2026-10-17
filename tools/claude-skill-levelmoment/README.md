@@ -29,8 +29,8 @@ picked from a registry.
 
 - `AGENT-INSTRUCTIONS.md` contains the shared integration flow.
 - `reference/` contains platform mapping, installation, diagnosis, and preview
-  guidance, plus `self-serve.md` (sandbox setup) and `deploy.md` (sandbox to
-  production).
+  guidance, plus `self-serve.md` (sandbox setup), `upgrade.md` (an older
+  Level Moment SDK to 0.3.0) and `deploy.md` (sandbox to production).
 - `templates/` contains examples with a fresh handle per break, one bonus for
   one game-owned bonus per server-confirmed passed break, and one game resume
   per terminal result.

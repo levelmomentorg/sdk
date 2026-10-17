@@ -381,6 +381,7 @@ namespace LevelMoment
                 return resolved != null && resolved.Mode == HostedMode.Sandbox ? resolved.Token : null;
             if (resolved == null || resolved.Mode != HostedMode.Sandbox || !LevelMomentConfig.IsSandboxToken(token))
                 throw new ArgumentException("studentToken is available only for eply_sbx_ credentials in UnsafeTesting.");
+            LevelMomentConfig.RefuseSandboxTokenInRelease(LevelMomentConfig.IsDevelopmentBuild, "studentToken");
             return token;
         }
 

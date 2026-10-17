@@ -23,6 +23,10 @@ Choose the path first:
   `reference/self-serve.md`, which registers the game, gets a sandbox token,
   installs the published SDK and wires the slots. Then apply the lifecycle and
   checks in AGENT-INSTRUCTIONS.md.
+- **The game already shows Level Moment breaks through an SDK older than
+  0.3.0** (an old commit pin, a mock mode, a `format` choice instead of slot
+  declarations): follow `reference/upgrade.md`, which moves it to 0.3.0 and
+  through the same sandbox checks.
 - **The integration already passes its sandbox checks and the developer wants
   to ship it:** follow `reference/deploy.md`, which removes the sandbox token
   from release builds, checks them, and prepares the review email. The

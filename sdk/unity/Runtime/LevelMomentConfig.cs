@@ -105,19 +105,44 @@ namespace LevelMoment
         /// </summary>
         internal ResolvedHostedConfig Resolve()
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD || LEVELMOMENT_COMPILE_CHECK
-            if (DevelopmentBuildOverrideForTests.HasValue)
-                return Resolve(DevelopmentBuildOverrideForTests.Value);
-#endif
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            return Resolve(true);
-#else
-            return Resolve(false);
-#endif
+            return Resolve(IsDevelopmentBuild);
         }
 
         /// <summary>
-        /// Test seam: when set, <see cref="Resolve()"/> treats the build as a
+        /// True in the editor and a development build, decided at compile
+        /// time, narrowed by <see cref="DevelopmentBuildOverrideForTests"/>.
+        /// </summary>
+        internal static bool IsDevelopmentBuild
+        {
+            get
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD || LEVELMOMENT_COMPILE_CHECK
+                if (DevelopmentBuildOverrideForTests.HasValue)
+                    return DevelopmentBuildOverrideForTests.Value;
+#endif
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                return true;
+#else
+                return false;
+#endif
+            }
+        }
+
+        /// <summary>
+        /// Refuse a sandbox token in a release build. A release player that
+        /// carried one would serve every player unpaid sandbox breaks with no
+        /// pairing, so it fails at startup, the way real pairing does. The
+        /// message never includes the token.
+        /// </summary>
+        internal static void RefuseSandboxTokenInRelease(bool developmentBuild, string name)
+        {
+            if (developmentBuild) return;
+            throw new ArgumentException(
+                name + ": a sandbox token is refused in a release build. Pass it only in the editor or a development build.");
+        }
+
+        /// <summary>
+        /// Test seam: when set, <see cref="IsDevelopmentBuild"/> treats the build as a
         /// development build (true) or a release build (false) instead of
         /// reading the compile-time symbols. Internal, so game code cannot
         /// reach it; <see cref="LevelMomentAds.ResetForTests"/> clears it.
@@ -136,6 +161,8 @@ namespace LevelMoment
             if (UnsafeTesting != null && UnsafeTesting.RealPairing)
                 return ResolveRealPairing(developmentBuild);
             Validate();
+            if (UnsafeTesting != null && !string.IsNullOrEmpty(UnsafeTesting.Token))
+                RefuseSandboxTokenInRelease(developmentBuild, "UnsafeTesting.Token");
             return new ResolvedHostedConfig(
                 UnsafeTesting != null ? HostedMode.Sandbox : HostedMode.Production,
                 EffectiveBreakUrl,

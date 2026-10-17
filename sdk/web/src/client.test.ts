@@ -248,6 +248,9 @@ describe("LevelMomentWebAd", () => {
       const url = body.children[0].src;
       expect(url).toContain("placementId=placement-abc");
       expect(url).toContain("format=practice_set");
+      // The page ends the break itself and offers a way out of a mid-break
+      // pairing card.
+      expect(url).toContain("leave=page");
       expect(url).toContain("apiUrl=https%3A%2F%2Fapi.test.levelmoment.com");
       expect(url).not.toContain("mock=true");
       // The whole point of the bridge handover: a live credential must not

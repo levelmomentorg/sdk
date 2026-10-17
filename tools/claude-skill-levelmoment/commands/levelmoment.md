@@ -1,6 +1,6 @@
 ---
-description: Set up Level Moment in a game (self-serve or from a supplied handoff), then move it to production. Subcommands: setup, deploy, port, install, doctor, sandbox.
-argument-hint: "[setup|deploy|port|install|doctor|sandbox] [handoff path]"
+description: Set up Level Moment in a game (self-serve or from a supplied handoff), then move it to production. Subcommands: setup, upgrade, deploy, port, install, doctor, sandbox.
+argument-hint: "[setup|upgrade|deploy|port|install|doctor|sandbox] [handoff path]"
 ---
 
 # /levelmoment
@@ -15,6 +15,7 @@ Interpret the first token of `$ARGUMENTS` as one of these actions:
 | Action                              | Read next                                            |
 | ----------------------------------- | ---------------------------------------------------- |
 | `setup` or no action, no handoff    | `.claude/skills/levelmoment/reference/self-serve.md` |
+| `upgrade`                           | `.claude/skills/levelmoment/reference/upgrade.md`    |
 | `deploy`                            | `.claude/skills/levelmoment/reference/deploy.md`     |
 | `port`, or no action with a handoff | `.claude/skills/levelmoment/reference/port.md`       |
 | `install`                           | `.claude/skills/levelmoment/reference/install.md`    |
@@ -22,4 +23,6 @@ Interpret the first token of `$ARGUMENTS` as one of these actions:
 | `sandbox`                           | `.claude/skills/levelmoment/reference/sandbox.md`    |
 | `help`                              | Print this table and stop.                           |
 
-`register` is part of `setup`: see `reference/self-serve.md`.
+`register` is part of `setup`: see `reference/self-serve.md`. With no action
+and no handoff, use `upgrade` instead of `setup` when the game already calls
+a Level Moment SDK older than 0.3.0.

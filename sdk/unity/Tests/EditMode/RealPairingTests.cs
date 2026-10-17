@@ -205,6 +205,41 @@ namespace LevelMoment.Tests.EditMode
             Assert.IsFalse(LevelMomentAds.IsInitialized);
         }
 
+        // ---- A sandbox token in a release build ------------------------------
+
+        [Test]
+        public void Resolve_RefusesASandboxTokenInAReleaseBuild()
+        {
+            var config = new LevelMomentConfig { UnsafeTesting = new UnsafeTesting { Token = "eply_sbx_secret" } };
+            var ex = Assert.Throws<ArgumentException>(() => config.Resolve(false));
+            StringAssert.Contains("release build", ex.Message);
+            StringAssert.DoesNotContain("eply_sbx_secret", ex.Message);
+            Assert.AreEqual(HostedMode.Sandbox, config.Resolve(true).Mode);
+        }
+
+        [Test]
+        public void Initialize_RefusesASandboxTokenInAReleaseBuild()
+        {
+            LevelMomentConfig.DevelopmentBuildOverrideForTests = false;
+
+            Assert.Throws<ArgumentException>(() => LevelMomentAds.Initialize(
+                new LevelMomentConfig { UnsafeTesting = new UnsafeTesting { Token = "eply_sbx_secret" } }));
+            Assert.IsFalse(LevelMomentAds.IsInitialized);
+        }
+
+        [Test]
+        public void ResolveStudentToken_RefusesASandboxTokenInAReleaseBuild()
+        {
+            LevelMomentConfig.DevelopmentBuildOverrideForTests = true;
+            LevelMomentAds.Initialize(new LevelMomentConfig
+            {
+                UnsafeTesting = new UnsafeTesting { BreakUrl = "http://localhost:3000/break" },
+            });
+            Assert.AreEqual("eply_sbx_secret", LevelMomentAds.ResolveStudentToken("eply_sbx_secret"));
+            LevelMomentConfig.DevelopmentBuildOverrideForTests = false;
+            Assert.Throws<ArgumentException>(() => LevelMomentAds.ResolveStudentToken("eply_sbx_secret"));
+        }
+
 #if !(UNITY_EDITOR || DEVELOPMENT_BUILD)
         // Outside the editor this assembly is compiled as a release build
         // (the .NET harness defines neither symbol), so the compile-time gate
@@ -425,6 +460,8 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void ReinitializingForRealPairingAfterLoad_DropsTheSandboxToken()
         {
+            // Models the editor: a sandbox token is refused in a release build.
+            LevelMomentConfig.DevelopmentBuildOverrideForTests = true;
             LevelMomentAds.Initialize(new LevelMomentConfig
             {
                 UnsafeTesting = new UnsafeTesting
@@ -452,6 +489,8 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void ReinitializingForProductionAfterLoad_DropsTheSandboxToken()
         {
+            // Models the editor: a sandbox token is refused in a release build.
+            LevelMomentConfig.DevelopmentBuildOverrideForTests = true;
             LevelMomentAds.Initialize(new LevelMomentConfig
             {
                 UnsafeTesting = new UnsafeTesting

@@ -3,21 +3,20 @@
 ## Prerequisites
 
 - Flutter 3.22 or later
-- The immutable 0.3 preview commit supplied to you
 
-The Flutter package is not published on pub.dev. Pin the supplied commit until
-a release is available.
+The Flutter package is not published on pub.dev. Install it from the public
+SDK repository at the `sdk-v0.3.0` tag.
 
 ## 1. Replace the dependency
 
-Replace `google_mobile_ads` with the pinned preview:
+Replace `google_mobile_ads` with the tagged release:
 
 ```yaml
 dependencies:
   levelmoment_ads:
     git:
       url: https://github.com/levelmomentorg/sdk.git
-      ref: PROVIDED_PREVIEW_COMMIT
+      ref: sdk-v0.3.0
       path: sdk/flutter
 ```
 
@@ -71,6 +70,10 @@ Keep the existing load, show, reward, and full-screen callbacks:
 var rewardGranted = false;
 LevelMomentRewardedAd.load(
   placementId: 'YOUR_PLACEMENT_ID',
+  adType: 'rewarded',
+  targetDurationSeconds: 30,
+  rewardAmount: 1,
+  format: 'practice_set',
   adLoadCallback: LevelMomentAdLoadCallback(
     onAdLoaded: (ad) {
       ad.fullScreenContentCallback = LevelMomentFullScreenContentCallback(
@@ -99,22 +102,45 @@ A passed graded break emits one reward callback, regardless of question count.
 Deduplicate game grants by `rewardId = breakSessionId`. Dismissal and failure
 only resume the game; the game chooses the item or currency amount.
 
+Declare the slot this placement fills: `adType` (`'rewarded'` when it grants
+something, `'interstitial'` when it doesn't), `targetDurationSeconds` (how
+long the moment holds the player: 30 for a reward, 18 for resuming play, never
+under 18) and `rewardAmount` (what the game grants, for reporting). These
+replace the old `format` choice. Pass `format: 'practice_set'` with a rewarded slot as a floor,
+as the example does. See
+[slot sizes](https://levelmoment.com/docs/getting-started#slot-size).
+
 ## 5. Configure sandbox testing
 
-Put local endpoints and the sandbox credential inside `UnsafeTesting`:
+Pass your `eply_sbx_` sandbox token alone inside `UnsafeTesting`. Keep it in
+an untracked `sandbox.json`:
+
+```json
+{ "LM_SANDBOX_TOKEN": "YOUR_SANDBOX_TOKEN" }
+```
+
+Read it at compile time, empty in a release build:
 
 ```dart
+import 'package:flutter/foundation.dart';
+
+const sandboxToken =
+    kReleaseMode ? '' : String.fromEnvironment('LM_SANDBOX_TOKEN');
+
 await LevelMomentAds.instance.initialize(
-  unsafeTesting: const UnsafeTesting(
-    apiUrl: 'http://YOUR_COMPUTER_IP:8080',
-    breakUrl: 'http://YOUR_COMPUTER_IP:3000/break',
-    token: 'YOUR_EPLY_SBX_TOKEN',
-  ),
+  // Sandbox runs only. A production build passes no unsafeTesting.
+  unsafeTesting:
+      sandboxToken.isEmpty ? null : const UnsafeTesting(token: sandboxToken),
 );
 ```
 
-**Warning:** Remove `unsafeTesting` from production builds. Production
-configuration rejects endpoint overrides and explicit player tokens.
+Run sandbox with `flutter run --dart-define-from-file=sandbox.json`.
+
+**Warning:** `--dart-define-from-file` compiles the token into any build it is
+passed to. Without the `kReleaseMode` gate, a release build made with it
+serves every player sandbox breaks that earn nothing. See
+[Testing and sandbox](https://levelmoment.com/docs/testing#production-build)
+for the check that a release build has no token.
 
 ## Verify the migration
 

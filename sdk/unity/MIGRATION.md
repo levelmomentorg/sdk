@@ -3,7 +3,6 @@
 ## Prerequisites
 
 - Unity 2021.3 or later
-- The immutable 0.3 preview commit supplied to you
 - A pinned gree Unity WebView provider
 
 ## 1. Replace the packages
@@ -13,7 +12,7 @@ Add the pinned SDK and WebView packages to `Packages/manifest.json`:
 ```json
 {
   "dependencies": {
-    "com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=sdk/unity#PROVIDED_PREVIEW_COMMIT",
+    "com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.3.0",
     "net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment#PINNED_GREE_COMMIT",
     "com.unity.inputsystem": "1.11.2",
     "com.unity.modules.jsonserialize": "1.0.0"
@@ -73,11 +72,12 @@ Keep the load and show slots, then map the callbacks:
 
 ```csharp
 RewardedAd pending = null;
+var slot = new LevelMomentAdSlot("rewarded", 30, rewardAmount: 1);
 RewardedAd.Load("YOUR_PLACEMENT_ID", new RewardedAdLoadCallbacks
 {
     OnAdLoaded = ad => pending = ad,
     OnAdFailedToLoad = error => ResumeGame(),
-});
+}, format: "practice_set", slot: slot);
 if (pending == null) return;
 
 bool rewardGranted = false;
@@ -100,6 +100,14 @@ pending.Show(new RewardedAdShowCallbacks
 A passed graded break emits one reward callback, regardless of question count.
 Deduplicate game grants by `RewardId = breakSessionId`. Dismissal and failure
 only resume the game; the game chooses the item or currency amount.
+
+Declare the slot this placement fills with `LevelMomentAdSlot`: the ad type
+("rewarded" when it grants something, "interstitial" when it doesn't),
+how long the moment holds the player (30 seconds for a reward, 18 for resuming
+play, never under 18) and the reward amount, for reporting. These replace the
+old `format` choice. Pass `format: "practice_set"` with a rewarded slot as a floor, as the
+example does. See
+[slot sizes](https://levelmoment.com/docs/getting-started#slot-size).
 
 ## 5. Replace interstitial loading (optional)
 
@@ -127,22 +135,22 @@ Dismissal and failure both resume the game, exactly as for a rewarded break.
 
 ## 6. Configure sandbox testing
 
-Put local endpoints and the sandbox credential inside `UnsafeTesting`:
+Pass your `eply_sbx_` sandbox token alone inside `UnsafeTesting`, read only
+in the editor and development builds. [Testing and
+sandbox](https://levelmoment.com/docs/testing#configure) shows the token file
+and the build guard that fails a release build carrying it:
 
 ```csharp
-LevelMomentAds.Initialize(new LevelMomentConfig
-{
-    UnsafeTesting = new UnsafeTesting
-    {
-        ApiUrl = "http://YOUR_COMPUTER_IP:8080",
-        BreakUrl = "http://YOUR_COMPUTER_IP:3000/break",
-        Token = "YOUR_EPLY_SBX_TOKEN",
-    },
-});
+var config = new LevelMomentConfig();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+var sandboxToken = UnityEngine.Resources.Load<UnityEngine.TextAsset>("LevelMomentSandboxToken")?.text.Trim();
+if (!string.IsNullOrEmpty(sandboxToken)) config.UnsafeTesting = new UnsafeTesting { Token = sandboxToken };
+#endif
+LevelMomentAds.Initialize(config);
 ```
 
-**Warning:** Remove `UnsafeTesting` from production builds. Production
-configuration rejects endpoint overrides and explicit player tokens.
+**Warning:** A release build must contain no `eply_sbx_` token. A build that
+carries one serves every player sandbox breaks that earn nothing.
 
 ## Verify the migration
 

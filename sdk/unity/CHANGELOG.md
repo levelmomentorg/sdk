@@ -4,6 +4,21 @@ All notable changes to `com.levelmoment.sdk` (Unity UPM package) are documented
 here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
+## [Unreleased]
+
+### Changed — BREAKING
+
+- `LevelMomentAds.Initialize()` throws in a release player when
+  `UnsafeTesting.Token` is set, and the `studentToken` load overloads refuse a
+  token there too. A release build that kept the token would serve every player
+  unpaid sandbox breaks with no pairing. The editor and development builds are
+  unchanged.
+
+### Changed
+
+- The break URL carries `leave=page`, so a mid-break pairing card offers
+  **Not now**, which ends the break with no reward.
+
 ## [0.3.0] — 2026-10-16
 
 ### Added

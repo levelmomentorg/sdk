@@ -18,6 +18,13 @@ export interface ModalShowParams {
    * credential check, which has no UI to show.
    */
   hidden?: boolean;
+  /**
+   * Always show the native close button and honour Android back. Only the
+   * visible sign-in gate sets this, because closing it is a parent's "not
+   * now". A break has no close button (owner, October 17, 2026): it shows one
+   * only until the page confirms `leaveSupported`. See `surfaceCanLeave`.
+   */
+  closeButton?: boolean;
   /** Pre-`ready` watchdog in ms. Defaults to 15000. */
   loadTimeoutMs?: number;
   /**
@@ -84,4 +91,19 @@ export function _hasModalHandler(): boolean {
  */
 export function _triggerModal(params: ModalShowParams): ModalHandle | null {
   return _globalHandler?.(params) ?? null;
+}
+
+/**
+ * Whether a visible surface offers the native close button and Android back:
+ * always for the gate, and for a break until the page's `ready` confirms
+ * `leaveSupported` (its answer to the break URL's `leave=page`), so a page
+ * that can't end itself on every failure, or offer a way out of a mid-break
+ * pairing card, never traps the player.
+ */
+export function surfaceCanLeave(
+  params: Pick<ModalShowParams, "closeButton"> | null,
+  leaveSupported: boolean,
+): boolean {
+  if (!params) return false;
+  return params.closeButton === true || !leaveSupported;
 }

@@ -34,7 +34,11 @@ import {
   isTerminal,
   nativeStoreClaims,
 } from "./hostMessage.js";
-import { _registerModalHandler, type ModalShowParams } from "./modalHost.js";
+import {
+  _registerModalHandler,
+  surfaceCanLeave,
+  type ModalShowParams,
+} from "./modalHost.js";
 
 export {
   _registerModalHandler,
@@ -50,6 +54,8 @@ export {
 // walking to another room to scan a code, is never force-closed.
 const READY_TIMEOUT_MS = 15_000;
 
+const noop = () => {};
+
 /**
  * The shared lifecycle of one hosted surface: parse the bridge, hold the
  * pre-`ready` watchdog, and deliver a terminal message exactly once. Both slots
@@ -60,6 +66,7 @@ function useHostedSurface(
   onFinished: () => void,
 ) {
   const [pageReady, setPageReady] = useState(false);
+  const [leaveSupported, setLeaveSupported] = useState(false);
   const terminalRef = useRef(false);
   const activeParams = useRef(params);
   activeParams.current = params;
@@ -71,6 +78,7 @@ function useHostedSurface(
   useEffect(() => {
     terminalRef.current = false;
     setPageReady(false);
+    setLeaveSupported(false);
   }, [params]);
 
   const finish = useCallback(
@@ -127,6 +135,7 @@ function useHostedSurface(
       if (!isBridgeMessage(parsed)) return;
       if (parsed.type === "ready") {
         setPageReady(true);
+        setLeaveSupported(parsed.payload?.leaveSupported === true);
         params.onMessage(parsed);
         return;
       }
@@ -195,9 +204,15 @@ function useHostedSurface(
   };
   const onLoadStart = () => {
     navigationEpoch.current += 1;
+    // A load after `ready` (the page reloads itself after pairing) is a fresh
+    // load: re-arm the watchdog and give the player the close control back
+    // until the new page posts `ready`.
+    setPageReady(false);
+    setLeaveSupported(false);
   };
   return {
     pageReady,
+    leaveSupported,
     dismiss,
     failLoad,
     handleWebViewMessage,
@@ -253,6 +268,7 @@ export const LevelMomentAdModal: React.FC = () => {
 
   const visibleSurface = useHostedSurface(visible, clearVisible);
   const hiddenSurface = useHostedSurface(hidden, clearHidden);
+  const canLeave = surfaceCanLeave(visible, visibleSurface.leaveSupported);
 
   return (
     <>
@@ -260,7 +276,9 @@ export const LevelMomentAdModal: React.FC = () => {
         visible={visible !== null}
         animationType="slide"
         presentationStyle="fullScreen"
-        onRequestClose={visibleSurface.dismiss}
+        // Android back closes the surface while it may be left. Once the page
+        // confirms it ends a break itself, back does nothing on the break.
+        onRequestClose={canLeave ? visibleSurface.dismiss : noop}
         statusBarTranslucent
       >
         <View style={styles.container}>
@@ -275,6 +293,15 @@ export const LevelMomentAdModal: React.FC = () => {
                   event.nativeEvent.description ||
                     "The Level Moment page failed to load.",
                 )
+              }
+              // The page's process died, so nothing is left to end the break,
+              // and a break whose close control is hidden would otherwise
+              // leave the player on a blank screen.
+              onContentProcessDidTerminate={() =>
+                visibleSurface.failLoad("The Level Moment page stopped.")
+              }
+              onRenderProcessGone={() =>
+                visibleSurface.failLoad("The Level Moment page stopped.")
               }
               onShouldStartLoadWithRequest={visibleSurface.allowNavigation}
               onLoadStart={visibleSurface.onLoadStart}
@@ -297,14 +324,16 @@ export const LevelMomentAdModal: React.FC = () => {
               <ActivityIndicator size="large" color="#3b82f6" />
             </View>
           ) : null}
-          <TouchableOpacity
-            accessibilityLabel="Close"
-            accessibilityRole="button"
-            style={styles.closeButton}
-            onPress={visibleSurface.dismiss}
-          >
-            <Text style={styles.closeText}>×</Text>
-          </TouchableOpacity>
+          {canLeave ? (
+            <TouchableOpacity
+              accessibilityLabel="Close"
+              accessibilityRole="button"
+              style={styles.closeButton}
+              onPress={visibleSurface.dismiss}
+            >
+              <Text style={styles.closeText}>×</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </Modal>
       {/* The headless check. Kept in the tree so it actually loads, but out of

@@ -95,20 +95,18 @@ class LevelMomentAds {
     final configured = hosted?.token;
     if (legacyToken == null || legacyToken.isEmpty) return configured;
     if (hosted?.mode == LevelMomentHostedMode.realPairing) {
-      throw ArgumentError.value(
-        legacyToken,
-        'studentToken',
-        'unsafeTesting.realPairing takes no token; the page pairs the device itself.',
+      // No value: the error text must never carry a credential.
+      throw ArgumentError(
+        'studentToken: unsafeTesting.realPairing takes no token; the page pairs the device itself.',
       );
     }
     if (hosted?.mode != LevelMomentHostedMode.sandbox ||
         !isSandboxToken(legacyToken)) {
-      throw ArgumentError.value(
-        legacyToken,
-        'studentToken',
+      throw ArgumentError(
         'studentToken is available only for eply_sbx_ credentials in unsafeTesting.',
       );
     }
+    refuseSandboxTokenInRelease('studentToken');
     return legacyToken;
   }
 

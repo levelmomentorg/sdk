@@ -171,6 +171,7 @@ function runEnsureGate(
     try {
       _triggerModal({
         url: buildGateUrl(options, "gate", coordinatorPath),
+        closeButton: true,
         loadTimeoutMs: options.loadTimeoutMs,
         onNeedCredential: credentialResponder(
           signInScope(options),

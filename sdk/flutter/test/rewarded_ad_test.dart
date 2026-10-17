@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:levelmoment_ads/levelmoment_ads.dart';
 import 'package:levelmoment_ads/src/widgets/level_moment_web_view.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webview_flutter/webview_flutter.dart'
+    show WebResourceError, WebResourceErrorType;
 
 void main() {
   group('initialization security defaults', () {
@@ -397,6 +399,120 @@ void main() {
 
       expect(rewards, 1);
       expect(dismissed, 1);
+    });
+  });
+
+  group('close button', () {
+    // A break has no close button (owner, October 17, 2026): it ends in a
+    // pass, a fail, or a load failure. The sign-in gate keeps one, because
+    // closing it is a parent's "not now". The WebView cannot mount here (see
+    // the note below), so the surfaces are captured as pushed.
+    final views = <LevelMomentWebView>[];
+
+    setUp(() {
+      views.clear();
+      debugHostedSurfaceOverride = (view) {
+        views.add(view);
+        return const SizedBox.shrink();
+      };
+    });
+
+    tearDown(() => debugHostedSurfaceOverride = null);
+
+    test(
+        'a break keeps its way out only until the page confirms it ends itself',
+        () {
+      // Before `ready` carries leaveSupported, an older page that can't end
+      // itself on every failure must not trap the player.
+      expect(
+        hostedSurfaceCanLeave(closeButton: false, leaveSupported: false),
+        isTrue,
+      );
+      expect(
+        hostedSurfaceCanLeave(closeButton: false, leaveSupported: true),
+        isFalse,
+      );
+      // The gate always keeps its close button: closing it is "not now".
+      expect(
+        hostedSurfaceCanLeave(closeButton: true, leaveSupported: true),
+        isTrue,
+      );
+    });
+
+    test('a dead page process ends the surface even after ready', () {
+      const terminated = WebResourceError(
+        errorCode: 0,
+        description: 'terminated',
+        errorType: WebResourceErrorType.webContentProcessTerminated,
+        isForMainFrame: true,
+      );
+      const subresource = WebResourceError(
+        errorCode: -1,
+        description: 'image failed',
+        isForMainFrame: false,
+      );
+      const mainFrame = WebResourceError(
+        errorCode: -1004,
+        description: 'could not connect',
+        isForMainFrame: true,
+      );
+      expect(isTerminalWebResourceError(terminated, pageReady: true), isTrue);
+      expect(isTerminalWebResourceError(mainFrame, pageReady: false), isTrue);
+      expect(isTerminalWebResourceError(mainFrame, pageReady: true), isFalse);
+      expect(
+          isTerminalWebResourceError(subresource, pageReady: false), isFalse);
+    });
+
+    test('ready reports leaveSupported only when the page says so', () {
+      Ready parse(String raw) => HostMessage.tryParse(raw)! as Ready;
+      expect(parse('{"type":"ready"}').leaveSupported, isFalse);
+      expect(
+        parse('{"type":"ready","payload":{"leaveSupported":true}}')
+            .leaveSupported,
+        isTrue,
+      );
+      expect(
+        parse('{"type":"ready","payload":{"leaveSupported":"yes"}}')
+            .leaveSupported,
+        isFalse,
+      );
+    });
+
+    testWidgets('a break pushes no close button; the sign-in gate keeps one',
+        (tester) async {
+      await LevelMomentAds.instance.initialize(
+        unsafeTesting: const UnsafeTesting(token: 'eply_sbx_test'),
+      );
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+      final context = tester.element(find.byType(SizedBox));
+
+      late LevelMomentRewardedAd ad;
+      await LevelMomentRewardedAd.load(
+        placementId: 'game-42',
+        adLoadCallback: LevelMomentAdLoadCallback(
+          onAdLoaded: (a) => ad = a,
+          onAdFailedToLoad: (e) => fail('should load: $e'),
+        ),
+      );
+      ad.show(context: context, onUserEarnedReward: (_, __) {});
+      await tester.pumpAndSettle();
+      expect(views, hasLength(1));
+      expect(views.single.closeButton, isFalse);
+      // The break URL asks the page to end the break itself and to offer a
+      // way out of a mid-break pairing card.
+      expect(
+          Uri.parse(views.single.url).queryParameters['leave'], equals('page'));
+      views.single.onMessage(const Dismissed());
+      await tester.pumpAndSettle();
+
+      final gate = LevelMomentAds.instance
+          .ensureSignedIn(context: context, placementId: 'game-42');
+      await tester.pumpAndSettle();
+      expect(views, hasLength(2));
+      expect(views.last.closeButton, isTrue);
+      views.last.onMessage(const SignedIn());
+      await tester.pumpAndSettle();
+      await gate;
     });
   });
 

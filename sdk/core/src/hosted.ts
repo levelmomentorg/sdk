@@ -237,6 +237,18 @@ export function resolveHostedOptions<T extends HostedOptions>(
       );
     }
   }
+  // A native release build carrying a sandbox token would serve every player
+  // unpaid sandbox breaks with no pairing, so it fails at startup, the way
+  // real pairing does. The message never includes the token.
+  if (
+    env.kind === "native" &&
+    !env.debugBuild &&
+    (options.unsafeTesting?.token || options.studentToken)
+  ) {
+    throw new Error(
+      "A sandbox token is refused in a release build. Pass unsafeTesting.token only in debug builds.",
+    );
+  }
   return register<T>({
     ...options,
     mode: options.unsafeTesting ? "sandbox" : "production",

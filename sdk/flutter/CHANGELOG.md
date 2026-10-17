@@ -4,6 +4,33 @@ All notable changes to `levelmoment_ads` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 follows [Semver](https://semver.org).
 
+## [Unreleased]
+
+### Changed — BREAKING
+
+- `initialize()` throws in a release build when `unsafeTesting` carries a
+  sandbox token, and a per-call `studentToken` is refused there too. A release
+  build that kept the token would serve every player unpaid sandbox breaks
+  with no pairing. Debug and profile builds are unchanged. Gate the token on
+  `kReleaseMode`, as the testing guide shows.
+
+### Fixed
+
+- A break no longer shows the native close button (×), and the Android back
+  button does nothing on it, once the break page confirms it ends the break
+  itself. The break URL carries `leave=page`, and the page's `ready` answers
+  with `leaveSupported`; until then, and on a page that never answers, the
+  button and back stay. A player can't close a break partway: it ends in a
+  pass, a fail, or a load failure, and a mid-break pairing card offers
+  **Not now**. The sign-in gate keeps its close button, which is a parent's
+  "not now".
+- When the break page reloads itself after pairing, the load watchdog is
+  re-armed, so a reload that fails or hangs no longer leaves a blank screen.
+  If the web view's content process stops, the break ends through
+  `onAdFailedToShowFullScreenContent`.
+- Error messages for a refused `studentToken` or `unsafeTesting.token` no
+  longer include the token.
+
 ## [0.3.0] — 2026-10-16
 
 ### Added

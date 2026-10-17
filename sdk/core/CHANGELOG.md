@@ -4,6 +4,15 @@ All notable changes to `@levelmoment/sdk-core` are documented here. Format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
+## [Unreleased]
+
+### Changed — BREAKING
+
+- `resolveHostedOptions` throws for a native release build
+  (`{ kind: "native", debugBuild: false }`) that sets `unsafeTesting.token` or
+  a `studentToken`. The message never includes the token. Web environments are
+  unchanged.
+
 ## [0.3.0] — 2026-10-16
 
 ### Changed

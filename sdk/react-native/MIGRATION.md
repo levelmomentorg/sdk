@@ -64,7 +64,10 @@ device.
 ```ts
 import { LevelMomentAd } from "@levelmoment/sdk-react-native";
 
-const ad = LevelMomentAd.createForAdRequest("YOUR_PLACEMENT_ID");
+const ad = LevelMomentAd.createForAdRequest("YOUR_PLACEMENT_ID", {
+  format: "practice_set",
+  slot: { adType: "rewarded", targetDurationSeconds: 30, rewardAmount: 1 },
+});
 let rewardGranted = false;
 ad.addAdEventListener("loaded", () => ad.show());
 ad.addAdEventListener("earnedReward", ({ rewardId }) => {
@@ -89,25 +92,35 @@ A passed graded break emits one reward callback, regardless of question count.
 Deduplicate game grants by `rewardId = breakSessionId`. Dismissal and failure
 only resume the game; the game chooses the item or currency amount.
 
+Declare the slot this placement fills: `adType` (`"rewarded"` when it grants
+something, `"interstitial"` when it doesn't), `targetDurationSeconds` (how
+long the moment holds the player: 30 for a reward, 18 for resuming play, never
+under 18) and `rewardAmount` (what the game grants, for reporting). These
+replace the old `format` choice. Pass `format: "practice_set"` with a rewarded slot as a floor,
+as the example does. See
+[slot sizes](https://levelmoment.com/docs/getting-started#slot-size).
+
 Production uses fixed service endpoints and managed credentials. Do not pass
 `apiUrl`, `breakUrl`, or `studentToken`.
 
 ## 5. Configure sandbox testing
 
-Pass test configuration only through `unsafeTesting`:
+Pass your `eply_sbx_` sandbox token alone inside `unsafeTesting`. With Expo,
+keep it in `.env.development.local`, which only `npx expo start` loads; see
+[Testing and sandbox](https://levelmoment.com/docs/testing#configure):
 
 ```ts
-const options = {
-  placementId: "YOUR_PLACEMENT_ID",
-  unsafeTesting: {
-    apiUrl: "http://YOUR_COMPUTER_IP:8080",
-    breakUrl: "http://YOUR_COMPUTER_IP:3000/break",
-    token: "YOUR_EPLY_SBX_TOKEN",
-  },
-};
+const sandboxToken = process.env.EXPO_PUBLIC_LM_SANDBOX_TOKEN;
+
+// Debug builds only. A production build passes no unsafeTesting.
+const testing = sandboxToken ? { unsafeTesting: { token: sandboxToken } } : {};
 ```
 
-**Warning:** Remove `unsafeTesting` from production builds.
+Spread `testing` into the options of every access call and every
+`createForAdRequest`.
+
+**Warning:** A production build must contain no `eply_sbx_` token. A build
+that carries one serves every player sandbox breaks that earn nothing.
 
 ## Verify the migration
 

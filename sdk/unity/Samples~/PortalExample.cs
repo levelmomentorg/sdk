@@ -18,6 +18,7 @@ public static class LearningBreaks
             bool earned = false;
             // One slot per moment. Level Moment fits the break to the duration.
             var slot = new LevelMomentAdSlot("rewarded", 30, rewardAmount: 1);
+            // A rewarded slot asks for a practice set at least; see Quickstart, step 3.
             RewardedAd.Load("YOUR_PLACEMENT_ID", new RewardedAdLoadCallbacks {
                 OnAdLoaded = ad => ad.Show(new RewardedAdShowCallbacks {
                     OnUserEarnedRewardItem = reward => { if (!earned) { earned = true; grantBonus(reward.RewardId); } },
@@ -25,7 +26,7 @@ public static class LearningBreaks
                     OnAdFailedToShow = error => { ad.Destroy(); resumeGame(); },
                 }),
                 OnAdFailedToLoad = error => resumeGame(),
-            }, slot: slot);
+            }, format: "practice_set", slot: slot);
         });
     }
 }

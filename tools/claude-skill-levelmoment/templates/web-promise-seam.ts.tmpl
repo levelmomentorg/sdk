@@ -27,6 +27,8 @@ export interface BreakSlotSpec {
 
 interface SlotEntry {
   client: LevelMomentWebClient;
+  /** Rewarded slots ask for a practice set at least; interstitials ask none. */
+  format?: "practice_set";
   /** The next handle, loading in the background. Fine before access opens. */
   next: Promise<LevelMomentWebAd | undefined>;
   /** Set while a break for this slot is open, so a second tap opens nothing. */
@@ -36,12 +38,15 @@ interface SlotEntry {
 export function createLevelMomentBreaks(placementId: string, sandboxToken?: string) {
   const entries = new Map<string, SlotEntry>();
 
-  const load = (client: LevelMomentWebClient) =>
+  const load = (entry: Pick<SlotEntry, "client" | "format">) =>
     new Promise<LevelMomentWebAd | undefined>((resolve) => {
-      client.loadAd({
-        onAdLoaded: (ad) => resolve(ad),
-        onAdFailedToLoad: () => resolve(undefined),
-      });
+      entry.client.loadAd(
+        {
+          onAdLoaded: (ad) => resolve(ad),
+          onAdFailedToLoad: () => resolve(undefined),
+        },
+        entry.format ? { format: entry.format } : undefined,
+      );
     });
 
   // One client per moment, so each declares its own duration and reward.
@@ -50,23 +55,27 @@ export function createLevelMomentBreaks(placementId: string, sandboxToken?: stri
   const entryFor = (spec: BreakSlotSpec): SlotEntry => {
     let entry = entries.get(spec.id);
     if (!entry) {
+      const rewarded = !!spec.rewardAmount && spec.rewardAmount > 0;
       const client = LevelMomentWebClient.initialize({
         placementId,
-        slot:
-          !spec.rewardAmount || spec.rewardAmount <= 0
-            ? {
-                adType: "interstitial",
-                targetDurationSeconds: spec.targetDurationSeconds,
-              }
-            : {
-                adType: "rewarded",
-                targetDurationSeconds: spec.targetDurationSeconds,
-                rewardAmount: spec.rewardAmount,
-              },
+        slot: rewarded
+          ? {
+              adType: "rewarded",
+              targetDurationSeconds: spec.targetDurationSeconds,
+              rewardAmount: spec.rewardAmount,
+            }
+          : {
+              adType: "interstitial",
+              targetDurationSeconds: spec.targetDurationSeconds,
+            },
         // Sandbox builds only. A production build passes no unsafeTesting.
         ...(sandboxToken ? { unsafeTesting: { token: sandboxToken } } : {}),
       });
-      entry = { client, next: load(client) };
+      // A rewarded slot asks for a practice set at least, so it is never
+      // served as a single quick question. It doesn't add questions: the
+      // count still follows targetDurationSeconds.
+      const format = rewarded ? ("practice_set" as const) : undefined;
+      entry = { client, format, next: load({ client, format }) };
       entries.set(spec.id, entry);
     }
     return entry;
@@ -83,7 +92,7 @@ export function createLevelMomentBreaks(placementId: string, sandboxToken?: stri
     if ((await entry.client.ensureAccess()) !== "ready") return "none";
     const ad = await entry.next;
     if (!ad) {
-      entry.next = load(entry.client);
+      entry.next = load(entry);
       return "none";
     }
     return new Promise<BreakOutcome>((resolve) => {
@@ -92,7 +101,7 @@ export function createLevelMomentBreaks(placementId: string, sandboxToken?: stri
       const finish = (outcome: BreakOutcome) => {
         if (done) return;
         done = true;
-        entry.next = load(entry.client);
+        entry.next = load(entry);
         resolve(outcome);
       };
       try {

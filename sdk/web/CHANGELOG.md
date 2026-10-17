@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The break URL carries `leave=page`, so a mid-break pairing card offers **Not now**, which ends the break with no reward.
+
 ## 0.3.0 — 2026-10-16
 
 - BREAKING: `onUserEarnedReward` fires at most once per break, when a passed break ends, with `{ type, rewardId, earnedAt }`. `amount` is gone. Only `quick_question` and `practice_set` report one; `mastery_round` and `intro_lesson` never do. Grant once per `rewardId` when it fires, and resume the game on dismiss or error.

@@ -123,12 +123,15 @@ describe("learning access", () => {
     await vi.waitFor(() => expect(host.current).not.toBeNull());
     expect(new URL(host.current!.url).pathname).toBe("/access");
     expect(new URL(host.current!.url).searchParams.get("mode")).toBe("gate");
+    // The visible gate keeps a close button: closing it is a parent's "not now".
+    expect(host.current!.closeButton).toBe(true);
     host.current!.onMessage({ type: "signedIn" });
     await expect(visible).resolves.toBe("ready");
 
     const check = checkAccess(OPTIONS);
     await vi.waitFor(() => expect(host.current).not.toBeNull());
     expect(host.current!.hidden).toBe(true);
+    expect(host.current!.closeButton).toBeFalsy();
     expect(new URL(host.current!.url).pathname).toBe("/access");
     host.current!.onMessage({ type: "dismissed" });
     await expect(check).resolves.toBe(false);

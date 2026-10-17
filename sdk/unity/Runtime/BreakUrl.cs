@@ -68,6 +68,9 @@ namespace LevelMoment
             var query = new StringBuilder();
             Append(query, "placementId", placementId);
             Append(query, "format", resolvedFormat);
+            // The page ends the break itself and offers a way out of a
+            // mid-break pairing card. This host draws no close control.
+            Append(query, "leave", "page");
             if (!string.IsNullOrEmpty(kind))
                 Append(query, "kind", kind);
 

@@ -249,6 +249,9 @@ export class LevelMomentWebAd {
     const params = new URLSearchParams();
     params.set("placementId", this._spec.placementId);
     params.set("format", this._spec.format);
+    // The page ends the break itself and offers a way out of a mid-break
+    // pairing card. This host draws no close control of its own.
+    params.set("leave", "page");
     if (this._spec.slot) {
       params.set("adType", this._spec.slot.adType);
       params.set(

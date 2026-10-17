@@ -215,9 +215,12 @@ namespace LevelMoment.Tests.EditMode
                 },
             };
 
-            var url = BreakUrl.Build(config.Resolve(), "p1", "quick_question");
+            // Resolved as the editor would: a sandbox token is refused in a
+            // release build.
+            var url = BreakUrl.Build(config.Resolve(true), "p1", "quick_question");
 
             StringAssert.Contains("sandbox=true", url);
+            StringAssert.Contains("leave=page", url);
             StringAssert.Contains("protocolVersion=1", url);
             StringAssert.Contains("sdkVersion=0.3.0", url);
         }

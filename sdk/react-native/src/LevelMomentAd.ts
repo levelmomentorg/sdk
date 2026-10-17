@@ -166,6 +166,10 @@ export class LevelMomentAd {
     const params = new URLSearchParams();
     params.set("placementId", this.placementId);
     params.set("format", this.options.format ?? "quick_question");
+    // This host hides its close control once the page confirms it ends the
+    // break itself (`leaveSupported` on `ready`); the page then also offers a
+    // way out of a mid-break pairing card.
+    params.set("leave", "page");
     if (this.options.slot) {
       params.set("adType", this.options.slot.adType);
       params.set(

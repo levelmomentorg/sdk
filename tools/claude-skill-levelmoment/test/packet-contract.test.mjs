@@ -127,6 +127,20 @@ test("self-serve links every setup step to the public docs", () => {
   }
 });
 
+test("upgrade links each step to the public docs and is routed", () => {
+  const upgrade = read("reference/upgrade.md");
+  for (const page of [
+    "porting#upgrade",
+    "getting-started#slot-size",
+    "getting-started#integrate",
+    "testing",
+  ]) {
+    assert.match(upgrade, new RegExp(`https://levelmoment\\.com/docs/${page}`));
+  }
+  assert.match(read("commands/levelmoment.md"), /reference\/upgrade\.md/);
+  assert.match(read("SKILL.md"), /reference\/upgrade\.md/);
+});
+
 test("deploy links every going-live step and hands human steps back", () => {
   const deploy = read("reference/deploy.md");
   for (const page of [
@@ -470,7 +484,7 @@ test("the installed command resolves every instruction in the partner project", 
     const references = [
       ...command.matchAll(/`(\.claude\/skills\/levelmoment\/[^`]+)`/g),
     ];
-    assert.equal(references.length, 7);
+    assert.equal(references.length, 8);
     for (const [, reference] of references) {
       assert.ok(fs.existsSync(path.join(project, reference)), reference);
     }

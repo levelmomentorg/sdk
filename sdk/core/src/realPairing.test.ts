@@ -269,6 +269,37 @@ describe("mode and the break URL", () => {
   });
 });
 
+describe("a sandbox token in a native release build", () => {
+  // It would serve every player unpaid sandbox breaks with no pairing, so it
+  // fails at startup, as real pairing does. Debug builds and the web keep it.
+  const token = "eply_sbx_secret";
+
+  it("is refused, without echoing the token", () => {
+    for (const options of [
+      { unsafeTesting: { token } },
+      { unsafeTesting: {}, studentToken: token },
+    ]) {
+      let message = "";
+      try {
+        resolveHostedOptions(options, NATIVE_RELEASE);
+      } catch (err) {
+        message = (err as Error).message;
+      }
+      expect(message).toMatch(/release build/);
+      expect(message).not.toContain(token);
+    }
+  });
+
+  it("still resolves sandbox in a debug build and on the web", () => {
+    expect(
+      resolveHostedOptions({ unsafeTesting: { token } }, NATIVE_DEBUG).mode,
+    ).toBe("sandbox");
+    expect(
+      resolveHostedOptions({ unsafeTesting: { token } }, WEB_DEV).mode,
+    ).toBe("sandbox");
+  });
+});
+
 describe("credentialStoreKey", () => {
   it("keeps the production key unchanged", () => {
     expect(credentialStoreKey("https://levelmoment.com", "pl_abc")).toBe(

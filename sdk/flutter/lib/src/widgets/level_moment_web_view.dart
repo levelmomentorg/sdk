@@ -63,7 +63,11 @@ sealed class HostMessage {
     final type = decoded['type'];
     switch (type) {
       case 'ready':
-        return const Ready();
+        final payload = decoded['payload'];
+        return Ready(
+          leaveSupported: payload is Map<String, dynamic> &&
+              payload['leaveSupported'] == true,
+        );
       case 'earnedReward':
         final payload = decoded['payload'];
         if (payload is! Map<String, dynamic>) return null;
@@ -108,8 +112,13 @@ sealed class HostMessage {
 }
 
 /// The page has mounted and is rendering.
+///
+/// [leaveSupported] is the page's answer to a break URL carrying `leave=page`:
+/// this page ends the break itself on every failure and offers its own way out
+/// of a mid-break pairing card, so the host may hide its close control.
 class Ready extends HostMessage {
-  const Ready();
+  final bool leaveSupported;
+  const Ready({this.leaveSupported = false});
 }
 
 /// One server-confirmed earned break outcome.
@@ -297,6 +306,34 @@ Widget Function(LevelMomentWebView view)? debugHostedSurfaceOverride;
 Widget hostedSurface(LevelMomentWebView view) =>
     kDebugMode ? (debugHostedSurfaceOverride?.call(view) ?? view) : view;
 
+/// Whether [error] ends the surface. A failed load of the page itself does,
+/// until the page posts `ready`; after that, subresource errors are the
+/// page's own problem. A terminated web content process always does: no page
+/// is left to end the break, and a break whose close control is hidden would
+/// otherwise leave the player on a blank screen.
+@visibleForTesting
+bool isTerminalWebResourceError(
+  WebResourceError error, {
+  required bool pageReady,
+}) {
+  if (error.errorType == WebResourceErrorType.webContentProcessTerminated) {
+    return true;
+  }
+  if (pageReady) return false;
+  return error.isForMainFrame != false;
+}
+
+/// Whether a visible hosted surface offers the native close button and system
+/// back: always for the gate ([closeButton]), and for a break until the page
+/// confirms in `ready` that it ends itself and offers its own way out
+/// ([leaveSupported]).
+@visibleForTesting
+bool hostedSurfaceCanLeave({
+  required bool closeButton,
+  required bool leaveSupported,
+}) =>
+    closeButton || !leaveSupported;
+
 // ---------------------------------------------------------------------------
 // LevelMomentWebView — mirrors sdk/react-native/src/LevelMomentAdModal.tsx
 // ---------------------------------------------------------------------------
@@ -304,6 +341,14 @@ Widget hostedSurface(LevelMomentWebView view) =>
 /// Fullscreen WebView that loads [url] and forwards page messages to
 /// [onMessage]. Renders a loading spinner until the page posts `ready`, and a
 /// top-right close button that synthesizes a terminal [Dismissed].
+///
+/// The sign-in gate sets [closeButton], so it always keeps that button and
+/// system back. A break has no close button (owner, October 17, 2026): it ends
+/// in a pass, a fail, or a load failure. A break keeps the button and system
+/// back only until the page's `ready` carries `leaveSupported` (the answer to
+/// the break URL's `leave=page`), so a page that can't end itself on every
+/// failure, or offer a way out of a mid-break pairing card, never traps the
+/// player. See [hostedSurfaceCanLeave].
 ///
 /// With [hidden] true it renders nothing at all — no scaffold, no chrome, no
 /// space in the layout — while still loading the page. That is what the
@@ -316,6 +361,11 @@ class LevelMomentWebView extends StatefulWidget {
 
   /// Render off-screen with no chrome. Used by the headless credential check.
   final bool hidden;
+
+  /// Always show the native close button and allow system back. Only the
+  /// visible sign-in gate sets this. A break shows them only until the page
+  /// confirms `leaveSupported`.
+  final bool closeButton;
 
   /// Pre-`ready` watchdog window.
   final Duration loadTimeout;
@@ -340,6 +390,7 @@ class LevelMomentWebView extends StatefulWidget {
     required this.url,
     required this.onMessage,
     this.hidden = false,
+    this.closeButton = false,
     this.loadTimeout = kBreakLoadTimeout,
     this.onLoadTimeout,
     this.onNeedCredential,
@@ -356,6 +407,7 @@ class _LevelMomentWebViewState extends State<LevelMomentWebView> {
   late final String _loadedUrl;
   Timer? _watchdog;
   bool _pageReady = false;
+  bool _leaveSupported = false;
   int _navigationGeneration = 0;
   int _credentialRequestGeneration = 0;
 
@@ -373,7 +425,7 @@ class _LevelMomentWebViewState extends State<LevelMomentWebView> {
       ..setBackgroundColor(_backgroundColor)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (_) => _navigationGeneration++,
+          onPageStarted: _onPageStarted,
           onNavigationRequest: (request) => _sameOrigin(request.url, _loadedUrl)
               ? NavigationDecision.navigate
               : NavigationDecision.prevent,
@@ -385,6 +437,23 @@ class _LevelMomentWebViewState extends State<LevelMomentWebView> {
         onMessageReceived: _onChannelMessage,
       )
       ..loadRequest(Uri.parse(widget.url));
+  }
+
+  /// A navigation after `ready` (the page reloads itself after pairing) is a
+  /// fresh load: until the new page posts `ready`, re-arm the watchdog, honour
+  /// main-frame errors, and give the player the close control back. Otherwise a
+  /// reload that fails or hangs would leave a blank surface with no way out.
+  void _onPageStarted(String _) {
+    _navigationGeneration++;
+    if (!_pageReady || _dismissed) return;
+    _watchdog?.cancel();
+    _watchdog = Timer(widget.loadTimeout, _onWatchdogFire);
+    if (mounted) {
+      setState(() {
+        _pageReady = false;
+        _leaveSupported = false;
+      });
+    }
   }
 
   void _onWatchdogFire() {
@@ -401,8 +470,8 @@ class _LevelMomentWebViewState extends State<LevelMomentWebView> {
   /// A failed load of the page itself is terminal. Subresource errors after
   /// `ready` are the page's own problem and are ignored.
   void _onWebResourceError(WebResourceError error) {
-    if (_pageReady || _dismissed) return;
-    if (error.isForMainFrame == false) return;
+    if (_dismissed) return;
+    if (!isTerminalWebResourceError(error, pageReady: _pageReady)) return;
     _notifyTerminal(ErrorMsg('network_error', error.description));
     _closeRoute();
   }
@@ -438,7 +507,12 @@ class _LevelMomentWebViewState extends State<LevelMomentWebView> {
 
     if (parsed is Ready) {
       _watchdog?.cancel();
-      if (mounted) setState(() => _pageReady = true);
+      if (mounted) {
+        setState(() {
+          _pageReady = true;
+          _leaveSupported = parsed.leaveSupported;
+        });
+      }
       widget.onMessage(parsed);
       return;
     }
@@ -529,9 +603,9 @@ class _LevelMomentWebViewState extends State<LevelMomentWebView> {
   }
 
   /// Close button: pop the route. The terminal notification is fired from
-  /// [dispose], so EVERY exit path (close button, system back gesture,
+  /// [dispose], so EVERY exit path (the gate's close button and system back,
   /// programmatic pop, page-posted dismissed/error) notifies the ad exactly
-  /// once — no version-sensitive PopScope callback needed.
+  /// once — no version-sensitive onPopInvoked callback needed.
   void _onClosePressed() {
     if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
@@ -568,56 +642,68 @@ class _LevelMomentWebViewState extends State<LevelMomentWebView> {
         ),
       );
     }
-    return Scaffold(
-      backgroundColor: _backgroundColor,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: WebViewWidget(controller: _controller),
-          ),
-          if (!_pageReady)
-            const Positioned.fill(
-              child: ColoredBox(
-                color: _backgroundColor,
-                child: Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Color(0xFF3B82F6),
+    // Once the page confirms it ends the break itself, the break can't be left
+    // partway, so system back (Android back, iOS edge swipe) does nothing. The
+    // page still ends it: every terminal path calls Navigator.pop() directly,
+    // which PopScope does not block.
+    final canLeave = hostedSurfaceCanLeave(
+      closeButton: widget.closeButton,
+      leaveSupported: _leaveSupported,
+    );
+    return PopScope(
+      canPop: canLeave,
+      child: Scaffold(
+        backgroundColor: _backgroundColor,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: WebViewWidget(controller: _controller),
+            ),
+            if (!_pageReady)
+              const Positioned.fill(
+                child: ColoredBox(
+                  color: _backgroundColor,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFF3B82F6),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          Positioned(
-            top: 48,
-            right: 16,
-            child: Semantics(
-              label: 'Close',
-              button: true,
-              child: GestureDetector(
-                onTap: _onClosePressed,
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xD90F172A),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    '×',
-                    style: TextStyle(
-                      color: Color(0xFFE2E8F0),
-                      fontSize: 24,
-                      height: 26 / 24,
-                      fontWeight: FontWeight.w300,
+            if (canLeave)
+              Positioned(
+                top: 48,
+                right: 16,
+                child: Semantics(
+                  label: 'Close',
+                  button: true,
+                  child: GestureDetector(
+                    onTap: _onClosePressed,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xD90F172A),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        '×',
+                        style: TextStyle(
+                          color: Color(0xFFE2E8F0),
+                          fontSize: 24,
+                          height: 26 / 24,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

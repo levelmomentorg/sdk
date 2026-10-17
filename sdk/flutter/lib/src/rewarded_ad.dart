@@ -276,6 +276,10 @@ class LevelMomentRewardedAd {
     final params = <String, String>{
       'placementId': placementId,
       'format': _format,
+      // This host hides its close control once the page confirms it ends the
+      // break itself (`leaveSupported` on `ready`); the page then also offers
+      // a way out of a mid-break pairing card.
+      'leave': 'page',
     };
     if (adType != null) params['adType'] = adType!;
     if (targetDurationSeconds != null) {

@@ -292,6 +292,8 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Show_NeverPutsTheTokenOnTheUrl()
         {
+            // Models the editor: a sandbox token is refused in a release build.
+            LevelMomentConfig.DevelopmentBuildOverrideForTests = true;
             var fake = new FakeWebView();
             LevelMomentWebViewRegistry.Register(() => fake);
 
@@ -304,6 +306,8 @@ namespace LevelMoment.Tests.EditMode
         [Test]
         public void Show_MockModeDoesNotSendSandboxTokenToTheBridge()
         {
+            // Models the editor: a sandbox token is refused in a release build.
+            LevelMomentConfig.DevelopmentBuildOverrideForTests = true;
             var fake = new ScriptableFakeWebView();
             LevelMomentWebViewRegistry.Register(() => fake);
             var ad = LoadAdWithToken("eply_sbx_test-token");

@@ -11,7 +11,12 @@ import {
 // platform/web/app/break/page.tsx and sdk/web/src/breakFrame.ts.
 
 export type HostMessage =
-  | { type: "ready" }
+  /**
+   * `leaveSupported` answers a break URL carrying `leave=page`: this page ends
+   * the break itself on every failure and offers its own way out of a
+   * mid-break pairing card, so the host may hide its close control.
+   */
+  | { type: "ready"; payload?: { leaveSupported?: boolean } }
   | { type: "earnedReward"; payload: { rewardId: string; earnedAt: string } }
   /** Sign-in gate only: this device holds a valid credential for the game. */
   | { type: "signedIn" }

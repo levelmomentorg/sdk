@@ -14,16 +14,25 @@ npm install @levelmoment/sdk-web@0.3.0
 
 ## 2. Replace initialization
 
-Create one client with the placement ID. Production endpoints and player
-credentials are managed by Level Moment:
+Create one client per moment with the placement ID and a slot declaration.
+Production endpoints and player credentials are managed by Level Moment:
 
 ```ts
 import { LevelMomentWebClient } from "@levelmoment/sdk-web";
 
 const client = LevelMomentWebClient.initialize({
   placementId: "YOUR_PLACEMENT_ID",
+  slot: { adType: "rewarded", targetDurationSeconds: 30, rewardAmount: 1 },
 });
 ```
+
+Declare the slot this placement fills: `adType` (`"rewarded"` when it grants
+something, `"interstitial"` when it doesn't), `targetDurationSeconds` (how
+long the moment holds the player: 30 for a reward, 18 for resuming play, never
+under 18) and `rewardAmount` (what the game grants, for reporting). These
+replace the old `format` choice. Pass `format: "practice_set"` with a rewarded slot as a floor,
+as the example does. See
+[slot sizes](https://levelmoment.com/docs/getting-started#slot-size).
 
 Do not pass `apiUrl`, `breakUrl`, or `studentToken` in production.
 
@@ -59,10 +68,13 @@ Keep the existing preload, reward, dismissal, and failure slots:
 import type { LevelMomentWebAd } from "@levelmoment/sdk-web";
 
 let pending: LevelMomentWebAd | null = null;
-client.loadAd({
-  onAdLoaded: (ad) => (pending = ad),
-  onAdFailedToLoad: () => resumeGame(),
-});
+client.loadAd(
+  {
+    onAdLoaded: (ad) => (pending = ad),
+    onAdFailedToLoad: () => resumeGame(),
+  },
+  { format: "practice_set" },
+);
 
 export function showRewardedBreak(): void {
   const ad = pending;
@@ -90,21 +102,26 @@ answer alone. The game owns the reward value.
 
 ## 5. Configure sandbox testing
 
-Put local endpoints and an `eply_sbx_` credential inside `unsafeTesting`:
+Pass your `eply_sbx_` sandbox token alone inside `unsafeTesting`, read from a
+file only sandbox builds load. [Testing and
+sandbox](https://levelmoment.com/docs/testing#configure) shows the file, the
+build scripts and the build guard:
 
 ```ts
+const sandboxToken = import.meta.env.VITE_LM_SANDBOX_TOKEN as
+  | string
+  | undefined;
+
 const client = LevelMomentWebClient.initialize({
   placementId: "YOUR_PLACEMENT_ID",
-  unsafeTesting: {
-    apiUrl: "http://localhost:8080",
-    breakUrl: "http://localhost:3000/break",
-    token: "YOUR_EPLY_SBX_TOKEN",
-  },
+  slot: { adType: "rewarded", targetDurationSeconds: 30, rewardAmount: 1 },
+  // Sandbox builds only. A production build passes no unsafeTesting.
+  ...(sandboxToken ? { unsafeTesting: { token: sandboxToken } } : {}),
 });
 ```
 
-**Warning:** Remove `unsafeTesting` from production builds. Production
-configuration rejects endpoint overrides and explicit player tokens.
+**Warning:** A production build must contain no `eply_sbx_` token. A build
+that carries one serves every player sandbox breaks that earn nothing.
 
 ## Verify the migration
 

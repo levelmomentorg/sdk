@@ -151,6 +151,13 @@ void showBreak(BuildContext context) {
 No `studentToken` above — a paired device's credential lives in the SDK's
 secure store. Use `unsafeTesting` with an `eply_sbx_` token for sandbox work;
 the SDK never reads or writes the production secure store in that mode.
+Read the token behind `kReleaseMode`, as
+[Testing and sandbox](https://levelmoment.com/docs/testing#configure) shows:
+`initialize()` throws in a release build that passes a sandbox token.
+
+Once the break page confirms it ends the break itself, the break has no close
+button and the Android back button does nothing on it. It ends in a pass, a
+fail, or a load failure.
 
 That's it. The SDK pushes a fullscreen route hosting a WebView that loads the
 hosted `/break` page and calls `onAdDismissedFullScreenContent` when the
