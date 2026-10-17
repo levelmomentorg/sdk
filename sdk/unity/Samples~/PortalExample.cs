@@ -9,13 +9,15 @@ public static class LearningBreaks
 
     });
 
-    // Call from the player's learning action. Persist each RewardId in your game
-    // before granting so callback retries and webhooks cannot grant twice.
+    // Call from the player's tap. The reward fires at most once per break; if a
+    // game server also grants from the webhook, record RewardId there too.
     public static void Show(Action<string> grantBonus, Action resumeGame)
     {
         LevelMomentAds.EnsureAccess("YOUR_PLACEMENT_ID", access => {
             if (access != EnsureSignedInResult.Ready) { resumeGame(); return; }
             bool earned = false;
+            // One slot per moment. Level Moment fits the break to the duration.
+            var slot = new LevelMomentAdSlot("rewarded", 30, rewardAmount: 1);
             RewardedAd.Load("YOUR_PLACEMENT_ID", new RewardedAdLoadCallbacks {
                 OnAdLoaded = ad => ad.Show(new RewardedAdShowCallbacks {
                     OnUserEarnedRewardItem = reward => { if (!earned) { earned = true; grantBonus(reward.RewardId); } },
@@ -23,7 +25,7 @@ public static class LearningBreaks
                     OnAdFailedToShow = error => { ad.Destroy(); resumeGame(); },
                 }),
                 OnAdFailedToLoad = error => resumeGame(),
-            });
+            }, slot: slot);
         });
     }
 }

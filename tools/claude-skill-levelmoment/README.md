@@ -1,7 +1,13 @@
 # Level Moment partner packet
 
-Use this packet with a partner-supplied SDK artifact and handoff manifest to
-replace one existing rewarded slot with a Level Moment break.
+This packet links to the public docs at https://levelmoment.com/docs for every
+setup step; the docs are the canonical guide, and anyone can set up a game from
+them without this packet. When you change the packet, change the docs first,
+then keep each link's one-line summary in the packet in step with its page.
+
+Use this packet to set up a developer's own game from the public docs, or with
+a partner-supplied SDK artifact and handoff manifest to replace one existing
+rewarded slot with a Level Moment break.
 
 Read [AGENT-INSTRUCTIONS.md](AGENT-INSTRUCTIONS.md) directly in any coding
 agent. It uses only paths inside this packet and does not require an installer.
@@ -14,9 +20,9 @@ placement ID, target slot, reward action, or command. The partner supplies
 those integration inputs separately. It never carries an endpoint, token, or
 preview secret.
 
-The packet supports web, React Native, Flutter, and Unity previews at the
-repository's `0.2.0` SDK surface. Do not install the public `0.1.2` release in
-place of a supplied preview artifact.
+The packet supports web, React Native, Flutter, and Unity at the `0.3.0` SDK
+surface. With a handoff, install only the supplied artifact, never a version
+picked from a registry.
 
 ## Packet layout
 

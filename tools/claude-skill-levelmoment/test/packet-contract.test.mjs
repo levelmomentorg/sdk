@@ -79,6 +79,24 @@ test("TypeScript templates compile against the installed SDK exports", () => {
   typecheckTypeScriptTemplate("templates/web-init.ts.tmpl");
   typecheckTypeScriptTemplate("templates/rn-use-ad-break.ts.tmpl");
   typecheckTypeScriptTemplate("templates/rn-app-root.tsx.tmpl");
+  typecheckTypeScriptTemplate("templates/web-promise-seam.ts.tmpl");
+});
+
+test("self-serve links every setup step to the public docs", () => {
+  const selfServe = read("reference/self-serve.md");
+  for (const page of [
+    "getting-started",
+    "testing",
+    "own-break-interface",
+    "web-views",
+    "errors#troubleshooting",
+    "going-live",
+  ]) {
+    assert.match(
+      selfServe,
+      new RegExp(`https://levelmoment\\.com/docs/${page}`),
+    );
+  }
 });
 
 test("native templates pass the terminal reward ID to game-owned grants", () => {
@@ -130,6 +148,93 @@ test("web template grants once, resumes once, and creates a fresh handle", () =>
   assert.equal(slot.show(), true);
   handles[1].callbacks.onAdDismissed();
   assert.deepEqual(calls.slice(-2), ["pause", "resume"]);
+});
+
+test("promise template opens access, resolves once, and guards a second tap", async () => {
+  const handles = [];
+  let access = "ready";
+  const client = {
+    loadAd(callbacks) {
+      const handle = {
+        callbacks: undefined,
+        show(callbacks) {
+          this.callbacks = callbacks;
+        },
+      };
+      handles.push(handle);
+      queueMicrotask(() => callbacks.onAdLoaded(handle));
+    },
+    ensureAccess: async () => access,
+  };
+  const { createLevelMomentBreaks } = loadTemplate(
+    "templates/web-promise-seam.ts.tmpl",
+    { LevelMomentWebClient: { initialize: () => client } },
+  );
+  const breaks = createLevelMomentBreaks("partner-placement");
+  const slot = { targetDurationSeconds: 30 };
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  // The first break opens even without prepare().
+  const first = breaks.showBreak(slot);
+  assert.equal(await breaks.showBreak(slot), "none");
+  await settle();
+  handles[0].callbacks.onUserEarnedReward({ rewardId: "break-1" });
+  handles[0].callbacks.onAdDismissed();
+  handles[0].callbacks.onAdFailedToShow();
+  assert.equal(await first, "finished");
+
+  const second = breaks.showBreak(slot);
+  await settle();
+  assert.notEqual(handles[1], handles[0]);
+  handles[1].callbacks.onAdDismissed();
+  assert.equal(await second, "closed");
+
+  access = "canceled";
+  assert.equal(await breaks.showBreak(slot), "none");
+  assert.equal(handles[2].callbacks, undefined);
+
+  // The guard clears after "none", so the next tap opens the waiting handle.
+  access = "ready";
+  const third = breaks.showBreak(slot);
+  await settle();
+  handles[2].callbacks.onAdDismissed();
+  assert.equal(await third, "closed");
+});
+
+test("promise template resolves none on a load failure, then loads afresh", async () => {
+  let fail = true;
+  const handles = [];
+  const client = {
+    loadAd(callbacks) {
+      if (fail) {
+        queueMicrotask(() => callbacks.onAdFailedToLoad({ code: "unknown" }));
+        return;
+      }
+      const handle = {
+        callbacks: undefined,
+        show(callbacks) {
+          this.callbacks = callbacks;
+        },
+      };
+      handles.push(handle);
+      queueMicrotask(() => callbacks.onAdLoaded(handle));
+    },
+    ensureAccess: async () => "ready",
+  };
+  const { createLevelMomentBreaks } = loadTemplate(
+    "templates/web-promise-seam.ts.tmpl",
+    { LevelMomentWebClient: { initialize: () => client } },
+  );
+  const breaks = createLevelMomentBreaks("partner-placement");
+  const slot = { targetDurationSeconds: 20 };
+  breaks.prepare(slot);
+  fail = false;
+  assert.equal(await breaks.showBreak(slot), "none");
+  const next = breaks.showBreak(slot);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(handles.length, 1);
+  handles[0].callbacks.onAdDismissed();
+  assert.equal(await next, "closed");
 });
 
 test("React Native template resumes once for load failure and dismissal", () => {
@@ -266,7 +371,7 @@ test("the installed command resolves every instruction in the partner project", 
     const references = [
       ...command.matchAll(/`(\.claude\/skills\/levelmoment\/[^`]+)`/g),
     ];
-    assert.equal(references.length, 5);
+    assert.equal(references.length, 6);
     for (const [, reference] of references) {
       assert.ok(fs.existsSync(path.join(project, reference)), reference);
     }

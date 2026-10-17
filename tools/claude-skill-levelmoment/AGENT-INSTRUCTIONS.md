@@ -7,6 +7,13 @@ SDK.
 
 ## Start with the handoff
 
+No handoff? The developer is setting up their own game: follow
+[`reference/self-serve.md`](reference/self-serve.md), which links the public
+docs at https://levelmoment.com/docs for each step, then use the lifecycle and
+checks below. The sandbox token is the one exception to the credential rule in
+"Integrate one rewarded slot", as
+[Testing and sandbox](https://levelmoment.com/docs/testing) describes.
+
 1. Read the partner's handoff JSON. Use
    [`handoff.example.json`](handoff.example.json) as its field contract.
 2. Require the platform, placement ID, target slot, reward action, install
@@ -17,7 +24,7 @@ SDK.
    list; ignore the artifact fields. Each listed peer needs an exact version.
 3. Verify each applicable artifact's SHA-256 or immutable source ref before
    installation. Use the exact source and install command from the handoff. Do not substitute
-   npm's public `0.1.2`, a floating Git ref, a guessed URL, or a version pin.
+   a registry version, a floating Git ref, a guessed URL, or a version pin.
 4. Find the supplied target slot and every load, show, reward, terminal, and
    pause/resume path that belongs to it. Preserve every other ad placement.
 

@@ -4,8 +4,8 @@ import 'package:levelmoment_ads/levelmoment_ads.dart';
 // Call once at app startup.
 Future<void> initializeLearning() => LevelMomentAds.instance.initialize();
 
-// Call from the player's learning action. Persist each rewardId in your game
-// before granting so callback retries and webhooks cannot grant twice.
+// Call from the player's tap. The reward fires at most once per break; if a
+// game server also grants from the webhook, record rewardId there too.
 Future<void> showLearningBreak(BuildContext context, void Function(String rewardId) grantBonus, VoidCallback resumeGame) async {
   final access = await LevelMomentAds.instance.ensureAccess(context: context, placementId: "YOUR_PLACEMENT_ID");
   if (!context.mounted) return;
@@ -13,6 +13,10 @@ Future<void> showLearningBreak(BuildContext context, void Function(String reward
   var earned = false;
   await LevelMomentRewardedAd.load(
     placementId: "YOUR_PLACEMENT_ID",
+    // One declaration per moment. Level Moment fits the break to the duration.
+    adType: 'rewarded',
+    targetDurationSeconds: 30,
+    rewardAmount: 1,
     adLoadCallback: LevelMomentAdLoadCallback(
       onAdLoaded: (ad) {
         ad.fullScreenContentCallback = LevelMomentFullScreenContentCallback(

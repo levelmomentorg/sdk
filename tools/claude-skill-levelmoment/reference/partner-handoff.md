@@ -11,5 +11,5 @@ Flutter and Unity need an immutable source ref and exact versions for every
 listed peer.
 
 The handoff identifies one slot. Preserve other ad code and do not register a
-game or call a Level Moment API. Use only the supplied immutable artifact; the
-public `0.1.2` release is not a replacement for the `0.2.0` preview.
+game or call a Level Moment API. Use only the supplied immutable artifact, not a
+version picked from a registry.

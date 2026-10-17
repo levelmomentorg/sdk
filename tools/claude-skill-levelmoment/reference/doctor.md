@@ -20,3 +20,13 @@ slot. Report each result as pass, fail, or unknown.
 
 Run the handoff's verification commands. Mark real-game and target-device
 evidence unknown until it has been collected; do not claim it from static code.
+
+## Sandbox errors
+
+For a failing sandbox break, follow
+[Troubleshooting](https://levelmoment.com/docs/errors#troubleshooting):
+no break and `technicalFailure` from `ensureAccess()` means the placement ID
+isn't a registered game; a device-linking card means the token is missing,
+wrong or revoked, or the game is on another account (check the break URL for
+`sandbox=true`); `no_fill` means nothing to serve, so report the time and
+placement ID to Level Moment.

@@ -1,0 +1,110 @@
+// Implements a game's own promise-based break interface with Level Moment.
+// Documented at https://levelmoment.com/docs/own-break-interface; keep the
+// two in step. Keep the game's interface and call sites; replace only its
+// implementation. If the game already exports its own outcome or slot types,
+// import those and delete the two declarations below.
+import { LevelMomentWebClient, type LevelMomentWebAd } from "@levelmoment/sdk-web";
+
+// finished: the break ended with a reward (a passed graded break).
+// closed: the break ended without a reward (failed, abandoned or closed).
+// none: no break could be shown; the game carries on without one.
+export type BreakOutcome = "finished" | "closed" | "none";
+
+export interface BreakSlotSpec {
+  /** How long this moment can hold the player, in seconds (5 to 300). */
+  targetDurationSeconds: number;
+}
+
+interface SlotEntry {
+  client: LevelMomentWebClient;
+  /** The next handle, loading in the background. Fine before access opens. */
+  next: Promise<LevelMomentWebAd | undefined>;
+  /** Set while a break for this slot is open, so a second tap opens nothing. */
+  showing?: Promise<BreakOutcome>;
+}
+
+export function createLevelMomentBreaks(placementId: string, sandboxToken?: string) {
+  const entries = new Map<number, SlotEntry>();
+
+  const load = (client: LevelMomentWebClient) =>
+    new Promise<LevelMomentWebAd | undefined>((resolve) => {
+      client.loadAd({
+        onAdLoaded: (ad) => resolve(ad),
+        onAdFailedToLoad: () => resolve(undefined),
+      });
+    });
+
+  // One client per slot, so each declares its own duration.
+  const entryFor = (spec: BreakSlotSpec): SlotEntry => {
+    let entry = entries.get(spec.targetDurationSeconds);
+    if (!entry) {
+      const client = LevelMomentWebClient.initialize({
+        placementId,
+        slot: {
+          adType: "rewarded",
+          targetDurationSeconds: spec.targetDurationSeconds,
+          rewardAmount: 1,
+        },
+        // Sandbox builds only. A production build passes no unsafeTesting.
+        ...(sandboxToken ? { unsafeTesting: { token: sandboxToken } } : {}),
+      });
+      entry = { client, next: load(client) };
+      entries.set(spec.targetDurationSeconds, entry);
+    }
+    return entry;
+  };
+
+  /** Call once at startup per slot so the first break opens without a wait. */
+  function prepare(spec: BreakSlotSpec): void {
+    entryFor(spec);
+  }
+
+  async function run(entry: SlotEntry): Promise<BreakOutcome> {
+    // A player links to a Level Moment household before their first break.
+    // In a sandbox build this resolves "ready" at once.
+    if ((await entry.client.ensureAccess()) !== "ready") return "none";
+    const ad = await entry.next;
+    if (!ad) {
+      entry.next = load(entry.client);
+      return "none";
+    }
+    return new Promise<BreakOutcome>((resolve) => {
+      let rewarded = false;
+      let done = false;
+      const finish = (outcome: BreakOutcome) => {
+        if (done) return;
+        done = true;
+        entry.next = load(entry.client);
+        resolve(outcome);
+      };
+      try {
+        ad.show({
+          // GAME HOOK: grant the reward where the promise resolves "finished".
+          // This grants locally and drops rewardId. If a game server also
+          // grants from the reward.earned webhook, read ({ rewardId }) here
+          // and return it alongside "finished".
+          onUserEarnedReward: () => {
+            rewarded = true;
+          },
+          onAdDismissed: () => finish(rewarded ? "finished" : "closed"),
+          onAdFailedToShow: () => finish(rewarded ? "finished" : "none"),
+        });
+      } catch {
+        finish("none");
+      }
+    });
+  }
+
+  /** Call from the player's tap. The game awaits it before carrying on. */
+  function showBreak(spec: BreakSlotSpec): Promise<BreakOutcome> {
+    const entry = entryFor(spec);
+    if (entry.showing) return Promise.resolve("none");
+    const showing = run(entry).finally(() => {
+      entry.showing = undefined;
+    });
+    entry.showing = showing;
+    return showing;
+  }
+
+  return { prepare, showBreak };
+}

@@ -1,4 +1,12 @@
-# Install the supplied preview
+# Install the SDK
+
+Without a handoff, install the published SDK at exactly 0.3.0 as
+[Quickstart, step 2](https://levelmoment.com/docs/getting-started#install)
+shows for each platform (npm for web and React Native, the public SDK
+repository's `sdk-v0.3.0` tag for Flutter and Unity), and keep the lockfile
+change.
+
+With a handoff, install the supplied preview:
 
 1. Read [the partner handoff](partner-handoff.md).
 2. For web or React Native, compute SHA-256 for `sdk.platformArtifact` and
