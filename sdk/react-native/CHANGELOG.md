@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-10-16
 
+- BREAKING: the `earnedReward` event fires at most once per break, when a passed break ends, with `{ type, rewardId, earnedAt }`. `amount` is gone. Only `quick_question` and `practice_set` report one; `mastery_round` and `intro_lesson` never do. Grant once per `rewardId` when it fires, and resume the game on dismiss or error.
+- BREAKING: break formats are `quick_question`, `practice_set`, `mastery_round`, and `intro_lesson`. `flashcard`, `quiz`, and `deep_dive` no longer compile; the default is `quick_question`.
+- The `slot` request option declares the ad slot a break fills: `adType`, `targetDurationSeconds`, an optional `rewardAmount`, and the reporting fields `slotType` and `dimensions`.
 - `unsafeTesting.realPairing` runs the real pairing path against a local hosted page in a debug build. Its credential is kept in a keychain entry separate from the production one, so testing never reads, writes, or clears a production credential.
 - The keychain store's `get`, `set`, and `clear` take the hosted origin as their first argument.
 

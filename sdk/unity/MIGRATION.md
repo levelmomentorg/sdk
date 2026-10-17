@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Unity 2021.3 or later
-- The immutable 0.2 preview commit supplied to you
+- The immutable 0.3 preview commit supplied to you
 - A pinned gree Unity WebView provider
 
 ## 1. Replace the packages

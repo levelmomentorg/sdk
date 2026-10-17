@@ -4,7 +4,7 @@ All notable changes to `@levelmoment/sdk-core` are documented here. Format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
-## [0.3.0] — unreleased
+## [0.3.0] — 2026-10-16
 
 ### Changed
 
@@ -37,12 +37,20 @@ versioning follows [Semver](https://semver.org).
 - `SlotDeclaration`, `adTypeForBreakFormat`, `normalizeSlotDeclaration`, and
   `addSlotParams` — the contract a game uses to declare one ad slot: the ad
   type it replaces, a target duration in seconds, and the reward amount it
-  grants. `addSlotParams` puts the declaration on the hosted break URL under
-  the names the hosted page and the API read, so every platform SDK spells it
-  the same way.
+  grants. Optional `slotType` and `dimensions` carry reporting codes you
+  register in the studio portal first. `LevelMomentConfig` also accepts them
+  without a `slot`. `addSlotParams` puts the declaration on the hosted break
+  URL under the names the hosted page and the API read, so every platform SDK
+  spells it the same way.
 
 ### Changed — BREAKING
 
+- `RewardItem` is now `{ type, rewardId, earnedAt }`. `amount` is gone, and
+  `rewardId` is always present. A break reports at most one reward, when it
+  ends and only if it passed, so there is no per-answer `0` or `1` to read.
+  Only `quick_question` and `practice_set` report one; `mastery_round` and
+  `intro_lesson` never do.
+  Match `rewardId` against the verified reward webhook.
 - `BreakFormat` is now `quick_question` | `practice_set` | `mastery_round` |
   `intro_lesson`. The old members `flashcard`, `quiz` and `deep_dive` are gone,
   so a game that names one no longer compiles: `flashcard` becomes

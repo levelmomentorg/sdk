@@ -3,17 +3,13 @@
 ## Prerequisites
 
 - React Native 0.72 or later
-- The immutable core and React Native 0.2 preview tarballs supplied to you
-
-The public npm package is still 0.1.2. Pin the supplied preview artifacts until
-0.2 is published.
 
 ## 1. Replace the dependency
 
-Install both SDK tarballs and the native peers:
+Install version 0.3.0 from npm with the native peers:
 
 ```bash
-npm install ./PROVIDED_SDK_CORE_TARBALL.tgz ./PROVIDED_SDK_REACT_NATIVE_TARBALL.tgz react-native-webview react-native-keychain
+npm install @levelmoment/sdk-react-native@0.3.0 react-native-webview react-native-keychain
 ```
 
 ## 2. Mount the modal

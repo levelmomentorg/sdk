@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Flutter 3.22 or later
-- The immutable 0.2 preview commit supplied to you
+- The immutable 0.3 preview commit supplied to you
 
 The Flutter package is not published on pub.dev. Pin the supplied commit until
 a release is available.

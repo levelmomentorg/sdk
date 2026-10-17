@@ -4,10 +4,13 @@ All notable changes to `levelmoment_ads` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 follows [Semver](https://semver.org).
 
-## [Unreleased]
+## [0.3.0] — 2026-10-16
 
 ### Added
 
+- `LevelMomentRewardedAd.load()` takes a slot declaration: `adType`,
+  `targetDurationSeconds` and an optional `rewardAmount`, plus the reporting
+  fields `slotType` and `dimensions`, which the studio portal registers first.
 - `UnsafeTesting.realPairing` runs pairing, a learner session and the
   learner's own topics against a hosted page on
   `http://localhost:<port>` or `http://127.0.0.1:<port>`. Debug builds only;
@@ -23,6 +26,12 @@ follows [Semver](https://semver.org).
 
 ### Changed — BREAKING
 
+- `onUserEarnedReward` fires at most once per break, when a passed break ends.
+  `LevelMomentRewardItem` carries `rewardId` and `earnedAt`; there is no
+  per-answer amount. Only `quick_question` and `practice_set` report one;
+  `mastery_round` and `intro_lesson` never do.
+- The `format` argument takes `quick_question` (the default),
+  `practice_set`, `mastery_round`, or `intro_lesson`.
 - `credentialKey(origin, placementId)` and the token store's `get`, `set` and
   `clear` take the hosted page origin first. The production origin keeps the
   key `com.levelmoment.credential.<placementId>`, so stored credentials need no

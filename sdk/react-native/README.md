@@ -4,19 +4,20 @@ Level Moment is a rewarded break for iOS and Android games. This package
 follows the load/show lifecycle used by common rewarded-ad SDKs.
 
 **Preview:** Validate the hosted break and WebView provider on every target
-device before release. The repository version is `0.2.0`; it is not the
-current public npm release. Use the immutable preview artifact or reference
-supplied for your partner integration.
+device before release.
 
 ## Install
 
-Install the immutable `0.2.0` preview artifact or reference supplied for your
-partner integration. The public npm channel currently provides `0.1.2`, which
-does not necessarily match this preview README. Add `react-native-webview` and,
-when durable native credentials are needed, `react-native-keychain` as peer
-dependencies.
+Install version `0.3.0` from npm. Earlier npm releases predate slot
+declarations, the current break format names, and the single reward per break
+described here. Add `react-native-webview` and, when durable native credentials
+are needed, `react-native-keychain` as peer dependencies.
 
-Give a coding agent the placement ID, immutable SDK source, target slot, reward
+```bash
+npm install @levelmoment/sdk-react-native@0.3.0 react-native-webview
+```
+
+Give a coding agent the placement ID, SDK version, target slot, reward
 action, and verification commands. Require it to load the current
 [porting documentation](https://levelmoment.com/docs/porting) and this package's
 [migration guide](./MIGRATION.md) before it edits the game.

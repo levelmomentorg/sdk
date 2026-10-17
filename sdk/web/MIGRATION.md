@@ -3,17 +3,13 @@
 ## Prerequisites
 
 - A placement ID from the Level Moment developer portal
-- The immutable core and web 0.2 preview tarballs supplied to you
-
-The public npm package is still 0.1.2. Pin the supplied preview artifacts until
-0.2 is published.
 
 ## 1. Replace the dependency
 
-Install both preview tarballs so npm does not resolve the older public core:
+Install version 0.3.0 from npm. It brings the matching `@levelmoment/sdk-core`:
 
 ```bash
-npm install ./PROVIDED_SDK_CORE_TARBALL.tgz ./PROVIDED_SDK_WEB_TARBALL.tgz
+npm install @levelmoment/sdk-web@0.3.0
 ```
 
 ## 2. Replace initialization

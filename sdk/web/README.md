@@ -5,17 +5,20 @@ the hosted experience in a fullscreen iframe and reports familiar rewarded
 placement events.
 
 **Preview:** Validate the hosted break and browser behavior in every target
-browser before release. The repository version is `0.2.0`; it is not the
-current public npm release. Use the immutable preview artifact or reference
-supplied for your partner integration.
+browser before release.
 
 ## Install
 
-Install the immutable `0.2.0` preview artifact or reference supplied for your
-partner integration. The public npm channel currently provides `0.1.2`, which
-does not necessarily match this preview README.
+Install version `0.3.0` from npm:
 
-Give a coding agent the placement ID, immutable SDK source, target slot, reward
+```bash
+npm install @levelmoment/sdk-web@0.3.0
+```
+
+Earlier npm releases predate slot declarations, the current break format
+names, and the single reward per break described here.
+
+Give a coding agent the placement ID, SDK version, target slot, reward
 action, and verification commands. Require it to load the current
 [porting documentation](https://levelmoment.com/docs/porting) and this package's
 [migration guide](./MIGRATION.md) before it edits the game.

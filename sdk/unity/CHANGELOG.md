@@ -4,7 +4,7 @@ All notable changes to `com.levelmoment.sdk` (Unity UPM package) are documented
 here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
-## [Unreleased]
+## [0.3.0] — 2026-10-16
 
 ### Added
 
@@ -38,7 +38,7 @@ versioning follows [Semver](https://semver.org).
   amount alongside the placement and format. `OnAdReceivedRewardEvent` then
   reports the declared amount: the amount the ad unit already granted. MAX
   reads that from its dashboard, and there is no dashboard here. An ad unit
-  mapped without one keeps reporting 1 for a correct answer.
+  mapped without one keeps reporting 1 for a passed break.
 
 - `LevelMoment.Compat.Max` — an AppLovin MAX-shaped compatibility facade
   (`Runtime/Compat/`) over the existing `InterstitialAd`/`RewardedAd`: a game
@@ -78,6 +78,16 @@ versioning follows [Semver](https://semver.org).
   typed answers were dropped when Active Input Handling was New or Both.
   Editor play mode on a Mac still uses gree, so typed answers may not register
   there.
+
+### Changed — BREAKING
+
+- `OnUserEarnedReward` is an `Action<LevelMomentRewardItem>` that fires at
+  most once per break, when a passed break ends. The item carries `RewardId`
+  and `EarnedAt`; the per-answer `int` amount is gone. Only `quick_question`
+  and `practice_set` report one; `mastery_round` and `intro_lesson` never do.
+- Break formats are `quick_question`, `practice_set`, `mastery_round`, and
+  `intro_lesson`, and the default is `quick_question`. Replace `flashcard`,
+  `quiz`, and `deep_dive`; the service still accepts them so shipped builds keep working, but that alias is temporary.
 
 ### Fixed
 

@@ -75,7 +75,7 @@ void main() {
       expect(uri.queryParameters.containsKey('mock'), isFalse);
       expect(uri.queryParameters['sandbox'], 'true');
       expect(uri.queryParameters['protocolVersion'], '1');
-      expect(uri.queryParameters['sdkVersion'], '0.2.0');
+      expect(uri.queryParameters['sdkVersion'], '0.3.0');
     });
 
     test(
