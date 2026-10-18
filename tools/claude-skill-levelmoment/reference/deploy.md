@@ -73,7 +73,7 @@ Fix anything here before step 3.
    TestFlight, a Google Play internal testing track, or a non-public URL, not
    store review. Its link goes in the email.
 4. [Device test](https://levelmoment.com/docs/going-live#device-test): from
-   the test build, on a target device with a parent account that has a plan
+   the test build, on a target device with a Level Moment account that has a plan
    (a new account can start a 7-day trial), link the device, approve the
    game, and pass a break for one reward; on an unlinked device, cancel the
    linking card and confirm the game resumes. Trial breaks earn nothing.
@@ -133,7 +133,7 @@ Stop and hand to the developer, saying exactly what they need to do, for:
   you to and Level Moment has replied;
 - accepting any terms, agreements or store declarations;
 - signing in, switching accounts, or entering a password or payment card;
-- anything that needs a parent account with a plan or a physical device,
+- anything that needs a Level Moment account with a plan or a physical device,
   including the device test;
 - changing a CI or hosting secret they haven't asked you to change;
 - a grep that still finds `eply_sbx_` after you've fixed the files you can

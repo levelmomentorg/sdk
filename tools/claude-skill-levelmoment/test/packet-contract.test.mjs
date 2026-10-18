@@ -165,7 +165,7 @@ test("deploy links every going-live step and hands human steps back", () => {
     /submitting for store review or publishing/,
     /accepting any terms/,
     /signing in/,
-    /parent account with a plan or a physical device/,
+    /Level Moment account with a plan or a physical device/,
   ]) {
     assert.match(stops, step);
   }
