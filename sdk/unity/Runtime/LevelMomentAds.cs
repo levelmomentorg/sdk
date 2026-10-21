@@ -102,6 +102,7 @@ namespace LevelMoment
         {
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
+            ApplySandboxTokenFile(config);
             // Throws on a bad config, and on UnsafeTesting.RealPairing outside
             // the editor or a development build. Under RealPairing it also
             // logs one warning naming the local origin.
@@ -113,6 +114,25 @@ namespace LevelMoment
             Storefront = string.Equals(Platform, "ios", StringComparison.Ordinal)
                 ? StorefrontProvider.ReadStorefront()
                 : null;
+        }
+
+        /// <summary>
+        /// Switch an editor or development-build config with no explicit testing
+        /// options to sandbox when the project has a sandbox token. The token is
+        /// never logged.
+        /// </summary>
+        internal static void ApplySandboxTokenFile(LevelMomentConfig config)
+        {
+#pragma warning disable 0618 // a deprecated endpoint means the game is testing its own way
+            if (!LevelMomentConfig.IsDevelopmentBuild || !config.UseSandboxTokenFile ||
+                config.UnsafeTesting != null || config.Mock ||
+                !string.IsNullOrEmpty(config.ApiUrl) || !string.IsNullOrEmpty(config.BreakUrl))
+                return;
+#pragma warning restore 0618
+            var token = SandboxTokenFile.Find();
+            if (token == null) return;
+            config.UnsafeTesting = new UnsafeTesting { Token = token };
+            Debug.Log("[LevelMoment] Sandbox: this development build uses the project's sandbox token. Release builds never do.");
         }
 
         // ---- Startup sign-in gate ------------------------------------------
@@ -431,6 +451,8 @@ namespace LevelMoment
             LevelMomentRuntime.SkipDriver = false;
             LevelMomentConfig.DevelopmentBuildOverrideForTests = null;
             RealPairingUrl.ResetWarningsForTests();
+            // Tests never read the developer's own sandbox token file.
+            SandboxTokenFile.SourceForTests = () => null;
         }
     }
 }

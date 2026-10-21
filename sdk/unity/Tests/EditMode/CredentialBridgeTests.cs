@@ -92,7 +92,7 @@ namespace LevelMoment.Tests.EditMode
             StringAssert.Contains("https://levelmoment.com", js);
             StringAssert.Contains("\\\"customData\\\":\\\"impression-7\\\"", js);
             StringAssert.Contains("\\\"protocolVersion\\\":1", js);
-            StringAssert.Contains("\\\"sdkVersion\\\":\\\"0.3.1\\\"", js);
+            StringAssert.Contains("\\\"sdkVersion\\\":\\\"0.3.2\\\"", js);
         }
 
         [Test]

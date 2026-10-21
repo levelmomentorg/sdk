@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 — 2026-10-20
+
+- No changes. Released with the Unity package so every SDK shares one version.
+
 ## 0.3.1 — 2026-10-17
 
 - BREAKING: a release build (`__DEV__` false) refuses `unsafeTesting.token` or a sandbox `studentToken`. `createForAdRequest()` and `checkAccess()` throw; `ensureAccess()` and `ensureSignedIn()` resolve `technicalFailure`. A release build that kept the token would serve every player unpaid sandbox breaks with no pairing. Debug builds are unchanged.

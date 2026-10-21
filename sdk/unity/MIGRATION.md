@@ -12,19 +12,25 @@ Add the pinned SDK and WebView packages to `Packages/manifest.json`:
 ```json
 {
   "dependencies": {
-    "com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.3.1",
-    "net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment#PINNED_GREE_COMMIT",
-    "com.unity.inputsystem": "1.11.2",
-    "com.unity.modules.jsonserialize": "1.0.0"
+    "com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.3.2",
+    "net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment#20f14061ca4b45e8490c1e89e00684a5d3ed6be0"
   }
 }
 ```
 
-Do not use a moving branch such as `main`.
+Do not use a moving branch such as `main`. The SDK brings the Input System
+package and the web request module, turns on its gree adapter, and preserves
+its assemblies from stripping. See `README.md` for the provider setup.
 
-Add `LEVELMOMENT_GREE_WEBVIEW` to Scripting Define Symbols and preserve the
-runtime assemblies in `Assets/link.xml`. See `README.md` for the provider
-setup.
+### From 0.3.1
+
+- Remove `LEVELMOMENT_GREE_WEBVIEW` from Scripting Define Symbols and delete
+  `Assets/link.xml` if it only preserved the SDK and gree assemblies.
+- Move `Assets/Resources/LevelMomentSandboxToken.txt` to
+  `UserSettings/LevelMomentSandboxToken.txt` and delete its `.meta` file. A
+  release build fails while it stays under `Resources`.
+- Delete the game's own code that loads the token into `UnsafeTesting`, and
+  its sandbox build guard. The SDK does both.
 
 ## 2. Replace initialization
 

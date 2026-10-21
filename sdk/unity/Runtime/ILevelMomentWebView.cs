@@ -4,8 +4,8 @@
 // Unity ships no built-in WebView, so the SDK depends on a pluggable provider.
 // A provider opens a fullscreen WebView at the hosted /break URL and surfaces
 // the page's bridge messages as raw JSON strings. Two providers ship: a
-// gree/unity-webview adapter (compiled only when LEVELMOMENT_GREE_WEBVIEW is
-// set) and a native macOS view that macOS standalone players use in its place
+// gree/unity-webview adapter (compiled when the gree package is installed)
+// and a native macOS view that macOS standalone players use in its place
 // (Runtime/MacOS). Other WebView plugins (Vuplex, 3D WebView) can register
 // their own.
 //
@@ -78,8 +78,8 @@ namespace LevelMoment
 
     /// <summary>
     /// Registry of the active <see cref="ILevelMomentWebView"/> factory. The gree
-    /// adapter self-registers via [RuntimeInitializeOnLoadMethod] when
-    /// LEVELMOMENT_GREE_WEBVIEW is set; custom providers call
+    /// adapter self-registers via [RuntimeInitializeOnLoadMethod] when the
+    /// gree package is installed; custom providers call
     /// <see cref="Register"/> themselves. With no provider registered,
     /// <see cref="Create"/> returns a <see cref="NoWebViewFallback"/> that fails
     /// Show() with a clear, actionable error.

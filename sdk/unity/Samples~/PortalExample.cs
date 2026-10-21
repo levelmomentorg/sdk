@@ -1,13 +1,13 @@
 using System;
 using LevelMoment;
 
-// Install and configure the supported WebView provider from the Unity guide.
+// Needs the SDK and gree lines in Packages/manifest.json from the Quickstart.
 public static class LearningBreaks
 {
-    // Call once at app startup.
-    public static void Initialize() => LevelMomentAds.Initialize(new LevelMomentConfig {
-
-    });
+    // Call once at app startup. In the Editor and development builds the SDK
+    // reads the sandbox token from UserSettings/LevelMomentSandboxToken.txt;
+    // release builds never include it.
+    public static void Initialize() => LevelMomentAds.Initialize(new LevelMomentConfig());
 
     // Call from the player's tap. The reward fires at most once per break; if a
     // game server also grants from the webhook, record RewardId there too.

@@ -4,6 +4,34 @@ All notable changes to `com.levelmoment.sdk` (Unity UPM package) are documented
 here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
+## [0.3.2] — 2026-10-20
+
+### Added
+
+- The package depends on `com.unity.inputsystem` and
+  `com.unity.modules.unitywebrequest`, which gree's `unity-webview` assembly
+  needs to compile.
+- The gree adapter compiles whenever the `net.gree.unity-webview` package is
+  present; the `LEVELMOMENT_GREE_WEBVIEW` define is needed only for a classic
+  gree install.
+- The editor hands UnityLinker a `link.xml` for the SDK and gree assemblies on
+  every build, so a game needs no `Assets/link.xml`.
+- The editor sets Active Input Handling from **Input Manager (Old)** to
+  **Both**, so legacy `Input` calls keep working beside the Input System
+  package.
+- In the editor and development builds, `LevelMomentAds.Initialize` uses the
+  sandbox token in `UserSettings/LevelMomentSandboxToken.txt` when the config
+  sets no `UnsafeTesting`. The editor copies it into development builds for
+  the length of the build; release builds never include it.
+  `LevelMomentConfig.UseSandboxTokenFile = false` turns this off.
+
+### Changed — BREAKING
+
+- A release build fails while a `LevelMomentSandboxToken` file sits under
+  `Assets/**/Resources`, the 0.3.1 layout. Move it to
+  `UserSettings/LevelMomentSandboxToken.txt` and delete the game's own token
+  loading code and build guard.
+
 ## [0.3.1] — 2026-10-17
 
 ### Changed — BREAKING

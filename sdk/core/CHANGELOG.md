@@ -4,6 +4,10 @@ All notable changes to `@levelmoment/sdk-core` are documented here. Format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
+## [0.3.2] — 2026-10-20
+
+No changes. Released with the Unity package so every SDK shares one version.
+
 ## [0.3.1] — 2026-10-17
 
 ### Changed — BREAKING

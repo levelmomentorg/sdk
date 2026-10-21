@@ -7,14 +7,16 @@
 // platform/web/app/break/postToHost.ts); gree routes that to the `cb`
 // Action<string> passed to WebViewObject.Init().
 //
-// Compiled ONLY when the LEVELMOMENT_GREE_WEBVIEW scripting define is set AND
-// the gree package is installed (both this file's #if and the sibling
-// LevelMomentSDK.Gree.asmdef defineConstraint gate it). Absent either, the SDK
-// falls back to NoWebViewFallback, which fails Show() with install guidance.
+// Compiled when the gree UPM package is installed (its versionDefine sets
+// LEVELMOMENT_GREE_UPM), or, for a classic copy-into-Assets install, when the
+// LEVELMOMENT_GREE_WEBVIEW scripting define is set. This file's #if and the
+// sibling LevelMomentSDK.Gree.asmdef defineConstraint both gate it. Absent
+// both, the SDK falls back to NoWebViewFallback, which fails Show() with
+// install guidance.
 // See sdk/unity/README.md for setup.
 // ---------------------------------------------------------------------------
 
-#if LEVELMOMENT_GREE_WEBVIEW
+#if LEVELMOMENT_GREE_WEBVIEW || LEVELMOMENT_GREE_UPM
 using System;
 using System.Text.RegularExpressions;
 using UnityEngine;

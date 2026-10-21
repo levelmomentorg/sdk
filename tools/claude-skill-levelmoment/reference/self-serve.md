@@ -11,9 +11,12 @@ page if you need its detail.
 
 ## 1. Ask the developer first
 
-Ask these together, once, before editing. Skip any the developer's brief or
-the code already answers, and ask only what's left; if nothing is left, don't
-ask. Everything else has one right answer in the docs; don't ask about it.
+Ask these together, once, before editing. Skip any the developer's brief, the
+code or the game's own docs already answer, and ask only what's left; if
+nothing is left, don't ask, and say in the report what you decided. A game
+with its own break function or interface already names its moments and what
+each grants, and its README or store listing names the game. Everything else
+has one right answer in the docs; don't ask about it.
 
 1. **Slots:** which moments show a break and what each grants. Find
    candidates first (rewarded-ad calls, "watch to continue" buttons, a game's
@@ -31,26 +34,32 @@ ask. Everything else has one right answer in the docs; don't ask about it.
    game on the Games page at https://levelmoment.com/games ("Register
    game", webhook URL optional), commit the public placement ID as a source
    constant such as `PLACEMENT_ID` in `src/levelmoment.ts` with no mock
-   fallback, install the SDK at exactly 0.3.1, declare a slot per moment
+   fallback, install the SDK at exactly 0.3.2 (Unity: the two manifest lines
+   for the SDK and gree, and `LevelMomentSDK.Runtime` in the
+   references of any assembly definition that uses it), declare a slot per moment
    sized by what it buys (30 seconds for a reward, 18 for resuming play) with
    `format: "practice_set"` on rewarded slots, and call `ensureAccess()` from
    the player's tap (in sandbox it resolves `ready` at once); for a break that
    opens on its own, from the tap that leads to it or a Connect button. A
    signed-in non-developer account sees "Use the right account for this
    page" instead of the Games page. Don't guess other portal URLs.
-2. [Testing and sandbox](https://levelmoment.com/docs/testing): one token
-   per developer, kept in a gitignored file only sandbox builds read (Vite
-   `.env.sandbox.local`, Expo `.env.development.local`, never `.env.local`;
-   add `.env*.local` or the platform's file to `.gitignore` if
-   `git check-ignore` prints nothing) behind a build guard (with Vitest's
-   `defineConfig`, import `loadEnv` from `vite`), passed only as
-   `unsafeTesting: { token }`. For Vite, the everyday `dev` script runs
-   `vite --mode sandbox`, `build:sandbox` runs `vite build --mode sandbox`,
-   and `build` stays production. Flutter: token in an untracked
-   `sandbox.json`, read behind `kReleaseMode`. Check each slot's pass, fail
-   and load failure. A load failure reaches the same not-granted path as a
-   failed break, so the player copy covers both, such as "No reward this
-   time"; the testing page shows how to produce one in a native game. Then grep a
+2. [Testing and sandbox](https://levelmoment.com/docs/testing): generate a
+   token for this game on the Sandbox page, labelled with the game's name
+   (generating revokes no other token), and keep it in a gitignored file only
+   sandbox builds read (Vite `.env.sandbox.local`, Expo
+   `.env.development.local`, never `.env.local`; add `.env*.local` or the
+   platform's file to `.gitignore` if `git check-ignore` prints nothing)
+   behind a build guard (with Vitest's `defineConfig`, import `loadEnv` from
+   `vite`), passed only as `unsafeTesting: { token }`. For Vite, the everyday
+   `dev` script runs `vite --mode sandbox`, `build:sandbox` runs
+   `vite build --mode sandbox`, and `build` stays production. Flutter: token
+   in an untracked `sandbox.json`, read behind `kReleaseMode`. Unity: token in
+   `UserSettings/LevelMomentSandboxToken.txt`, which the SDK reads in the
+   Editor and development builds and keeps out of release builds, so a Unity
+   game writes no token code and no guard. Check each slot's pass, fail and
+   load failure. A load failure reaches the same not-granted path as a failed
+   break, so the player copy covers both, such as "No reward this time"; the
+   testing page shows how to produce one in a native game. Then grep a
    production build for `eply_sbx_`, searching only Capacitor folders that
    exist and treating only grep's exit 1 as clean; for Flutter, follow the
    page's release-build search and its positive control.
@@ -92,25 +101,24 @@ Apply the lifecycle and checks in AGENT-INSTRUCTIONS.md to every slot.
 - **Never sign in or switch accounts.** Don't enter credentials. If a page
   says "Use the right account for this page" (the body reads "You're signed
   in, but this page is for developer accounts"), stop and ask the developer; don't choose **Switch account** yourself.
-- **Move the token without reading it.** Don't read the token from the page
-  text, accessibility tree or a screenshot. Choose the page's **Copy** button,
+- **Generate a token for this game; never copy one from another repository.**
+  On the Sandbox page, enter the game's name as the label, leave **Also use as
+  a Reporting API key** unticked, and choose **Generate token**. It revokes no
+  other token, so no other game breaks. Don't read the token from the page
+  text, accessibility tree or a screenshot: choose the page's **Copy** button,
   then write the clipboard straight into the token file. Confirm the file is
   gitignored first. On macOS:
+
   - Vite: `printf 'VITE_LM_SANDBOX_TOKEN=%s\n' "$(pbpaste)" > .env.sandbox.local`
   - Expo: `printf 'EXPO_PUBLIC_LM_SANDBOX_TOKEN=%s\n' "$(pbpaste)" > .env.development.local`
   - Flutter: `printf '{"LM_SANDBOX_TOKEN": "%s"}\n' "$(pbpaste)" > sandbox.json`
-  - Unity: `pbpaste > Assets/Resources/LevelMomentSandboxToken.txt`
-- **Reuse before regenerating.** If another of the developer's games already
-  holds the token, move its line without printing it, for example
-  `grep '^VITE_LM_SANDBOX_TOKEN=' ../FIRST_GAME/.env.sandbox.local >> .env.sandbox.local`
-  (adjust the variable and file for the platform). A game whose `.env.local`
-  already holds the token needs the line moved the same way (`grep -v` it out
-  of `.env.local` afterwards). Ask the developer
-  before choosing **Regenerate token**: it revokes the token for all their
-  games.
-- **The confirmation dialog may need the developer.** Regenerating opens a
-  browser confirmation that automation may not be able to dismiss, and it can
-  freeze the tab. Ask the developer to click it, or reopen the tab afterwards.
+  - Unity, from the Unity project folder: `mkdir -p UserSettings && pbpaste > UserSettings/LevelMomentSandboxToken.txt`
+
+  If the game's token file already holds a token, keep it. Never choose
+  **Revoke** or **Revoke all** unless the developer asks: **Revoke** breaks
+  every build that uses that token, and **Revoke all** breaks every build that
+  uses any of the developer's tokens.
+
 - **Never print the token** in chat, a log, a commit, a URL or your report.
 - **Drive a sandbox break by its visible text.** Click by what the player
   sees, never by CSS selectors, which aren't a public contract. Every break
@@ -135,7 +143,18 @@ Apply the lifecycle and checks in AGENT-INSTRUCTIONS.md to every slot.
   in points: divide by the device scale (3 on most iPhones). On an Android
   emulator, use `adb exec-out screencap -p > shot.png` and
   `adb shell input tap X Y`, both in pixels. Drive a React Native or Unity
-  sandbox build on a simulator or emulator the same way.
+  sandbox build on a simulator or emulator the same way. For Unity on a Mac,
+  a macOS development player is quicker than a simulator: build
+  `StandaloneOSX` with `BuildOptions.Development`, open it, and drive the
+  break by screenshots. Its questions and answers are named accessibility
+  controls, and the player delivers the reward and dismiss callbacks only
+  while its window is active.
+- **Keep the game's own break seam.** When the game routes breaks through its
+  own function or interface, implement it with the SDK and keep its call
+  sites, as [Your own break interface](https://levelmoment.com/docs/own-break-interface)
+  shows for web. A player can't close or skip a break, so map a break that
+  ends without a reward to the game's not-granted result, and rewrite player
+  copy, docs and tests that say the player closed or skipped one.
 - **Wait for the break to move on.** After an answer the options lock while
   the break advances. Wait for the next question's text to change, or for
   "Back to the game", before reading again; a loop that re-reads at once

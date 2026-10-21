@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 — 2026-10-20
+
+- No changes. Released with the Unity package so every SDK shares one version.
+
 ## 0.3.1 — 2026-10-17
 
 - The break URL carries `leave=page`, so a mid-break pairing card offers **Not now**, which ends the break with no reward.

@@ -1,21 +1,13 @@
 using System;
 using LevelMoment;
 
-// Install and configure the supported WebView provider from the Unity guide.
+// Needs the SDK and gree lines in Packages/manifest.json from the Quickstart.
 public static class SandboxLearningBreaks
 {
-    // Call once at app startup.
-    public static void Initialize()
-    {
-        var config = new LevelMomentConfig();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        // Sandbox only: put the token in Assets/Resources/LevelMomentSandboxToken.txt
-        // and gitignore that file. Release builds never read it.
-        var sandboxToken = UnityEngine.Resources.Load<UnityEngine.TextAsset>("LevelMomentSandboxToken")?.text.Trim();
-        if (!string.IsNullOrEmpty(sandboxToken)) config.UnsafeTesting = new UnsafeTesting { Token = sandboxToken };
-#endif
-        LevelMomentAds.Initialize(config);
-    }
+    // Call once at app startup. In the Editor and development builds the SDK
+    // reads the sandbox token from UserSettings/LevelMomentSandboxToken.txt;
+    // release builds never include it.
+    public static void Initialize() => LevelMomentAds.Initialize(new LevelMomentConfig());
 
     // Call from the player's tap. The reward fires at most once per break; if a
     // game server also grants from the webhook, record RewardId there too.

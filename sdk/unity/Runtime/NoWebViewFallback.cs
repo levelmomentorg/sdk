@@ -24,8 +24,8 @@ namespace LevelMoment
         public const string ErrorJson =
             "{\"type\":\"error\",\"payload\":{" +
             "\"code\":\"no_webview_provider\"," +
-            "\"message\":\"No WebView provider is installed. Install gree/unity-webview and " +
-            "add the LEVELMOMENT_GREE_WEBVIEW scripting define (see sdk/unity/README.md), or " +
+            "\"message\":\"No WebView provider is installed. Add the net.gree.unity-webview " +
+            "package to Packages/manifest.json (see https://levelmoment.com/docs/getting-started#install), or " +
             "register a custom ILevelMomentWebView via LevelMomentWebViewRegistry.Register().\"}}";
 
         public void Open(string url)

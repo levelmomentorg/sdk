@@ -4,7 +4,7 @@ import { normalizeSlotDeclaration } from "./types.js";
 export const HOSTED_BREAK_URL = "https://levelmoment.com/break";
 export const HOSTED_API_URL = "https://levelmoment.com/api";
 export const BRIDGE_PROTOCOL_VERSION = 1;
-export const SDK_VERSION = "0.3.1";
+export const SDK_VERSION = "0.3.2";
 
 /**
  * Hosts a game may pair against with `unsafeTesting.realPairing`. Always

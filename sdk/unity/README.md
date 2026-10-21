@@ -1,6 +1,6 @@
 # LevelMoment Unity SDK (`com.levelmoment.sdk`)
 
-Version `0.3.1` installs from the public repository's `sdk-v0.3.1` tag.
+Version `0.3.2` installs from the public repository's `sdk-v0.3.2` tag.
 
 Give a coding agent the placement ID, immutable SDK source, target slot, reward
 action, and generated port plan. Require it to load the current
@@ -24,67 +24,57 @@ Unity sends `custody: false`; use `UnsafeTesting` for sandbox credentials.
 
 Unity has **no built-in WebView**, so the SDK needs a WebView provider. The bundled provider targets the open-source [`gree/unity-webview`](https://github.com/gree/unity-webview) plugin.
 
-### 1. Install this package
+### 1. Install this package and gree
 
-Add the package to `Packages/manifest.json`. Pin the tag, not a branch:
-
-```json
-"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.3.1"
-```
-
-### 2. Install gree/unity-webview and the Input System package
-
-gree's assembly definition references `Unity.InputSystem`. Without the
-package, the `unity-webview` assembly does not compile and the SDK reports no
-WebView provider. Add both to `Packages/manifest.json`:
+Add both lines to the `dependencies` in `Packages/manifest.json`. Pin the SDK
+tag, not a branch:
 
 ```json
-"net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment",
-"com.unity.inputsystem": "1.11.2"
+"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.3.2",
+"net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment#20f14061ca4b45e8490c1e89e00684a5d3ed6be0"
 ```
 
-Installing the Input System package with **Active Input Handling** on **Input
-Manager (Old)** makes the editor ask to switch to the new backends and restart,
-and setting it to **Input System Package (New)** alone breaks every legacy `Input` call. If
-the game reads input through the legacy `Input` class, set **Project Settings →
-Player → Other Settings → Active Input Handling** to **Both**.
+The package handles the rest of the gree setup:
 
-**Note:** The gree UPM packages namespace the plugin as
-`Gree.UnityWebView.WebViewObject`. The SDK supports both this and the classic
-global-namespace install; a `versionDefine` sets `LEVELMOMENT_GREE_UPM`
-whenever the UPM package is present.
+- It depends on the Input System package and the web request module, which
+  gree's assembly needs to compile.
+- Its gree adapter compiles whenever the gree package is present and registers
+  itself as the WebView provider at startup.
+- Its editor hands UnityLinker a `link.xml` for the SDK and gree assemblies on
+  every build, so il2cpp doesn't strip the self-registering adapter. Unity
+  ignores a `link.xml` inside a git- or file-referenced package, so the game
+  would otherwise need its own.
+- If **Active Input Handling** is **Input Manager (Old)**, it sets it to
+  **Both** and logs it, because the Input System package otherwise offers a
+  switch to the new backends alone, which breaks every legacy `Input` call. It
+  takes effect when the editor next starts. A project on **New** or **Both**
+  is left alone.
 
-### 3. Add the scripting define
+### 2. Reference the SDK from assembly definitions
 
-**Project Settings → Player → Other Settings → Scripting Define Symbols**, add:
+A game whose scripts sit in an assembly definition (`.asmdef`) adds
+`LevelMomentSDK.Runtime` to that assembly's `references`, and so does each test
+assembly that touches SDK types. Scripts in Unity's default `Assembly-CSharp`
+need nothing.
 
-```
-LEVELMOMENT_GREE_WEBVIEW
-```
+### 3. Other WebView plugins
 
-This compiles the bundled gree adapter, which registers as the WebView provider
-at startup. Without the define or a registered provider, `Show()` reports a
-failure through `OnAdFailedToShow`. macOS standalone players are the exception:
-they use the SDK's native macOS view and need no define.
+For Vuplex or 3D WebView, implement `ILevelMomentWebView` and call
+`LevelMomentWebViewRegistry.Register(() => new YourAdapter())` at startup
+instead of installing gree. A classic `.unitypackage` install of gree, without
+the UPM package, needs the scripting define `LEVELMOMENT_GREE_WEBVIEW` and an
+`Assets/link.xml` that preserves `unity-webview`.
 
-> Using a different WebView plugin (Vuplex, 3D WebView)? Implement `ILevelMomentWebView` and call `LevelMomentWebViewRegistry.Register(() => new YourAdapter())` at startup instead of steps 2–3.
+### 4. Sandbox token
 
-### 4. Create `Assets/link.xml`
-
-```xml
-<linker>
-  <assembly fullname="LevelMomentSDK.Gree" preserve="all" />
-  <assembly fullname="LevelMomentSDK.Runtime" preserve="all" />
-  <assembly fullname="unity-webview" preserve="all" />
-</linker>
-```
-
-**Warning:** Skipping this step fails silently. The gree adapter registers
-itself through `[RuntimeInitializeOnLoadMethod]` and nothing references it
-statically, so UnityLinker strips it from il2cpp builds. The project
-compiles, editor play mode works, and only the built player reports no
-WebView provider. The package ships its own `link.xml`, but Unity does not
-honor it for git- or file-referenced packages.
+Put the game's sandbox token alone in `UserSettings/LevelMomentSandboxToken.txt`
+in the project folder. Unity's standard `.gitignore` already excludes
+`UserSettings/`. In the editor and development builds, `LevelMomentAds.Initialize`
+uses it when the config sets no `UnsafeTesting`; the editor copies it into a
+development build for the length of that build, and a release build never
+includes it. A token file left under `Assets/**/Resources` by 0.3.1 fails a
+release build. Set `UseSandboxTokenFile = false` to test real device linking in
+a development build. See [Testing and sandbox](https://levelmoment.com/docs/testing).
 
 ### 5. Allow plain-HTTP for local development
 
@@ -180,8 +170,8 @@ RewardedAd.Load("YOUR_PLACEMENT_ID", new RewardedAdLoadCallbacks
 ```
 
 No token appears anywhere above — a paired device's credential lives in the
-hosted page's storage. Use `UnsafeTesting` with an `eply_sbx_` token for sandbox
-work. The deprecated `studentToken` overload is refused in production.
+hosted page's storage. For sandbox, use the token file in Requirements step 4
+or `UnsafeTesting` with an `eply_sbx_` token. The deprecated `studentToken` overload is refused in production.
 
 A game that passes an explicit token needs a WebView provider implementing `ILevelMomentScriptableWebView` for the token to reach the page — see API below. The bundled gree adapter implements it.
 
@@ -217,7 +207,7 @@ Unknown reporting codes are omitted from reports without blocking the break.
 | `LevelMomentAds.IsSignedIn(placementId, onResult, onError, studentToken?)`  | Authoritative credential check through a hidden `?mode=check` surface. Calls `onError`, not `onResult(false)`, when it cannot get an answer.                                                                                                                                 |
 | `LevelMomentAds.EnsureAccess(placementId, callback, studentToken?)`         | Optional access gate on `/access?mode=gate`; reports the same `EnsureSignedInResult` values and callback semantics as `EnsureSignedIn`.                                                                                                                                      |
 | `LevelMomentAds.CheckAccess(placementId, onResult, onError, studentToken?)` | Optional access check on `/access?mode=check`; `onResult(false)` means the access flow is needed, while technical failures call `onError`.                                                                                                                                   |
-| `RewardedAd.Load(placementId, callbacks, format?)`                          | Synchronous mark-ready (no network). `callbacks`: `OnAdLoaded`, `OnAdFailedToLoad`.                                                                                                                                                                                          |
+| `RewardedAd.Load(placementId, callbacks, format?, slot?)`                   | Synchronous mark-ready (no network). `callbacks`: `OnAdLoaded`, `OnAdFailedToLoad`. `slot`: a `LevelMomentAdSlot` declaring the moment.                                                                                                                                      |
 | `RewardedAd.Load(placementId, studentToken, callbacks, format?)`            | Deprecated compatibility overload. The token is accepted only with an `eply_sbx_` credential in `UnsafeTesting`.                                                                                                                                                             |
 | `ad.Show(callbacks)`                                                        | Opens the hosted break in a WebView. `OnUserEarnedReward(item)` fires once for a server-confirmed passed graded break; dismiss and failure callbacks remain terminal.                                                                                                        |
 | `callbacks.OnUserEarnedRewardItem`                                          | Optional alias for the same item (`RewardId`, `EarnedAt`), with no game-currency amount.                                                                                                                                                                                     |
@@ -455,11 +445,11 @@ Automated C# checks do not replace validation in a real Unity editor, an
 il2cpp build, and each target device. Before release:
 
 1. **Open the package in Unity 2021.3 LTS** (or newer). Add both the SDK and
-   `net.gree.unity-webview` per the Requirements section, plus the
-   `LEVELMOMENT_GREE_WEBVIEW` define.
+   `net.gree.unity-webview` per the Requirements section, with no scripting
+   define.
    - Confirm the console is clean and that the bundled gree adapter compiles.
    - Confirm the package also compiles without the optional bundled provider when
-     the scripting define is absent.
+     gree is absent.
    - Run the EditMode suites in the editor so bridge parsing meets the real
      `JsonUtility`.
 2. **Accessibility check**: open a break in a built player and confirm that

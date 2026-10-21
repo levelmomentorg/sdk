@@ -77,6 +77,14 @@ namespace LevelMoment
         /// </summary>
         public UnsafeTesting UnsafeTesting;
 
+        /// <summary>
+        /// In the editor and a development build with no <see cref="UnsafeTesting"/>,
+        /// use the project's sandbox token from
+        /// <c>UserSettings/LevelMomentSandboxToken.txt</c> when there is one. On by default; set false to test real device
+        /// linking in a development build. A release build never reads the file.
+        /// </summary>
+        public bool UseSandboxTokenFile = true;
+
         public LevelMomentConfig() { }
 
         public LevelMomentConfig(string apiUrl, string breakUrl, bool mock = false, string customData = null)
@@ -282,7 +290,7 @@ namespace LevelMoment
         public const string BreakUrl = "https://levelmoment.com/break";
         public const string AccessUrl = "https://levelmoment.com/access";
         public const string ApiUrl = "https://levelmoment.com/api";
-        public const string SdkVersion = "0.3.1";
+        public const string SdkVersion = "0.3.2";
         public const int ProtocolVersion = 1;
     }
 }

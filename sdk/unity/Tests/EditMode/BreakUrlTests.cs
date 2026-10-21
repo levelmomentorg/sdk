@@ -222,7 +222,7 @@ namespace LevelMoment.Tests.EditMode
             StringAssert.Contains("sandbox=true", url);
             StringAssert.Contains("leave=page", url);
             StringAssert.Contains("protocolVersion=1", url);
-            StringAssert.Contains("sdkVersion=0.3.1", url);
+            StringAssert.Contains("sdkVersion=0.3.2", url);
         }
 
         [Test]
