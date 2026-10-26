@@ -1,29 +1,61 @@
+// One Level Moment slot, as https://levelmoment.com/docs/getting-started
+// shows it. Replace the constructor's game hooks with the game's own pause,
+// resume and grant; keep the lifecycle.
 using System;
 using LevelMoment;
 
 public sealed class LevelMomentRewardedSlot
 {
     private readonly string _placementId;
+    private readonly LevelMomentAdSlot _slot;
     private readonly Action _pauseGame;
     private readonly Action _resumeGame;
     private readonly Action<string> _grantChosenBonus;
-    private readonly Action _prepareNextSlot;
+    private readonly Action _returnToOffer;
+    private bool _open;
 
+    // placementId: the pl_ ID from the game's page at levelmoment.com/games.
+    // targetDurationSeconds: 30 for a moment that grants a reward, 18 for a
+    // revive or continue. rewardAmount is reported only; the game grants.
+    // returnToOffer: where the game goes when no reward was granted, such as
+    // a revive offer's own screen. Grant nothing there and don't reopen the
+    // break by itself.
     public LevelMomentRewardedSlot(
         string placementId,
+        int targetDurationSeconds,
+        int rewardAmount,
         Action pauseGame,
         Action resumeGame,
         Action<string> grantChosenBonus,
-        Action prepareNextSlot)
+        Action returnToOffer)
     {
         _placementId = placementId;
+        _slot = new LevelMomentAdSlot("rewarded", targetDurationSeconds, rewardAmount: rewardAmount);
         _pauseGame = pauseGame;
         _resumeGame = resumeGame;
         _grantChosenBonus = grantChosenBonus;
-        _prepareNextSlot = prepareNextSlot;
+        _returnToOffer = returnToOffer;
     }
 
-    public void Show()
+    // Call from the player's tap on the moment's button.
+    public void OnPlayerTapped()
+    {
+        if (_open) return;
+        _open = true;
+        LevelMomentAds.EnsureAccess(_placementId, access =>
+        {
+            if (access != EnsureSignedInResult.Ready)
+            {
+                // Canceled or TechnicalFailure: carry on without a break.
+                _open = false;
+                _returnToOffer();
+                return;
+            }
+            Show();
+        });
+    }
+
+    private void Show()
     {
         _pauseGame();
         var granted = false;
@@ -32,10 +64,12 @@ public sealed class LevelMomentRewardedSlot
         {
             if (finished) return;
             finished = true;
+            _open = false;
             _resumeGame();
-            _prepareNextSlot();
+            if (!granted) _returnToOffer();
         };
 
+        // A fresh handle for every break.
         RewardedAd.Load(_placementId, new RewardedAdLoadCallbacks
         {
             OnAdLoaded = ad => ad.Show(new RewardedAdShowCallbacks
@@ -52,22 +86,10 @@ public sealed class LevelMomentRewardedSlot
                 OnAdFailedToShow = _ => finish(),
             }),
             OnAdFailedToLoad = _ => finish(),
-        });
-    }
-
-    public void EnableLearningFromPlayerAction(Action openLearningChoice)
-    {
-        LevelMomentAds.EnsureAccess(_placementId, result =>
-        {
-            if (result == EnsureSignedInResult.Ready) openLearningChoice();
-        });
-    }
-
-    public void CheckLearningAccess(Action<bool> onResult, Action<string> onError)
-    {
-        LevelMomentAds.CheckAccess(_placementId, onResult, onError);
+        }, format: "practice_set", slot: _slot);
     }
 }
 
-// Initialize once in your bootstrap scene.
-// LevelMomentAds.Initialize(new LevelMomentConfig());
+// Initialize once at startup, for example:
+// [UnityEngine.RuntimeInitializeOnLoadMethod]
+// static void InitLevelMoment() => LevelMomentAds.Initialize(new LevelMomentConfig());

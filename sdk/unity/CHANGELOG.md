@@ -4,6 +4,22 @@ All notable changes to `com.levelmoment.sdk` (Unity UPM package) are documented
 here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
+## [Unreleased]
+
+### Fixed
+
+- `InterstitialAd.Load()` with no `format` and no `slot` now declares an
+  interstitial slot of 18 seconds and asks for `mastery_round`. Before, it
+  sent `format=quick_question` with no slot, and the hosted page served a
+  rewarded single question. A call that passes a `format` without a slot is
+  unchanged.
+
+### Added
+
+- `Load()`, `EnsureAccess`, `EnsureSignedIn`, `CheckAccess` and `IsSignedIn`
+  log a warning, once per ID, when the placement ID doesn't look like one
+  from the developer portal (`pl_` followed by 22 letters, digits, `-` or `_`). The call still runs.
+
 ## [0.4.1] — 2026-10-26
 
 ### Added

@@ -60,6 +60,7 @@ namespace LevelMoment
                     "invalid_request", "placementId is required to load a break.");
                 return false;
             }
+            PlacementIdFormat.WarnIfMalformed(placementId);
 
             try
             {

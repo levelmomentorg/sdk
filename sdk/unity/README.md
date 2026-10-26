@@ -14,13 +14,22 @@ answers and completion through C# callbacks. `Load()` prepares the shell; it
 does not preload question content.
 
 **Note:** Credentials travel through the bridge and never in the hosted URL.
-Unity sends `custody: false`; use `UnsafeTesting` for sandbox credentials.
+The Unity SDK keeps no copy of the player's Level Moment credential; the hosted
+page stores it. Use `UnsafeTesting` only for sandbox credentials.
 
-**Parent approval opens in the device's browser.** When a parent chooses to approve the game in a browser rather than scan the pairing code, the SDK opens the approval link outside the WebView. Parent sign-in stays outside the game surface. Never collect a Level Moment email code or other parent credential inside it. After approval, return to the game; the break resumes polling and completes the connection automatically. Only links on the loaded Level Moment origin are passed to the OS. Break and gate URLs announce browser support with `caps=openExternal`.
+**Linking a device can open the device's browser.** When the player chooses to
+approve the game in a browser instead of scanning the pairing code, the SDK
+opens the approval link outside the WebView, so Level Moment sign-in never
+happens inside the game. Never collect a Level Moment email code or any other
+Level Moment credential in your own UI. After approval the player returns to
+the game, and the break finishes linking on its own. The SDK passes only links
+on the loaded Level Moment origin to the OS.
 
 ---
 
 ## Requirements
+
+The package supports Unity 2021.3 LTS and later, including Unity 6 (6000.x).
 
 Unity has **no built-in WebView**, so the SDK needs a WebView provider. The bundled provider targets the open-source [`gree/unity-webview`](https://github.com/gree/unity-webview) plugin.
 
@@ -47,8 +56,9 @@ The package handles the rest of the gree setup:
 - If **Active Input Handling** is **Input Manager (Old)**, it sets it to
   **Both** and logs it, because the Input System package otherwise offers a
   switch to the new backends alone, which breaks every legacy `Input` call. It
-  takes effect when the editor next starts. A project on **New** or **Both**
-  is left alone.
+  takes effect when the editor next starts, and it changes
+  `ProjectSettings/ProjectSettings.asset`, so commit that change with the SDK.
+  A project on **New** or **Both** is left alone.
 
 ### 2. Reference the SDK from assembly definitions
 
@@ -110,64 +120,87 @@ becomes active.
 
 ## Quickstart
 
+This is the [Quickstart](https://levelmoment.com/docs/getting-started) flow
+for one rewarded moment.
+
 ```csharp
 using System;
 using LevelMoment;
 
-// 1. Initialize once (bootstrap scene)
-LevelMomentAds.Initialize(new LevelMomentConfig
-{
-    // Production uses https://levelmoment.com/api and /break by default.
-    // Mock = true,  // bundled demo questions, no API/token
-});
+// 1. Initialize once, in your bootstrap scene.
+LevelMomentAds.Initialize(new LevelMomentConfig());
 
-// 2. Opt in to the sign-in gate when enabling learning breaks at startup.
-LevelMomentAds.EnsureSignedIn("YOUR_PLACEMENT_ID", result =>
+// 2. From the player's tap on the moment's button: check access, then show.
+public void OnWatchForCoinsTapped()
 {
-    switch (result)
+    LevelMomentAds.EnsureAccess("YOUR_PLACEMENT_ID", access =>
     {
-        case EnsureSignedInResult.Ready:
-            StartGame();
-            break;
-        case EnsureSignedInResult.Canceled:
-            ShowBreaksAreOffScreen();   // a person said no — offer a manual retry
-            break;
-        case EnsureSignedInResult.TechnicalFailure:
-            ShowTryAgainLater();
-            break;
-    }
-});
+        // Canceled or TechnicalFailure: carry on without a break.
+        if (access != EnsureSignedInResult.Ready) return;
+        ShowRewardedBreak();
+    });
+}
 
-// 3. Create a fresh handle every time this existing rewarded slot opens.
-PauseGame();
-var granted = false;
-var finished = false;
-Action finish = () =>
+// 3. Load a fresh handle for every break.
+void ShowRewardedBreak()
 {
-    if (finished) return;
-    finished = true;
-    ResumeGame();
-    PrepareNextBreak();
-};
-RewardedAd.Load("YOUR_PLACEMENT_ID", new RewardedAdLoadCallbacks
-{
-    OnAdLoaded = ad => ad.Show(new RewardedAdShowCallbacks
+    PauseGame();
+    var granted = false;
+    var finished = false;
+    Action finish = () =>
     {
-        OnUserEarnedReward = reward =>
+        if (finished) return;
+        finished = true;
+        ResumeGame();
+    };
+    // A reward moment: 30 seconds, about 5 questions. rewardAmount is for reporting.
+    var slot = new LevelMomentAdSlot("rewarded", 30, rewardAmount: 50);
+    RewardedAd.Load("YOUR_PLACEMENT_ID", new RewardedAdLoadCallbacks
+    {
+        OnAdLoaded = ad => ad.Show(new RewardedAdShowCallbacks
         {
-            if (!finished && !granted)
+            OnUserEarnedReward = reward =>
             {
-                granted = true;
-                RecordGrantedReward(reward.RewardId);
-                GrantBonus();
-            }
-        },
-        OnAdDismissed = finish,
-        OnAdFailedToShow = _ => finish(),
-    }),
-    OnAdFailedToLoad = _ => finish(),
-});
+                if (!finished && !granted)
+                {
+                    granted = true;
+                    RecordGrantedReward(reward.RewardId);
+                    GrantCoins(50);
+                }
+            },
+            OnAdDismissed = finish,
+            OnAdFailedToShow = _ => finish(),
+        }),
+        OnAdFailedToLoad = _ => finish(),
+    }, format: "practice_set", slot: slot);
+}
 ```
+
+A game with no bootstrap scene object can initialize from a static method
+instead. Without `RequireInternet`, `Initialize` shows nothing until a break or
+gate opens, so it's safe in batch mode:
+
+```csharp
+static class LevelMomentBootstrap
+{
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void Init() => LevelMomentAds.Initialize(new LevelMomentConfig());
+}
+```
+
+With `RequireInternet`, a batch-mode run on a machine with no network pauses
+the game, so leave `RequireInternet` off when `Application.isBatchMode` is
+true.
+
+Call `EnsureAccess` before each break, from a tap the player chose. In sandbox
+it returns `Ready` after a brief check. `EnsureSignedIn` and `IsSignedIn` check
+only that the device is linked, not that the household has access; use them
+only for a feature that needs the link and nothing else.
+
+Size and declare each slot as the Quickstart's
+[slot table](https://levelmoment.com/docs/getting-started#slot-size) shows:
+30 seconds for a moment that grants a reward, 18 for one that resumes play or
+grants nothing, and `format: "practice_set"` on every rewarded slot.
 
 No token appears anywhere above — a paired device's credential lives in the
 hosted page's storage. For sandbox, use the token file in Requirements step 4
@@ -208,17 +241,7 @@ button. Closing it ends a break with `OnAdDismissed` and makes the gates return
 To block play until the connection returns, set `RequireInternet`. The SDK
 then shows a full-screen "No internet connection" message with a **Try again**
 button whenever the device reports no connection, and removes it when the
-connection returns:
-
-```csharp
-LevelMomentAds.Initialize(new LevelMomentConfig
-{
-    RequireInternet = true,
-    GameName = "YOUR_GAME_NAME",
-    // Pause gameplay and input while the message shows.
-    OnConnectionChange = online => { if (online) ResumeGame(); else PauseGame(); },
-});
-```
+connection returns.
 
 `OnConnectionChange` runs on the main thread with `false` when the message
 appears and `true` when it goes away. When the device is offline at
@@ -227,18 +250,74 @@ appears and `true` when it goes away. When the device is offline at
 2 seconds and whenever the app regains focus or resumes. Call
 `LevelMomentAds.Dispose()` when the game tears down.
 
-The message is drawn with IMGUI over everything Unity renders, inside the safe
-area. It doesn't stop your game reading input itself, so pause input from
-`OnConnectionChange`. A break that is already open stays on screen above the
-message until it ends.
+Resume only when the device is online and no break is open. A break that is
+open stays above the message until it ends, and it can end while the device
+is offline:
 
-A break can end while the device is offline. If `LevelMomentAds.IsOnline` is
-false when a break's dismiss or failure callback fires, leave the game paused;
-`OnConnectionChange(true)` resumes it. While a break is open, ignore
-`OnConnectionChange(true)`. A call made offline reports its failure first,
-while `IsOnline` can still read true, and `OnConnectionChange(false)` on the
-next frame, so a game that resumes from the failure pauses again a frame
-later.
+```csharp
+bool breakOpen;
+
+LevelMomentAds.Initialize(new LevelMomentConfig
+{
+    RequireInternet = true,
+    GameName = "YOUR_GAME_NAME",
+    OnConnectionChange = online =>
+    {
+        if (!online) PauseGame();
+        else if (!breakOpen) ResumeGame();
+    },
+});
+
+// Set breakOpen = true before Load(), and call this from the break's
+// dismiss and failure callbacks.
+void OnBreakFinished()
+{
+    breakOpen = false;
+    if (LevelMomentAds.IsOnline) ResumeGame();
+}
+```
+
+A call made offline reports its failure first, while `IsOnline` can still read
+true. `OnConnectionChange(false)` arrives on the next frame, so a game that
+resumes in the failure callback pauses again a frame later.
+
+The message is drawn with IMGUI over everything Unity renders, inside the safe
+area. IMGUI can't stop input reaching the rest of the game: taps still reach
+uGUI buttons, and your scripts still read `Input` and the Input System. Turn
+off your own input while the device is offline. `PauseGame()` and
+`ResumeGame()` above are yours; for uGUI, disable the `EventSystem` so no
+button under the message responds:
+
+```csharp
+using UnityEngine.EventSystems;
+
+[SerializeField] EventSystem eventSystem;       // the scene's EventSystem
+[SerializeField] MonoBehaviour playerInput;     // your own input component
+
+void PauseGame()
+{
+    Time.timeScale = 0f;
+    AudioListener.pause = true;  // stop the game's sound
+    playerInput.enabled = false;
+    eventSystem.enabled = false;
+}
+
+void ResumeGame()
+{
+    eventSystem.enabled = true;
+    playerInput.enabled = true;
+    AudioListener.pause = false;
+    Time.timeScale = 1f;
+}
+```
+
+**Warning:** Hold the `EventSystem` in a field. `EventSystem.current` is null
+while the `EventSystem` is disabled, so code that re-enables it through
+`EventSystem.current` does nothing, and every button stays dead after the
+connection returns.
+
+Instead of the `EventSystem`, you can put a `CanvasGroup` on the UI root and
+set its `interactable` and `blocksRaycasts` to false while offline.
 
 **Note:** Only the device's own connection state counts. When the device is
 online and Level Moment can't be reached, nothing is blocked: the break or
@@ -260,6 +339,7 @@ check fails and the game carries on.
 | `LevelMomentAds.CheckAccess(placementId, onResult, onError, studentToken?)` | Optional access check on `/access?mode=check`; `onResult(false)` means the access flow is needed, while technical failures call `onError`.                                                                                                                                   |
 | `RewardedAd.Load(placementId, callbacks, format?, slot?)`                   | Synchronous mark-ready (no network). `callbacks`: `OnAdLoaded`, `OnAdFailedToLoad`. `slot`: a `LevelMomentAdSlot` declaring the moment.                                                                                                                                      |
 | `RewardedAd.Load(placementId, studentToken, callbacks, format?)`            | Deprecated compatibility overload. The token is accepted only with an `eply_sbx_` credential in `UnsafeTesting`.                                                                                                                                                             |
+| `InterstitialAd.Load(placementId, callbacks, format?, slot?)`               | Same as `RewardedAd.Load`, for a moment that grants nothing. Pass a `slot`: in 0.4.1, a call without one serves a rewarded question.                                                                                                                                         |
 | `ad.Show(callbacks)`                                                        | Opens the hosted break in a WebView. `OnUserEarnedReward(item)` fires once for a server-confirmed passed graded break; dismiss and failure callbacks remain terminal.                                                                                                        |
 | `callbacks.OnUserEarnedRewardItem`                                          | Optional alias for the same item (`RewardId`, `EarnedAt`), with no game-currency amount.                                                                                                                                                                                     |
 | `ad.IsLoaded`                                                               | True when loaded and not yet shown/destroyed.                                                                                                                                                                                                                                |
@@ -279,12 +359,12 @@ credentials stay in the hosted bridge and are never supplied in game config.
 - `OnUserEarnedRewardItem(item)` — optional alias with the same terminal reward item and earned time.
 - `OnAdDismissed` — fires **exactly once** when the break ends. Resume the game here, unless `RequireInternet` is on and `LevelMomentAds.IsOnline` is false (see [Require an internet connection](#require-an-internet-connection)).
 - `OnAdFailedToShow(error)` — fires instead of `OnAdDismissed` when the break can't be shown (not loaded, no connection, no WebView provider, page error, or the ad was already shown — see below).
-- `format` — `quick_question` (default), `practice_set`, `mastery_round`, or `intro_lesson`. The first two fill a rewarded slot (one question, then a set); the last two fill an interstitial slot (a longer set, and the same set opening on an instruction panel). Declare the slot and Level Moment picks the format inside it, since which one suits the learner is not something a game can see. A format you pass is a floor: the break is never smaller than the one you sized the slot against.
+- `format` — a floor for the break, not a choice: `quick_question`, `practice_set`, `mastery_round`, or `intro_lesson`. Declare the slot and Level Moment picks the format inside it. Pass `practice_set` on every rewarded slot, so a short slot is never served as one question; `RewardedAd.Load` defaults to `quick_question` only so older call sites keep compiling. Pass no `format` to `InterstitialAd.Load`: a rewarded format there has no effect, and an interstitial slot serves a round of questions either way.
 - One `Show()` per handle: once a `RewardedAd`/`InterstitialAd` has been shown, `IsLoaded` is false and a second `Show()` reports `OnAdFailedToShow` with `not_loaded` rather than reopening it — get a fresh handle from `Load()` for each break.
 
 A **15-second pre-`ready` watchdog** guarantees a crashed or unreachable page
 can't cover the game forever — it resolves as a clean `OnAdDismissed`. After
-`ready` there is no timeout (a student thinking through a question is never
+`ready` there is no timeout (a player thinking through a question is never
 force-closed).
 
 `Show()` catches WebView-provider startup failures. If the provider factory or `Open()` throws, the SDK reports `webview_error` through `OnAdFailedToShow` and tears down the ad. Exceptions thrown by your own callbacks propagate to you unchanged.
@@ -293,23 +373,25 @@ force-closed).
 by the Unity SDK's `EnsureSignedInResult`):
 
 - `Ready` — enable learning breaks. Normal gameplay can start independently.
-- `Canceled` — a person closed the gate, or a parent denied the connection. Show your own "learning breaks are off" state or a retry action; do not retry automatically.
+- `Canceled` — the player closed the gate or declined to link the device. Show your own "learning breaks are off" state or a retry action; do not retry automatically.
 - `TechnicalFailure` — the gate could not run (no `Initialize()`, a bad config string, no connection, no WebView provider, or the surface never came up). Retry later.
 - `IsSignedIn` is authoritative, not a cached flag — it re-validates the credential against the server every call, because a credential can be revoked between launches. An error means _unknown_, never _signed out_: treat it as "try again", and leave the current state alone.
-- Both methods allow the hosted page 15 seconds to load. `EnsureSignedIn` then waits without a deadline for approval, so pairing takes as long as a parent takes. `IsSignedIn` has no approval step and is bounded end to end: it calls `onError` if the page does not load in 15 seconds, if the page's credential check runs longer than 10 seconds (the page reports `check_timeout`), or if 30 seconds pass with no answer at all.
+- Both methods allow the hosted page 15 seconds to load. `EnsureSignedIn` then waits without a deadline for approval, so linking takes as long as the player takes. `IsSignedIn` has no approval step and is bounded end to end: it calls `onError` if the page does not load in 15 seconds, if the page's credential check runs longer than 10 seconds (the page reports `check_timeout`), or if 30 seconds pass with no answer at all.
 - `EnsureAccess` and `CheckAccess` use the same outcome and deadline rules on `/access`; use them when access enablement is a separate publisher flow from identity sign-in.
 
 ---
 
 ## InterstitialAd
 
-`InterstitialAd` is the same hosted `/break` WebView shell as `RewardedAd` —
-same `Load()`/`Show()` lifecycle, same watchdog and dismiss/failure semantics
-— for a break slot that grants nothing (the placement AdMob calls a plain
-interstitial). `InterstitialAdShowCallbacks` has no reward callbacks; use it
-where the game doesn't want to grant a bonus for the break.
+`InterstitialAd` is the same hosted `/break` WebView shell as `RewardedAd`,
+with the same `Load()`/`Show()` lifecycle, watchdog, and dismiss and failure
+callbacks. Use it for a moment that grants nothing, such as the pause between
+levels where the game showed an interstitial ad. `InterstitialAdShowCallbacks`
+has no reward callbacks.
 
 ```csharp
+// A moment that grants nothing: 18 seconds, about 3 questions.
+var slot = new LevelMomentAdSlot("interstitial", 18);
 InterstitialAd.Load("YOUR_PLACEMENT_ID", new InterstitialAdLoadCallbacks
 {
     OnAdLoaded = ad => ad.Show(new InterstitialAdShowCallbacks
@@ -318,15 +400,35 @@ InterstitialAd.Load("YOUR_PLACEMENT_ID", new InterstitialAdLoadCallbacks
         OnAdFailedToShow = _ => ResumeGame(),
     }),
     OnAdFailedToLoad = _ => ResumeGame(),
+}, slot: slot);
+```
+
+Always pass the slot, at 18 seconds or more. In 0.4.1, a `Load()` with no slot
+serves a single rewarded question; from the next release, one with no slot and
+no `format` declares an 18-second interstitial slot. An interstitial break serves a round of 2 to 10 questions
+and asks each missed question again, with hints and then the worked answer.
+
+The game gets no result from an interstitial break: every ending reaches
+`OnAdDismissed` or `OnAdFailedToShow`, and both mean "carry on". Map either one
+to the result your old interstitial's close callback produced. Don't grant
+anything for it.
+
+`OnAdDismissed` also fires when the page doesn't load within 15 seconds and
+when the player closes the loading screen. To tell a break the player saw from
+one that ended before it appeared, set `OnAdShowedFullScreenContent`, which
+fires once when the break is on screen:
+
+```csharp
+var shown = false;
+ad.Show(new InterstitialAdShowCallbacks
+{
+    OnAdShowedFullScreenContent = () => shown = true,
+    OnAdDismissed = () => { if (!shown) LogBreakNotShown(); ResumeGame(); },
+    OnAdFailedToShow = _ => ResumeGame(),
 });
 ```
 
-The shell announces `kind=interstitial` on the `/break` URL it opens
-(`RewardedAd` sends no `kind`), so the hosted page can tell which placement it
-is serving. **The hosted `/break` page does not yet read this param** — until
-it does, the page renders the same experience for both kinds.
-
----
+`RewardedAdShowCallbacks` has the same callback.
 
 ## Platform and storefront reporting
 
@@ -394,7 +496,7 @@ Runtime divergences worth knowing before you rely on this facade:
 
 - **`OnAdReceivedRewardEvent` fires at most once per `ShowRewardedAd`**, when
   the server confirms that the whole graded break passed. Its label is the
-  break reward ID; no child-answer callback authorizes a grant.
+  break reward ID; no per-answer callback authorizes a grant.
 - **The slot's duration decides how much the break holds.** Level Moment fits
   questions to the seconds you declare: a fifteen-second slot holds several
   addition questions or one long-division question. The count stays fixed for

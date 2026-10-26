@@ -49,8 +49,9 @@ namespace LevelMoment
         /// page — omitted (as every call site but <c>InterstitialAd</c> does)
         /// for backward compatibility; <c>InterstitialAd</c> passes
         /// <c>"interstitial"</c> so the hosted page can tell it apart from a
-        /// rewarded break. The web /break page does not yet read this param —
-        /// see sdk/unity/README.md → InterstitialAd.
+        /// rewarded break. The hosted page decides the break from the slot's
+        /// <c>adType</c>, not from this param, so <c>InterstitialAd</c> always
+        /// declares a slot when the game names no format.
         /// </summary>
         public static string Build(
             ResolvedHostedConfig config,

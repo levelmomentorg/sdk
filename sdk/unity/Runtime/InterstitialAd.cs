@@ -10,10 +10,13 @@
 //     RewardedAdShowCallbacks' reward callbacks, and an `earnedReward` bridge
 //     message (which the hosted page should not send for this kind) is simply
 //     dropped rather than dispatched anywhere.
-//   - The shell announces `kind=interstitial` on the /break URL it opens
-//     (BreakUrl.Build), so the hosted page can tell the two kinds apart. As of
-//     this SDK version the web /break page does not yet read that param — see
-//     README.md → InterstitialAd.
+//   - A Load() that names no format and declares no slot gets an
+//     interstitial slot of DefaultDurationSeconds. The hosted page decides the
+//     break from the slot's adType; without one it would size the break by the
+//     format alone, and the old quick_question default served a rewarded
+//     single question in an interstitial placement.
+//   - The shell also announces `kind=interstitial` on the /break URL it opens
+//     (BreakUrl.Build). The hosted page reads the slot, not that param.
 //
 // See docs/ADR-001-webview-rendering.md.
 // ---------------------------------------------------------------------------
@@ -37,8 +40,25 @@ namespace LevelMoment
 
         private readonly BreakSurfaceCore<InterstitialAdShowCallbacks> _core;
 
+        /// <summary>
+        /// The slot length an interstitial gets when Load() names neither a
+        /// format nor a slot: the resume-play size, about three questions.
+        /// </summary>
+        public const int DefaultDurationSeconds = 18;
+
+        /// <summary>The format an interstitial asks for when Load() names none.</summary>
+        internal const string DefaultFormat = "mastery_round";
+
         private InterstitialAd(string placementId, string format, string studentToken, LevelMomentAdSlot slot)
         {
+            // Only a call that left both open gets the defaults: a game that
+            // named a format without a slot keeps the break it always got.
+            if (string.IsNullOrEmpty(format))
+            {
+                format = DefaultFormat;
+                if (slot == null)
+                    slot = new LevelMomentAdSlot("interstitial", DefaultDurationSeconds);
+            }
             _core = new BreakSurfaceCore<InterstitialAdShowCallbacks>(
                 placementId, format, "interstitial", studentToken, handleEarnedReward: null, slot: slot);
         }
@@ -55,7 +75,7 @@ namespace LevelMoment
         public static void Load(
             string placementId,
             InterstitialAdLoadCallbacks callbacks,
-            string format = "quick_question",
+            string format = null,
             LevelMomentAdSlot slot = null)
         {
             Load(placementId, null, callbacks, format, slot);
@@ -70,7 +90,7 @@ namespace LevelMoment
             string placementId,
             string studentToken,
             InterstitialAdLoadCallbacks callbacks,
-            string format = "quick_question",
+            string format = null,
             LevelMomentAdSlot slot = null)
         {
             string resolvedToken;
@@ -111,7 +131,12 @@ namespace LevelMoment
             get { return _core.Format; }
         }
 
-        /// <summary>What the game declared for this slot, or null when it declared nothing.</summary>
+        /// <summary>
+        /// What the game declared for this slot. When Load() named neither a
+        /// format nor a slot, the default interstitial slot of
+        /// <see cref="DefaultDurationSeconds"/>; null when it named a format
+        /// and no slot.
+        /// </summary>
         public LevelMomentAdSlot Slot
         {
             get { return _core.Slot; }

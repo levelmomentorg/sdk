@@ -169,6 +169,72 @@ namespace LevelMoment.Tests.EditMode
             Assert.IsTrue(ad.IsLoaded);
         }
 
+        // ---- Defaults when the game declares nothing -------------------------
+
+        // The hosted page reads the slot's adType, not `kind`. Without a slot
+        // it sized the break by format, and the old quick_question default
+        // served a rewarded single question in an interstitial placement.
+        [Test]
+        public void Load_WithoutFormatOrSlot_DeclaresTheDefaultInterstitialSlot()
+        {
+            var fake = new FakeWebView();
+            LevelMomentWebViewRegistry.Register(() => fake);
+            var ad = LoadAd();
+
+            Assert.AreEqual("mastery_round", ad.Format);
+            Assert.IsNotNull(ad.Slot);
+            Assert.AreEqual("interstitial", ad.Slot.AdType);
+            Assert.AreEqual(InterstitialAd.DefaultDurationSeconds, ad.Slot.TargetDurationSeconds);
+            Assert.AreEqual(18, InterstitialAd.DefaultDurationSeconds);
+
+            ad.Show(new InterstitialAdShowCallbacks());
+            StringAssert.Contains("adType=interstitial", fake.LastUrl);
+            StringAssert.Contains("targetDurationSeconds=18", fake.LastUrl);
+            StringAssert.Contains("format=mastery_round", fake.LastUrl);
+            StringAssert.DoesNotContain("format=quick_question", fake.LastUrl);
+        }
+
+        [Test]
+        public void Load_WithASlotAndNoFormat_KeepsTheGamesSlot()
+        {
+            InterstitialAd ad = null;
+            var slot = new LevelMomentAdSlot("interstitial", 40);
+            InterstitialAd.Load("p1", new InterstitialAdLoadCallbacks { OnAdLoaded = a => ad = a }, slot: slot);
+
+            Assert.AreSame(slot, ad.Slot);
+            Assert.AreEqual("mastery_round", ad.Format);
+        }
+
+        [Test]
+        public void Load_WithAFormatAndNoSlot_DeclaresNothing()
+        {
+            InterstitialAd ad = null;
+            InterstitialAd.Load("p1", new InterstitialAdLoadCallbacks { OnAdLoaded = a => ad = a }, format: "intro_lesson");
+
+            Assert.IsNull(ad.Slot);
+            Assert.AreEqual("intro_lesson", ad.Format);
+        }
+
+        // ---- Placement ID shape ---------------------------------------------
+
+        [Test]
+        public void Load_WithAMalformedPlacementId_WarnsOnceAndStillLoads()
+        {
+            PlacementIdFormat.ResetForTests();
+            Assert.IsTrue(PlacementIdFormat.WarnIfMalformed("YOUR_MAX_AD_UNIT_ID"));
+            Assert.IsFalse(PlacementIdFormat.WarnIfMalformed("YOUR_MAX_AD_UNIT_ID"));
+            Assert.IsFalse(PlacementIdFormat.WarnIfMalformed("pl_AbCdEfGhIjKlMnOpQrStUv"));
+            Assert.IsFalse(PlacementIdFormat.WarnIfMalformed(""));
+            Assert.IsTrue(PlacementIdFormat.IsWellFormed("pl_Ab-d_fGhIjKlMnOpQrStUv"));
+            Assert.IsFalse(PlacementIdFormat.IsWellFormed("pl_short"));
+
+            InterstitialAd ad = null;
+            InterstitialAd.Load("not-a-placement", new InterstitialAdLoadCallbacks { OnAdLoaded = a => ad = a });
+            Assert.IsNotNull(ad);
+            Assert.IsFalse(PlacementIdFormat.WarnIfMalformed("not-a-placement"));
+            PlacementIdFormat.ResetForTests();
+        }
+
         // ---- Show — URL + mounting, including the `kind` this placement adds -
 
         [Test]

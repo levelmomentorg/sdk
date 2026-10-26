@@ -61,6 +61,11 @@ When the target slot opens:
    break has no reward callback; individual answers grant nothing.
 4. On either terminal callback, resume once and prepare a fresh handle for the
    next slot. A reward already granted stays granted if a later failure arrives.
+   Resuming means returning to where the game was before the break. When no
+   reward was granted at a one-time offer, such as a revive, that is the
+   offer's own screen: let it play out as if the player declined, and don't
+   reopen the break by itself. See
+   [Map each ending to a game result](https://levelmoment.com/docs/getting-started#results).
 
 If the new handle fails to load, restore regular gameplay through the same
 terminal-once resume path. Do not leave a paused game waiting for a handle that

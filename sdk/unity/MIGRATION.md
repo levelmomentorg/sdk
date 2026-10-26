@@ -2,7 +2,9 @@
 
 ## Prerequisites
 
-- Unity 2021.3 or later
+- Unity 2021.3 LTS or later, including Unity 6 (6000.x)
+- A placement ID from the game's page at <https://levelmoment.com/games>.
+  It starts with `pl_`.
 - A pinned gree Unity WebView provider
 
 ## 1. Replace the packages
@@ -68,9 +70,10 @@ LevelMomentAds.CheckAccess(
 ```
 
 Use `EnsureSignedIn()` or `IsSignedIn()` only for identity-only features.
-A `ready` result means the household had a subscription, or complimentary
-access, when the parent linked the game; a lapse afterward does not unlink the
-device.
+A `ready` result means the player's Level Moment household had a subscription,
+or complimentary access, when the device was linked; a lapse afterward does not
+unlink the device. Call `EnsureAccess()` from the player's tap, before each
+break, never at startup.
 
 ## 4. Replace rewarded loading
 
@@ -104,29 +107,39 @@ pending.Show(new RewardedAdShowCallbacks
 ```
 
 A passed graded break emits one reward callback, regardless of question count.
-Deduplicate game grants by `RewardId = breakSessionId`. Dismissal and failure
-only resume the game; the game chooses the item or currency amount.
+Deduplicate game grants by `RewardId = breakSessionId`. A break that ends
+without a reward, because the player didn't pass it, reaches `OnAdDismissed`
+with no reward callback: grant nothing and resume the game. Failure also only
+resumes the game. The game chooses the item or currency amount.
 
 Declare the slot this placement fills with `LevelMomentAdSlot`: the ad type
 ("rewarded" when it grants something, "interstitial" when it doesn't),
 how long the moment holds the player (30 seconds for a reward, 18 for resuming
 play, never under 18) and the reward amount, for reporting. These replace the
-old `format` choice. Pass `format: "practice_set"` with a rewarded slot as a floor, as the
-example does. See
+old `format` choice. Pass `format: "practice_set"` with a rewarded slot as a
+floor, as the example does. See
 [slot sizes](https://levelmoment.com/docs/getting-started#slot-size).
+
+A revive, a retry that refills lives, or a second chance grants something, so
+it is a rewarded slot: declare `"rewarded"` with 18 seconds. `rewardAmount` is
+only reported to Level Moment and changes nothing the player gets. When the
+reward varies, pass what this show grants, such as 1 for one revive, or 0 when
+it isn't a count.
 
 ## 5. Replace interstitial loading (optional)
 
 `InterstitialAd` swaps in for AdMob's `InterstitialAd` the same way: keep the
-load and show slots, drop the reward callback.
+load and show call sites, drop the reward callback, and declare an
+`"interstitial"` slot of 18 seconds. Pass no `format`.
 
 ```csharp
 InterstitialAd pending = null;
+var slot = new LevelMomentAdSlot("interstitial", 18);
 InterstitialAd.Load("YOUR_PLACEMENT_ID", new InterstitialAdLoadCallbacks
 {
     OnAdLoaded = ad => pending = ad,
     OnAdFailedToLoad = error => ResumeGame(),
-});
+}, slot: slot);
 if (pending == null) return;
 
 pending.Show(new InterstitialAdShowCallbacks
@@ -136,27 +149,31 @@ pending.Show(new InterstitialAdShowCallbacks
 });
 ```
 
-No reward guard is needed — an interstitial break has nothing to grant.
-Dismissal and failure both resume the game, exactly as for a rewarded break.
+An interstitial break grants nothing, so it needs no reward guard. Map
+dismissal and failure to whatever your old interstitial's close callback did.
+See [InterstitialAd](README.md#interstitialad) to tell a break that never
+loaded from one the player finished.
 
 ## 6. Configure sandbox testing
 
-Pass your `eply_sbx_` sandbox token alone inside `UnsafeTesting`, read only
-in the editor and development builds. [Testing and
-sandbox](https://levelmoment.com/docs/testing#configure) shows the token file
-and the build guard that fails a release build carrying it:
+Put the game's `eply_sbx_` sandbox token alone in
+`UserSettings/LevelMomentSandboxToken.txt` in the Unity project folder:
 
-```csharp
-var config = new LevelMomentConfig();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-var sandboxToken = UnityEngine.Resources.Load<UnityEngine.TextAsset>("LevelMomentSandboxToken")?.text.Trim();
-if (!string.IsNullOrEmpty(sandboxToken)) config.UnsafeTesting = new UnsafeTesting { Token = sandboxToken };
-#endif
-LevelMomentAds.Initialize(config);
+```bash
+mkdir -p UserSettings && pbpaste > UserSettings/LevelMomentSandboxToken.txt
 ```
+
+The SDK reads it in the editor and development builds, and a release build
+never includes it. Write no code that loads the token and no build guard;
+`new LevelMomentConfig()` is the whole configuration. Don't put the token under
+a `Resources` folder: a release build fails while one is there. [Testing and
+sandbox](https://levelmoment.com/docs/testing#configure) covers checking that
+the file is gitignored.
 
 **Warning:** A release build must contain no `eply_sbx_` token. A build that
 carries one serves every player sandbox breaks that earn nothing.
+[Testing and sandbox](https://levelmoment.com/docs/testing#production-build)
+shows how to search an iOS export and an Android build for it.
 
 ## 7. Optional: require an internet connection
 
@@ -171,7 +188,7 @@ offline. Pause gameplay and input from `OnConnectionChange`. See
 2. Confirm `CheckAccess()` stays hidden.
 3. Confirm `EnsureAccess()` opens pairing when action is required.
 4. Complete a break and confirm dismissal resumes the game once.
-5. Remove the provider define in a test branch and confirm the failure callback
+5. Remove the gree package in a test branch and confirm the failure callback
    reports the missing provider.
 6. Turn on airplane mode and confirm a break fails at once and the game
    resumes. With `RequireInternet`, confirm the message appears and goes away

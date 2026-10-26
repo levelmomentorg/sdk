@@ -36,9 +36,18 @@ has one right answer in the docs; don't ask about it.
    constant such as `PLACEMENT_ID` in `src/levelmoment.ts` with no mock
    fallback, install the SDK at exactly 0.4.1 (Unity: the two manifest lines
    for the SDK and gree, and `LevelMomentSDK.Runtime` in the
-   references of any assembly definition that uses it), declare a slot per moment
-   sized by what it buys (30 seconds for a reward, 18 for resuming play) with
-   `format: "practice_set"` on rewarded slots, and call `ensureAccess()` from
+   references of any assembly definition that uses it; the SDK switches Active
+   Input Handling from Old to Both on the next editor start, which changes
+   `ProjectSettings`), check the placement ID starts with `pl_`, declare a slot
+   per moment sized by what it buys (30 seconds for a reward, 18 for resuming
+   play, a revive included, or for an interstitial that grants nothing) with
+   `format: "practice_set"` on rewarded slots and none on interstitials, map
+   each ending to a game result (a break without a reward grants nothing; a
+   one-time offer returns to its own screen; see
+   [Map each ending](https://levelmoment.com/docs/getting-started#results)),
+   with require-internet mode resume only when online and no break is open
+   (Unity: turn off the game's input and the uGUI `EventSystem`, since IMGUI
+   can't block it), and call `ensureAccess()` from
    the player's tap (in sandbox it resolves `ready` at once); for a break that
    opens on its own, from the tap that leads to it or a Connect button. A
    signed-in non-developer account sees "Use the right account for this
@@ -62,7 +71,9 @@ has one right answer in the docs; don't ask about it.
    testing page shows how to produce one in a native game. Then grep a
    production build for `eply_sbx_`, searching only Capacitor folders that
    exist and treating only grep's exit 1 as clean; for Flutter, follow the
-   page's release-build search and its positive control.
+   page's release-build search and its positive control; for Unity, search the
+   iOS Xcode export or the unpacked Android APK or AAB of an il2cpp release
+   build, as the page shows.
 3. [Your own break interface](https://levelmoment.com/docs/own-break-interface):
    when the game already has a promise-based break function, keep it and its
    call sites and implement it with `templates/web-promise-seam.ts.tmpl`,
@@ -85,6 +96,13 @@ has one right answer in the docs; don't ask about it.
 6. [Going live](https://levelmoment.com/docs/going-live): what changes from a
    sandbox build to production. Don't start it without the developer's
    approval; when they approve, follow `reference/deploy.md`.
+
+For Unity, also read the package
+[README](https://github.com/levelmomentorg/sdk/tree/sdk-v0.4.1/sdk/unity) and
+use `templates/unity-AdsManager.cs.tmpl` for each rewarded slot. A game on
+AppLovin MAX can keep its MAX-shaped calls through the README's MAX
+compatibility facade, or swap them for `RewardedAd` and `InterstitialAd` as
+`MIGRATION.md` shows.
 
 Apply the lifecycle and checks in AGENT-INSTRUCTIONS.md to every slot.
 

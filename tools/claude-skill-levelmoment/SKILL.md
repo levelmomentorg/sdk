@@ -19,7 +19,9 @@ do not require an installer or a platform-specific command.
 Choose the path first:
 
 - **A handoff manifest was supplied:** follow AGENT-INSTRUCTIONS.md as written.
-- **No handoff:** the developer is setting up their own game. Follow
+- **No handoff:** the developer is setting up their own game. This is also
+  the path for every Unity game without a handoff, with or without AppLovin
+  MAX, and for a game with its own break function and no ad SDK. Follow
   `reference/self-serve.md`, which registers the game, gets a sandbox token,
   installs the published SDK and wires the slots. Then apply the lifecycle and
   checks in AGENT-INSTRUCTIONS.md.

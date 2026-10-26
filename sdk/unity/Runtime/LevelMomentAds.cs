@@ -398,6 +398,7 @@ namespace LevelMoment
 
         private static string BuildGateUrl(string placementId, string mode)
         {
+            PlacementIdFormat.WarnIfMalformed(placementId);
             if (!IsInitialized)
                 throw new InvalidOperationException(
                     "Call LevelMomentAds.Initialize() before the sign-in gate.");
@@ -406,6 +407,7 @@ namespace LevelMoment
 
         private static string BuildAccessUrl(string placementId, string mode)
         {
+            PlacementIdFormat.WarnIfMalformed(placementId);
             if (!IsInitialized)
                 throw new InvalidOperationException(
                     "Call LevelMomentAds.Initialize() before the access gate.");

@@ -1,12 +1,14 @@
 // ---------------------------------------------------------------------------
-// LevelMoment Unity SDK — Basic Integration Example (ADR-001 WebView shell).
+// LevelMoment Unity SDK — basic integration example.
 //
-// Attach to a Manager GameObject in your bootstrap scene. The SDK renders
-// nothing — Show() opens the hosted /break page in a WebView and calls back on
-// reward / dismiss. You only prepare, show, and resume.
+// Attach to a GameObject in your first scene. The SDK renders nothing itself:
+// Show() opens the hosted break in a WebView and calls back when it ends.
+// This script checks access, loads a fresh break, grants the reward once, and
+// resumes the game. It follows https://levelmoment.com/docs/getting-started.
 //
-// Requires a WebView provider: install gree/unity-webview and add the
-// LEVELMOMENT_GREE_WEBVIEW scripting define (see sdk/unity/README.md).
+// Needs the SDK and gree lines in Packages/manifest.json. For sandbox, put the
+// token in UserSettings/LevelMomentSandboxToken.txt; the SDK reads it in the
+// Editor and development builds.
 // ---------------------------------------------------------------------------
 
 using UnityEngine;
@@ -14,72 +16,83 @@ using LevelMoment;
 
 public class AdBreakExample : MonoBehaviour
 {
-    [Header("LevelMoment Config")]
-    [SerializeField] private string placementId = "your-placement-id";
-    [SerializeField] private bool mock = false;
+    // From the game's page at levelmoment.com/games. It starts with pl_.
+    [SerializeField] private string placementId = "YOUR_PLACEMENT_ID";
 
-    private RewardedAd _rewardedAd;
+    // What the moment grants, for reporting. The game still grants it.
+    [SerializeField] private int coinsPerBreak = 50;
+
+    private bool _breakOpen;
 
     private void Awake()
     {
-        LevelMomentAds.Initialize(new LevelMomentConfig { Mock = mock });
-
-        LoadNext();
+        if (!LevelMomentAds.IsInitialized)
+            LevelMomentAds.Initialize(new LevelMomentConfig());
     }
 
-    // Prepare the next break in the background; this marks the shell ready.
-    private void LoadNext()
+    // Call from the player's tap on the "watch for coins" button.
+    public void OnWatchForCoinsTapped()
     {
+        // Set before EnsureAccess, so a second tap can't open a second break.
+        if (_breakOpen) return;
+        _breakOpen = true;
+        LevelMomentAds.EnsureAccess(placementId, access =>
+        {
+            // Canceled or TechnicalFailure: carry on without a break.
+            if (access != EnsureSignedInResult.Ready)
+            {
+                _breakOpen = false;
+                return;
+            }
+            ShowBreak();
+        });
+    }
+
+    private void ShowBreak()
+    {
+        Time.timeScale = 0f;
+
+        var granted = false;
+        // A reward moment: 30 seconds, about 5 questions.
+        var slot = new LevelMomentAdSlot("rewarded", 30, rewardAmount: coinsPerBreak);
+
+        // A fresh handle for every break: a shown handle can't show again.
         RewardedAd.Load(placementId, new RewardedAdLoadCallbacks
         {
-            OnAdLoaded = ad =>
+            OnAdLoaded = ad => ad.Show(new RewardedAdShowCallbacks
             {
-                _rewardedAd = ad;
-                Debug.Log("[LevelMoment] Break ready.");
-            },
+                OnUserEarnedReward = reward =>
+                {
+                    if (granted) return;
+                    granted = true;
+                    // Persist reward.RewardId if a grant must survive a restart.
+                    GrantCoins(coinsPerBreak);
+                },
+                // A break that ends without a reward grants nothing.
+                OnAdDismissed = Finish,
+                OnAdFailedToShow = error =>
+                {
+                    Debug.LogWarning("[LevelMoment] Show failed: " + error);
+                    Finish();
+                },
+            }),
             OnAdFailedToLoad = error =>
             {
-                _rewardedAd = null;
                 Debug.LogWarning("[LevelMoment] Load failed: " + error);
+                Finish();
             },
-        });
+        }, format: "practice_set", slot: slot);
     }
 
-    // Call from your GameScene when an existing rewarded-ad slot opens.
-    public void TriggerAdBreak()
+    // Replace with your game's own grant.
+    private void GrantCoins(int amount)
     {
-        if (_rewardedAd == null || !_rewardedAd.IsLoaded)
-        {
-            Debug.Log("[LevelMoment] No break ready — resuming without one.");
-            return;
-        }
-
-        Time.timeScale = 0f; // pause the game while the break is up
-
-        _rewardedAd.Show(new RewardedAdShowCallbacks
-        {
-            OnUserEarnedReward = reward =>
-            {
-                // A server-confirmed passed break has one opaque reward ID.
-                // Deduplicate that ID in persistent game state before granting.
-                Debug.Log("[LevelMoment] Earned " + reward.RewardId + ". Grant a bonus here.");
-            },
-            OnAdDismissed = () =>
-            {
-                ResumeGame();
-                LoadNext(); // prepare the next break
-            },
-            OnAdFailedToShow = error =>
-            {
-                Debug.LogWarning("[LevelMoment] Show failed: " + error);
-                ResumeGame();
-            },
-        });
+        Debug.Log("[LevelMoment] Granting " + amount + " coins.");
     }
 
-    private void ResumeGame()
+    private void Finish()
     {
+        _breakOpen = false;
         Time.timeScale = 1f;
-        _rewardedAd = null;
     }
 }
