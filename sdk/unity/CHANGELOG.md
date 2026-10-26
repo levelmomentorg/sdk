@@ -4,6 +4,11 @@ All notable changes to `com.levelmoment.sdk` (Unity UPM package) are documented
 here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
+## [0.4.0] — 2026-10-25
+
+No changes. Released with the web and Flutter packages so every SDK shares one
+version. Require-internet mode, new in those packages, isn't in Unity yet.
+
 ## [0.3.2] — 2026-10-20
 
 ### Added

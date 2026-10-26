@@ -21,7 +21,7 @@ placement ID, target slot, reward action, or command. The partner supplies
 those integration inputs separately. It never carries an endpoint, token, or
 preview secret.
 
-The packet supports web, React Native, Flutter, and Unity at the `0.3.2` SDK
+The packet supports web, React Native, Flutter, and Unity at the `0.4.0` SDK
 surface. With a handoff, install only the supplied artifact, never a version
 picked from a registry.
 
@@ -30,7 +30,7 @@ picked from a registry.
 - `AGENT-INSTRUCTIONS.md` contains the shared integration flow.
 - `reference/` contains platform mapping, installation, diagnosis, and preview
   guidance, plus `self-serve.md` (sandbox setup), `upgrade.md` (an older
-  Level Moment SDK to 0.3.2) and `deploy.md` (sandbox to production).
+  Level Moment SDK to 0.4.0) and `deploy.md` (sandbox to production).
 - `templates/` contains examples with a fresh handle per break, one bonus for
   one game-owned bonus per server-confirmed passed break, and one game resume
   per terminal result.

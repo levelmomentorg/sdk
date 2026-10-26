@@ -22,6 +22,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'connection.dart';
 import 'credential_bridge.dart';
 import 'constants.dart';
 import 'hosted.dart';
@@ -218,6 +219,11 @@ Future<EnsureSignedInResult> runEnsureSignedIn({
   HostedSurface surface = HostedSurface.breakPage,
 }) {
   if (hosted.mock) return Future.value(EnsureSignedInResult.ready);
+  // The page can't load without a connection, and a fullscreen WebView would
+  // only show its error page until the watchdog fired.
+  if (!LevelMomentConnection.instance.isOnline) {
+    return Future.value(EnsureSignedInResult.technicalFailure);
+  }
 
   final completer = Completer<EnsureSignedInResult>();
   void settle(EnsureSignedInResult result) {
@@ -315,6 +321,13 @@ Future<bool> runIsSignedIn({
   HostedSurface surface = HostedSurface.breakPage,
 }) {
   if (hosted.mock) return Future.value(true);
+  // An error, never `false`: no connection says nothing about the household.
+  if (!LevelMomentConnection.instance.isOnline) {
+    return Future.error(const LevelMomentSignInCheckError(
+      'offline',
+      'Level Moment could not check this device: it has no internet connection.',
+    ));
+  }
 
   final completer = Completer<bool>();
   void resolve(bool value) {
@@ -486,6 +499,12 @@ Future<void> runSignOut({
       ? target.clear(hosted.origin, placementId)
       : Future<void>.value();
   clear.then((_) {
+    // The hosted copy can't be cleared without a connection. Say so now
+    // rather than after the load watchdog.
+    if (!LevelMomentConnection.instance.isOnline) {
+      dispatcher.fail('offline');
+      return;
+    }
     try {
       final overlay = Overlay.of(context, rootOverlay: true);
       final hostedUrl = buildGateUrl(

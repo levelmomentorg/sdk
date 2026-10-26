@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — 2026-10-25
+
+- A break, `ensureAccess()`, `checkAccess()`, `ensureSignedIn()` or `isSignedIn()` called while the browser reports no network connection fails at once without mounting the hosted frame. A break calls `onAdFailedToShow` with `network_error` (or `onAdDismissed` when there is no `onAdFailedToShow`); the gates resolve `technicalFailure`; the checks reject.
+- While a hosted frame loads, the SDK covers it with a spinner and a close button. Closing it ends a break with `onAdDismissed` and makes `ensureAccess()` and `ensureSignedIn()` resolve `canceled`; a page that hasn't loaded after 15 seconds still ends a break with `onAdDismissed` and the gates with `technicalFailure`.
+- `requireInternet: true` in the client config shows a full-screen "No internet connection" message, with Try again, whenever the browser reports no connection. `gameName` names the game in it and `onConnectionChange(online)` lets the game pause. Off by default.
+- `client.isOnline()` and `client.dispose()`. Call `dispose()` when the game tears down.
+
 ## 0.3.2 — 2026-10-20
 
 - No changes. Released with the Unity package so every SDK shares one version.

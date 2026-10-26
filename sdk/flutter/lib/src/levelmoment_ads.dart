@@ -6,6 +6,7 @@
 import 'package:meta/meta.dart' show internal;
 import 'package:flutter/widgets.dart';
 
+import 'connection.dart';
 import 'gate.dart';
 import 'hosted.dart';
 import 'widgets/level_moment_web_view.dart' show kBreakLoadTimeout;
@@ -60,6 +61,9 @@ class LevelMomentAds {
       unsafeTesting: unsafeTesting,
     );
     _unsafeTesting = unsafeTesting;
+    // Follow the OS connection state, so a break or gate asked for while the
+    // device is offline fails at once instead of mounting a WebView.
+    LevelMomentConnection.instance.start();
   }
 
   static bool isSandboxToken(String token) => isSandboxTokenValue(token);

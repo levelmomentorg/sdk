@@ -3,6 +3,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { LevelMomentWebClient } from "./client.js";
 import { LevelMomentWebAd } from "./LevelMomentWebAd.js";
 import type { RewardItem } from "@levelmoment/sdk-core";
+import {
+  clickButton,
+  fakeElement,
+  type FakeElement,
+} from "./fakeDom.test-support.js";
 
 // ---------------------------------------------------------------------------
 // The SDK is a thin loader: it builds a /break URL, mounts a fullscreen
@@ -19,33 +24,34 @@ const CONFIG = {
 
 // ---- DOM stubs ------------------------------------------------------------
 
-interface FakeIframe {
-  tagName: "IFRAME";
-  src: string;
-  style: { cssText: string };
-  parentNode: FakeBody | null;
+type FakeIframe = FakeElement & {
   /** Stands in for the real iframe's WindowProxy — the bridge compares
    *  `event.source` against it, so each frame needs its own identity, and it
    *  is also what a credential is posted INTO. */
   contentWindow: { frame: symbol; postMessage: ReturnType<typeof vi.fn> };
-  setAttribute: (k: string, v: string) => void;
-}
+};
 
 interface FakeBody {
+  /** The hosted frames, in mount order. */
   children: FakeIframe[];
-  appendChild: (el: FakeIframe) => void;
-  removeChild: (el: FakeIframe) => void;
+  /** SDK chrome: loading layers and the no-connection message. */
+  layers: FakeElement[];
+  appendChild: (el: FakeElement) => void;
+  removeChild: (el: FakeElement) => void;
 }
 
 function makeBody(): FakeBody {
   const body: FakeBody = {
     children: [],
+    layers: [],
     appendChild(el) {
-      el.parentNode = body;
-      body.children.push(el);
+      el.parentNode = body as unknown as FakeElement;
+      if (el.tagName === "IFRAME") body.children.push(el as FakeIframe);
+      else body.layers.push(el);
     },
     removeChild(el) {
       body.children = body.children.filter((c) => c !== el);
+      body.layers = body.layers.filter((c) => c !== el);
       el.parentNode = null;
     },
   };
@@ -84,17 +90,7 @@ beforeEach(() => {
 
   vi.stubGlobal("document", {
     body,
-    createElement: (tag: string): FakeIframe => ({
-      tagName: tag.toUpperCase() as "IFRAME",
-      src: "",
-      style: { cssText: "" },
-      parentNode: null,
-      contentWindow: {
-        frame: Symbol("contentWindow"),
-        postMessage: vi.fn(),
-      },
-      setAttribute: vi.fn(),
-    }),
+    createElement: (tag: string): FakeElement => fakeElement(tag, vi.fn()),
   });
 });
 
@@ -286,7 +282,7 @@ describe("LevelMomentWebAd", () => {
             storefront: null,
             customData: "order/42&x",
             protocolVersion: 1,
-            sdkVersion: "0.3.2",
+            sdkVersion: "0.4.0",
           },
         },
         "https://app.levelmoment.com",
@@ -436,7 +432,7 @@ describe("LevelMomentWebAd", () => {
             storefront: null,
             customData: undefined,
             protocolVersion: 1,
-            sdkVersion: "0.3.2",
+            sdkVersion: "0.4.0",
           },
         },
         HOST_ORIGIN,
@@ -463,7 +459,7 @@ describe("LevelMomentWebAd", () => {
             slotType: "level_break",
             dimensions: { afterLevel: 4 },
             protocolVersion: 1,
-            sdkVersion: "0.3.2",
+            sdkVersion: "0.4.0",
           },
         },
         HOST_ORIGIN,
@@ -487,7 +483,7 @@ describe("LevelMomentWebAd", () => {
             storefront: null,
             customData: undefined,
             protocolVersion: 1,
-            sdkVersion: "0.3.2",
+            sdkVersion: "0.4.0",
           },
         },
         HOST_ORIGIN,
@@ -724,5 +720,76 @@ describe("LevelMomentWebAd", () => {
       ad.show({});
       expect(body.children).toHaveLength(0);
     });
+  });
+});
+
+describe("LevelMomentWebAd offline and loading", () => {
+  it("offline: reports network_error to onAdFailedToShow without mounting a frame", async () => {
+    vi.stubGlobal("navigator", { onLine: false });
+    const ad = await loadAd(LIVE);
+    const onAdFailedToShow = vi.fn();
+    const onAdDismissed = vi.fn();
+    ad.show({ onAdFailedToShow, onAdDismissed });
+    expect(body.children).toHaveLength(0);
+    expect(body.layers).toHaveLength(0);
+    await Promise.resolve();
+    expect(onAdFailedToShow).toHaveBeenCalledWith({
+      code: "network_error",
+      message: "This device has no internet connection.",
+    });
+    expect(onAdDismissed).not.toHaveBeenCalled();
+    expect(messageListeners).toHaveLength(0);
+  });
+
+  it("offline: falls back to onAdDismissed when the game has no failure handler", async () => {
+    vi.stubGlobal("navigator", { onLine: false });
+    const ad = await loadAd(LIVE);
+    const onAdDismissed = vi.fn();
+    ad.show({ onAdDismissed });
+    await Promise.resolve();
+    expect(onAdDismissed).toHaveBeenCalledOnce();
+  });
+
+  it("covers the frame with a loading layer until ready", async () => {
+    const ad = await loadAd(LIVE);
+    ad.show({});
+    expect(body.layers).toHaveLength(1);
+    expect(body.layers[0].attrs["aria-label"]).toBe("Loading");
+    emitMessage({ type: "ready" }, "https://app.levelmoment.com");
+    expect(body.layers).toHaveLength(0);
+    expect(body.children).toHaveLength(1);
+  });
+
+  it("closing the loading layer tears down and dismisses once", async () => {
+    vi.useFakeTimers();
+    try {
+      const p = new Promise<LevelMomentWebAd>((resolve) =>
+        LevelMomentWebAd.load(LIVE, {
+          onAdLoaded: resolve,
+          onAdFailedToLoad: () => {},
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      const ad = await p;
+      const onAdDismissed = vi.fn();
+      const onAdFailedToShow = vi.fn();
+      ad.show({ onAdDismissed, onAdFailedToShow });
+      clickButton(body.layers[0]);
+      expect(onAdDismissed).toHaveBeenCalledOnce();
+      expect(onAdFailedToShow).not.toHaveBeenCalled();
+      expect(body.children).toHaveLength(0);
+      expect(body.layers).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(60000);
+      expect(onAdDismissed).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("dispose() removes the loading layer", async () => {
+    const ad = await loadAd(LIVE);
+    ad.show({});
+    ad.dispose();
+    expect(body.layers).toHaveLength(0);
   });
 });

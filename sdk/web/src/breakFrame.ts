@@ -5,6 +5,9 @@ import {
   type HostStoreClaims,
 } from "@levelmoment/sdk-core";
 
+import { mountLoadingLayer, type MountedChrome } from "./chrome.js";
+import { browserReportsOffline } from "./environment.js";
+
 /** A browser host has no store account: always `web`, never a storefront. */
 const WEB_STORE_CLAIMS: HostStoreClaims = { platform: "web", storefront: null };
 // BreakFrame — the iframe + postMessage plumbing every hosted surface shares.
@@ -61,6 +64,14 @@ export interface CredentialReply {
   dimensions?: Record<string, string | number>;
 }
 
+/**
+ * Why a hosted frame ended before its page posted `ready`:
+ * - `timeout` — the page did not post `ready` within the load watchdog.
+ * - `offline` — the browser reported no connection, so no frame was mounted.
+ * - `closed` — the player closed the loading layer.
+ */
+export type LoadFailure = "timeout" | "offline" | "closed";
+
 /** Default pre-`ready` load-timeout for the hosted /break page (ms). */
 export const DEFAULT_LOAD_TIMEOUT_MS = 15000;
 
@@ -88,10 +99,13 @@ export interface BreakFrameOptions {
    */
   onMessage: (msg: HostMessage) => void;
   /**
-   * The hosted page never posted `ready` within `loadTimeoutMs`. The frame is
-   * already closed when this runs.
+   * The frame ended before the hosted page posted `ready`: the watchdog fired,
+   * the browser was offline when the frame was asked for, or the player closed
+   * the loading layer. The frame is already closed when this runs. An offline
+   * frame is never mounted, and this runs on a microtask after `open()`
+   * returns.
    */
-  onLoadTimeout: () => void;
+  onLoadTimeout: (reason: LoadFailure) => void;
 }
 
 /**
@@ -108,15 +122,28 @@ export class BreakFrame {
   private _iframe: HTMLIFrameElement | null = null;
   private _listener: ((event: MessageEvent) => void) | null = null;
   private _timer: ReturnType<typeof setTimeout> | null = null;
+  private _loading: MountedChrome | null = null;
   private _closed = false;
   /** The hosted origin: the only accepted sender, and the only target. */
   private _origin = "";
 
   private constructor() {}
 
-  /** Mount the frame, start listening, and arm the watchdog. */
+  /**
+   * Mount the frame, start listening, and arm the watchdog.
+   *
+   * When the browser reports no connection, nothing is mounted: the page
+   * could not load, and a fullscreen frame over the game would only show the
+   * browser's error page until the watchdog fired. The frame comes back
+   * already closed and `onLoadTimeout("offline")` runs on a microtask.
+   */
   static open(options: BreakFrameOptions): BreakFrame {
     const frame = new BreakFrame();
+    if (browserReportsOffline()) {
+      frame._closed = true;
+      queueMicrotask(() => options.onLoadTimeout("offline"));
+      return frame;
+    }
     const origin = expectedOrigin(options.url);
     frame._origin = origin;
 
@@ -140,6 +167,7 @@ export class BreakFrame {
         // break, or a parent walking to another room to scan a code, must never
         // be force-closed.
         frame._clearTimer();
+        frame._removeLoading();
       }
       options.onMessage(msg);
     };
@@ -159,12 +187,23 @@ export class BreakFrame {
     frame._iframe = iframe;
     document.body.appendChild(iframe);
 
+    // Until `ready`, the player sees the SDK's own spinner and close button
+    // instead of a blank frame or the browser's error page. Closing ends the
+    // frame exactly as the watchdog would. The headless check has no UI.
+    if (!options.hidden) {
+      frame._loading = mountLoadingLayer(() => {
+        if (frame._closed) return;
+        frame.close();
+        options.onLoadTimeout("closed");
+      });
+    }
+
     const timeoutMs = options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
     if (timeoutMs > 0) {
       frame._timer = setTimeout(() => {
         if (frame._closed) return;
         frame.close();
-        options.onLoadTimeout();
+        options.onLoadTimeout("timeout");
       }, timeoutMs);
     }
 
@@ -206,11 +245,15 @@ export class BreakFrame {
     );
   }
 
-  /** Remove the iframe, drop the listener, cancel the watchdog. Idempotent. */
+  /**
+   * Remove the iframe and the loading layer, drop the listener, cancel the
+   * watchdog. Idempotent.
+   */
   close(): void {
     if (this._closed) return;
     this._closed = true;
     this._clearTimer();
+    this._removeLoading();
     if (this._listener) {
       window.removeEventListener("message", this._listener);
       this._listener = null;
@@ -219,6 +262,11 @@ export class BreakFrame {
       this._iframe.parentNode.removeChild(this._iframe);
     }
     this._iframe = null;
+  }
+
+  private _removeLoading(): void {
+    this._loading?.remove();
+    this._loading = null;
   }
 
   private _clearTimer(): void {

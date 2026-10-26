@@ -229,9 +229,20 @@ export class LevelMomentWebAd {
       // the network dropped it) and the game never called dispose(). Without
       // this the fullscreen iframe would permanently cover the game. Resume
       // exactly as the not-loaded fallback at the top of show() does.
-      onLoadTimeout: () => {
+      //
+      // The same applies when the player closes the loading layer. When the
+      // browser is offline no frame was mounted at all, and the game hears a
+      // `network_error` where it listens for one.
+      onLoadTimeout: (reason) => {
         if (this._disposed) return;
         teardown();
+        if (reason === "offline" && callbacks.onAdFailedToShow) {
+          callbacks.onAdFailedToShow({
+            code: "network_error",
+            message: "This device has no internet connection.",
+          });
+          return;
+        }
         callbacks.onAdDismissed?.();
       },
     });

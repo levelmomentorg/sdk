@@ -3,7 +3,7 @@ import {
   HOSTED_BREAK_URL,
   type ResolvedHostedOptions,
 } from "@levelmoment/sdk-core";
-import { webEnvironment } from "./environment.js";
+import { browserReportsOffline, webEnvironment } from "./environment.js";
 // LevelMomentWebClient — one-time initialisation + loadAd() convenience.
 //
 // This is a thin shell over the hosted /break page (ADR-001). The hosted
@@ -18,6 +18,7 @@ import {
   type EnsureSignedInResult,
 } from "@levelmoment/sdk-core";
 import { LevelMomentWebAd } from "./LevelMomentWebAd.js";
+import { ConnectionWatcher } from "./connection.js";
 import {
   runCheckAccess,
   runEnsureAccess,
@@ -51,13 +52,43 @@ export type WebClientConfig = LevelMomentConfig & {
    * long as a parent takes.
    */
   signInCheckTimeoutMs?: number;
+  /**
+   * Block play with a full-screen "No internet connection" message whenever
+   * the browser reports no connection, and remove it when the connection
+   * returns or the player presses Try again and the browser reports one.
+   * Default false.
+   *
+   * Only the browser's own connection state counts. When the device is online
+   * and Level Moment's servers fail, nothing is blocked: the break ends and
+   * the game carries on.
+   */
+  requireInternet?: boolean;
+  /**
+   * The game's name as players know it, used in the no-connection message:
+   * "{gameName} needs an internet connection." Defaults to "This game".
+   */
+  gameName?: string;
+  /**
+   * Called with `false` when the no-connection message appears and `true`
+   * when it goes away. Pause your game loop on `false`. Only called when
+   * `requireInternet` is true; if the device is offline at `initialize()`,
+   * the first call arrives right after `initialize()` returns.
+   */
+  onConnectionChange?: (online: boolean) => void;
 };
 
 export class LevelMomentWebClient {
   readonly config: ResolvedHostedOptions<WebClientConfig>;
+  private _connection: ConnectionWatcher | null = null;
 
   private constructor(config: WebClientConfig) {
     this.config = resolveHostedOptions(config, webEnvironment());
+    if (config.requireInternet) {
+      this._connection = new ConnectionWatcher({
+        gameName: config.gameName,
+        onConnectionChange: config.onConnectionChange,
+      });
+    }
   }
 
   static initialize(config: WebClientConfig): LevelMomentWebClient {
@@ -76,6 +107,25 @@ export class LevelMomentWebClient {
    * The impression flush loop lives in the hosted page now. No-op.
    */
   stop(): void {}
+
+  /**
+   * Whether the browser reports a network connection. With `requireInternet`
+   * this is false exactly while the no-connection message is showing.
+   */
+  isOnline(): boolean {
+    if (this._connection) return this._connection.online;
+    return !browserReportsOffline();
+  }
+
+  /**
+   * Remove the no-connection message, if any, and stop watching the
+   * connection. Call it when the game tears down. Breaks already loaded keep
+   * working.
+   */
+  dispose(): void {
+    this._connection?.dispose();
+    this._connection = null;
+  }
 
   /**
    * Preload the next Level Moment in the background. Call this while the game

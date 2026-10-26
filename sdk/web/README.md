@@ -6,10 +6,10 @@ placement events.
 
 ## Install
 
-Install version `0.3.2` from npm:
+Install version `0.4.0` from npm:
 
 ```bash
-npm install @levelmoment/sdk-web@0.3.2
+npm install @levelmoment/sdk-web@0.4.0
 ```
 
 Earlier npm releases predate slot declarations, the current break format
@@ -93,6 +93,40 @@ uses the canonical Level Moment hosted origin. For local or sandbox development,
 pass test endpoints and an `eply_sbx_` credential through `unsafeTesting`. Use
 `mock: true` for local UI work without live questions. Do not set production
 URLs or player tokens in the normal configuration.
+
+## Require an internet connection
+
+A break, `ensureAccess()`, `checkAccess()`, or a sign-in check called while the
+browser reports no network connection fails at once instead of opening a hosted
+page that can't load. A break calls `onAdFailedToShow` with `network_error`, or
+`onAdDismissed` when you didn't pass `onAdFailedToShow`; `ensureAccess()`
+resolves `technicalFailure`; `checkAccess()` and `isSignedIn()` reject. While a
+hosted page loads, the SDK covers it with a spinner and a close button. Closing it
+ends a break with `onAdDismissed` and makes `ensureAccess()` and
+`ensureSignedIn()` resolve `canceled`. A page that hasn't loaded after 15
+seconds ends the same break with `onAdDismissed`, and the gates resolve
+`technicalFailure`.
+
+To block play until the connection returns, pass `requireInternet: true`. The
+SDK shows a full-screen "No internet connection" message, with a **Try again**
+button, whenever the browser reports no connection:
+
+```ts
+const client = LevelMomentWebClient.initialize({
+  placementId: "YOUR_PLACEMENT_ID",
+  requireInternet: true,
+  gameName: "YOUR_GAME_NAME",
+  onConnectionChange: (online) => (online ? game.resume() : game.pause()),
+});
+```
+
+`onConnectionChange` receives `false` when the message appears and `true` when
+it goes away. `client.isOnline()` reads the same state. Call `client.dispose()`
+when the game tears down to remove the message and its listeners.
+
+**Note:** Only the browser's own connection state (`navigator.onLine`) counts.
+When the device is online and Level Moment can't be reached, nothing is blocked:
+the break or check fails and the game carries on.
 
 ## Test the real pairing path locally
 

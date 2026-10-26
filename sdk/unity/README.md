@@ -1,6 +1,6 @@
 # LevelMoment Unity SDK (`com.levelmoment.sdk`)
 
-Version `0.3.2` installs from the public repository's `sdk-v0.3.2` tag.
+Version `0.4.0` installs from the public repository's `sdk-v0.4.0` tag.
 
 Give a coding agent the placement ID, immutable SDK source, target slot, reward
 action, and generated port plan. Require it to load the current
@@ -16,6 +16,11 @@ does not preload question content.
 **Note:** Credentials travel through the bridge and never in the hosted URL.
 Unity sends `custody: false`; use `UnsafeTesting` for sandbox credentials.
 
+**Note:** Require-internet mode, which the web and Flutter SDKs have from
+0.4.0, isn't in Unity yet. Offline, a break fails after the 15-second load
+watchdog rather than at once, and the SDK shows no "No internet connection"
+message.
+
 **Parent approval opens in the device's browser.** When a parent chooses to approve the game in a browser rather than scan the pairing code, the SDK opens the approval link outside the WebView. Parent sign-in stays outside the game surface. Never collect a Level Moment email code or other parent credential inside it. After approval, return to the game; the break resumes polling and completes the connection automatically. Only links on the loaded Level Moment origin are passed to the OS. Break and gate URLs announce browser support with `caps=openExternal`.
 
 ---
@@ -30,7 +35,7 @@ Add both lines to the `dependencies` in `Packages/manifest.json`. Pin the SDK
 tag, not a branch:
 
 ```json
-"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.3.2",
+"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.4.0",
 "net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment#20f14061ca4b45e8490c1e89e00684a5d3ed6be0"
 ```
 

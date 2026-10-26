@@ -42,6 +42,7 @@
 
 import 'package:flutter/material.dart';
 
+import 'connection.dart';
 import 'constants.dart';
 import 'credential_bridge.dart';
 import 'levelmoment_ads.dart';
@@ -173,6 +174,20 @@ class LevelMomentRewardedAd {
         const LevelMomentAdError(
           code: 'not_loaded',
           message: 'show() called before onAdLoaded. Call load() first.',
+        ),
+      );
+      return;
+    }
+
+    // No connection: the page can't load, so fail now rather than push a
+    // WebView that shows an error page until the watchdog fires.
+    if (!LevelMomentConnection.instance.isOnline) {
+      dispose();
+      fullScreenContentCallback?.onAdFailedToShowFullScreenContent?.call(
+        this,
+        const LevelMomentAdError(
+          code: 'network_error',
+          message: 'This device has no internet connection.',
         ),
       );
       return;

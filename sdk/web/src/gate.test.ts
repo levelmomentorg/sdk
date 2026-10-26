@@ -6,6 +6,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import { LevelMomentWebClient } from "./client.js";
+import {
+  clickButton,
+  fakeElement,
+  type FakeElement,
+} from "./fakeDom.test-support.js";
 
 const CONFIG = {
   unsafeTesting: {},
@@ -17,21 +22,17 @@ const CONFIG = {
 
 const HOST_ORIGIN = "https://app.levelmoment.com";
 
-interface FakeIframe {
-  tagName: "IFRAME";
-  src: string;
-  style: { cssText: string };
-  parentNode: FakeBody | null;
-  attrs: Record<string, string>;
-  /** Stands in for the real iframe's WindowProxy — see client.test.ts. */
+type FakeIframe = FakeElement & {
   contentWindow: { frame: symbol; postMessage: ReturnType<typeof vi.fn> };
-  setAttribute: (k: string, v: string) => void;
-}
+};
 
 interface FakeBody {
+  /** The hosted frames, in mount order. */
   children: FakeIframe[];
-  appendChild: (el: FakeIframe) => void;
-  removeChild: (el: FakeIframe) => void;
+  /** SDK chrome: loading layers and the no-connection message. */
+  layers: FakeElement[];
+  appendChild: (el: FakeElement) => void;
+  removeChild: (el: FakeElement) => void;
 }
 
 let messageListeners: Array<(e: MessageEvent) => void>;
@@ -51,12 +52,15 @@ beforeEach(() => {
   messageListeners = [];
   body = {
     children: [],
+    layers: [],
     appendChild(el) {
-      el.parentNode = body;
-      body.children.push(el);
+      el.parentNode = body as unknown as FakeElement;
+      if (el.tagName === "IFRAME") body.children.push(el as FakeIframe);
+      else body.layers.push(el);
     },
     removeChild(el) {
       body.children = body.children.filter((c) => c !== el);
+      body.layers = body.layers.filter((c) => c !== el);
       el.parentNode = null;
     },
   };
@@ -77,23 +81,7 @@ beforeEach(() => {
 
   vi.stubGlobal("document", {
     body,
-    createElement: (tag: string): FakeIframe => {
-      const el: FakeIframe = {
-        tagName: tag.toUpperCase() as "IFRAME",
-        src: "",
-        style: { cssText: "" },
-        parentNode: null,
-        attrs: {},
-        contentWindow: {
-          frame: Symbol("contentWindow"),
-          postMessage: vi.fn(),
-        },
-        setAttribute(k, v) {
-          el.attrs[k] = v;
-        },
-      };
-      return el;
-    },
+    createElement: (tag: string): FakeElement => fakeElement(tag, vi.fn()),
   });
 });
 
@@ -128,7 +116,7 @@ describe("ensureSignedIn", () => {
           platform: "web",
           storefront: null,
           protocolVersion: 1,
-          sdkVersion: "0.3.2",
+          sdkVersion: "0.4.0",
           customData: undefined,
         },
       },
@@ -286,7 +274,7 @@ describe("isSignedIn", () => {
           platform: "web",
           storefront: null,
           protocolVersion: 1,
-          sdkVersion: "0.3.2",
+          sdkVersion: "0.4.0",
           customData: undefined,
         },
       },
@@ -464,5 +452,101 @@ describe("unsafeTesting.realPairing", () => {
     expect(() => LevelMomentWebClient.initialize(REAL)).toThrow(
       /page served from/,
     );
+  });
+});
+
+describe("offline", () => {
+  beforeEach(() => {
+    vi.stubGlobal("navigator", { onLine: false });
+  });
+
+  it("ensureSignedIn resolves technicalFailure without mounting a frame", async () => {
+    const result = LevelMomentWebClient.initialize(CONFIG).ensureSignedIn();
+    expect(body.children).toHaveLength(0);
+    expect(body.layers).toHaveLength(0);
+    await expect(result).resolves.toBe("technicalFailure");
+    expect(messageListeners).toHaveLength(0);
+  });
+
+  it("ensureAccess resolves technicalFailure without mounting a frame", async () => {
+    const result = LevelMomentWebClient.initialize(CONFIG).ensureAccess();
+    expect(body.children).toHaveLength(0);
+    await expect(result).resolves.toBe("technicalFailure");
+  });
+
+  it("isSignedIn rejects without mounting a frame, and never answers false", async () => {
+    const result = LevelMomentWebClient.initialize(CONFIG).isSignedIn();
+    expect(body.children).toHaveLength(0);
+    await expect(result).rejects.toThrow(/offline/);
+  });
+
+  it("checkAccess rejects without mounting a frame", async () => {
+    const result = LevelMomentWebClient.initialize(CONFIG).checkAccess();
+    expect(body.children).toHaveLength(0);
+    await expect(result).rejects.toThrow(/offline/);
+  });
+
+  it("an explicit onLine true still opens the frame", () => {
+    vi.stubGlobal("navigator", { onLine: true });
+    void LevelMomentWebClient.initialize(CONFIG).ensureSignedIn();
+    expect(body.children).toHaveLength(1);
+  });
+});
+
+describe("loading layer", () => {
+  it("covers the gate until the page posts ready", () => {
+    void LevelMomentWebClient.initialize(CONFIG).ensureAccess();
+    expect(body.layers).toHaveLength(1);
+    expect(body.layers[0].attrs["data-levelmoment"]).toBe("loading");
+    emit({ type: "ready" });
+    expect(body.layers).toHaveLength(0);
+    expect(body.children).toHaveLength(1);
+  });
+
+  it("closing it resolves canceled: a person said not now", async () => {
+    vi.useFakeTimers();
+    const settled = vi.fn();
+    const result = LevelMomentWebClient.initialize(CONFIG).ensureSignedIn();
+    void result.then(settled);
+    clickButton(body.layers[0]);
+    await expect(result).resolves.toBe("canceled");
+    expect(body.children).toHaveLength(0);
+    expect(body.layers).toHaveLength(0);
+    expect(messageListeners).toHaveLength(0);
+    // The watchdog was cancelled with the frame.
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(settled).toHaveBeenCalledOnce();
+  });
+
+  it("is removed with the frame on a terminal message before ready", async () => {
+    const result = LevelMomentWebClient.initialize(CONFIG).ensureSignedIn();
+    emit({ type: "signedIn" });
+    await expect(result).resolves.toBe("ready");
+    expect(body.layers).toHaveLength(0);
+  });
+
+  it("is removed when the watchdog fires", async () => {
+    vi.useFakeTimers();
+    const result = LevelMomentWebClient.initialize({
+      ...CONFIG,
+      breakLoadTimeoutMs: 1000,
+    }).ensureSignedIn();
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(result).resolves.toBe("technicalFailure");
+    expect(body.layers).toHaveLength(0);
+  });
+
+  it("is never shown for the hidden check", () => {
+    void LevelMomentWebClient.initialize(CONFIG)
+      .isSignedIn()
+      .catch(() => {});
+    expect(body.children).toHaveLength(1);
+    expect(body.layers).toHaveLength(0);
+  });
+
+  it("closing it on ensureAccess also resolves canceled", async () => {
+    const result = LevelMomentWebClient.initialize(CONFIG).ensureAccess();
+    clickButton(body.layers[0]);
+    await expect(result).resolves.toBe("canceled");
   });
 });

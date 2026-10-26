@@ -34,7 +34,7 @@ has one right answer in the docs; don't ask about it.
    game on the Games page at https://levelmoment.com/games ("Register
    game", webhook URL optional), commit the public placement ID as a source
    constant such as `PLACEMENT_ID` in `src/levelmoment.ts` with no mock
-   fallback, install the SDK at exactly 0.3.2 (Unity: the two manifest lines
+   fallback, install the SDK at exactly 0.4.0 (Unity: the two manifest lines
    for the SDK and gree, and `LevelMomentSDK.Runtime` in the
    references of any assembly definition that uses it), declare a slot per moment
    sized by what it buys (30 seconds for a reward, 18 for resuming play) with

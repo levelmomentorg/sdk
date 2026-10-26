@@ -4,6 +4,19 @@ All notable changes to `levelmoment_ads` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 follows [Semver](https://semver.org).
 
+## [0.4.0] — 2026-10-25
+
+### Added
+
+- `LevelMomentConnectionGate`: wrap the app in it from `MaterialApp.builder` to block play with a full-screen "No internet connection" message, with Try again, while the operating system reports no connection. `gameName` names the game in it; `onConnectionChange(online)` lets the game pause.
+- `LevelMomentConnection.instance.isOnline` and its `changes` stream.
+- Dependency on `connectivity_plus` to read the device's connection state. Rebuild the native app after upgrading.
+
+### Changed
+
+- While the operating system reports no connection, `show()` calls `onAdFailedToShowFullScreenContent` with `network_error`, `ensureSignedIn()` and `ensureAccess()` return `technicalFailure`, `isSignedIn()` and `checkAccess()` throw `LevelMomentSignInCheckError` with code `offline`, and `signOut()` throws after clearing the secure store, all without mounting a WebView.
+- The close button over a loading page sits inside the safe area.
+
 ## [0.3.2] — 2026-10-20
 
 No changes. Released with the Unity package so every SDK shares one version.

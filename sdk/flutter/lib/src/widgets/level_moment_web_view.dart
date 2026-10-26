@@ -672,10 +672,14 @@ class _LevelMomentWebViewState extends State<LevelMomentWebView> {
                   ),
                 ),
               ),
+            // Before `ready` this is the player's way out of a page that is
+            // slow to load: the spinner above covers the WebView, so a blank
+            // page or an error page never shows, and closing ends the surface
+            // the same way the watchdog does. Placed inside the safe area.
             if (canLeave)
               Positioned(
-                top: 48,
-                right: 16,
+                top: MediaQuery.paddingOf(context).top + 12,
+                right: MediaQuery.paddingOf(context).right + 16,
                 child: Semantics(
                   label: 'Close',
                   button: true,

@@ -3,7 +3,7 @@ description: >
   LevelMoment educational ad replacement SDK for Flutter.
   Drop-in replacement for google_mobile_ads rewarded ads.
   Replaces mobile ad impressions with short educational questions.
-version: 0.3.2
+version: 0.4.0
 homepage: https://github.com/levelmomentorg/sdk/tree/main/sdk/flutter
 repository: https://github.com/levelmomentorg/sdk
 issue_tracker: https://github.com/levelmomentorg/sdk/issues
@@ -13,6 +13,13 @@ environment:
   flutter: ">=3.22.0"
 
 dependencies:
+  # Reads whether the operating system reports a network connection
+  # (Android ConnectivityManager, iOS NWPathMonitor). An offline device fails a
+  # break or gate at once instead of mounting a WebView that cannot load, and
+  # LevelMomentConnectionGate shows the no-connection message. It reports
+  # interfaces, not whether a server answers, so a Level Moment outage never
+  # reads as offline. See lib/src/connection.dart.
+  connectivity_plus: ^7.3.2
   flutter:
     sdk: flutter
   # Keeps the paired device's credential in the platform secure store

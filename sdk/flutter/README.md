@@ -1,7 +1,7 @@
 # levelmoment_ads (Flutter)
 
-Version `0.3.2` is not published to `pub.dev`. Install it from the public
-repository's `sdk-v0.3.2` tag.
+Version `0.4.0` is not published to `pub.dev`. Install it from the public
+repository's `sdk-v0.4.0` tag.
 
 Give a coding agent the placement ID, immutable SDK source, target slot, reward
 action, and verification commands. Require it to load the current
@@ -35,6 +35,7 @@ See [`MIGRATION.md`](MIGRATION.md) for a line-by-line swap guide.
 - **Platform secure-store credential storage** — the SDK keeps its own copy of a paired device's credential, scoped per placement and per hosted origin. It answers the page's `needCredential` from the secure store, writes what pairing issues, and clears what the server refuses. `studentToken` is optional everywhere: a paired device needs none. The deprecated field is accepted only for `eply_sbx_` testing credentials under `unsafeTesting`.
 - **Secure-store availability probe** — the store is probed on first use. When it will not register, the SDK tells the page it is not keeping custody, so the hosted origin keeps ownership of the credential instead of the SDK dropping writes silently.
 - **`LevelMomentAds.instance.signOut(context:, placementId:)`** — clears the secure-store copy, then clears the hosted origin's copy. See [Sign out](#sign-out) below.
+- **Offline handling** (`connectivity_plus`) — every hosted surface fails at once while the operating system reports no connection, and `LevelMomentConnectionGate` blocks play with a "No internet connection" message until it returns. See [Require an internet connection](#require-an-internet-connection).
 
 The SDK opens the hosted break in a fullscreen WebView and reports answers and
 completion through the callbacks. `load()` prepares the shell; it does not
@@ -44,7 +45,7 @@ failure callbacks.
 ## What's Not Done
 
 - [ ] No example app in `sdk/flutter/example/`
-- [ ] Not published to `pub.dev`; install from the `sdk-v0.3.2` Git tag
+- [ ] Not published to `pub.dev`; install from the `sdk-v0.4.0` Git tag
 - [ ] No native pre-warm — `load()` resolves immediately; `show()` triggers the WebView fetch, adding a small visible delay when the ad slot opens
 
 ---
@@ -59,7 +60,7 @@ flutter analyze
 flutter test
 ```
 
-Install `0.3.2` from the Git tag below. Do not use
+Install `0.4.0` from the Git tag below. Do not use
 `flutter pub add levelmoment_ads`, because the package is not on `pub.dev`.
 
 ```yaml
@@ -67,7 +68,7 @@ dependencies:
   levelmoment_ads:
     git:
       url: https://github.com/levelmomentorg/sdk.git
-      ref: sdk-v0.3.2
+      ref: sdk-v0.4.0
       path: sdk/flutter
 ```
 
@@ -198,6 +199,40 @@ page found in its own storage. Browser hosts receive no credential at all. See
 See the hosted integration documentation for credential handling.
 
 ---
+
+## Require an internet connection
+
+A break, `ensureSignedIn()`, `ensureAccess()`, `isSignedIn()`, `checkAccess()`,
+or `signOut()` called while the operating system reports no network connection
+fails at once instead of pushing a WebView that can't load. A break calls
+`onAdFailedToShowFullScreenContent` with `network_error`, the gates return
+`technicalFailure`, and the checks throw `LevelMomentSignInCheckError` with code
+`offline`. While a hosted page loads, the SDK shows a spinner and a close
+button.
+
+To block play until the connection returns, wrap your app in
+`LevelMomentConnectionGate` from `MaterialApp.builder`, so the full-screen "No
+internet connection" message covers every route:
+
+```dart
+MaterialApp(
+  builder: (context, child) => LevelMomentConnectionGate(
+    gameName: 'YOUR_GAME_NAME',
+    onConnectionChange: (online) => online ? game.resume() : game.pause(),
+    child: child!,
+  ),
+  home: const GameScreen(),
+);
+```
+
+`onConnectionChange` receives `false` when the message appears and `true` when
+it goes away. `LevelMomentConnection.instance.isOnline` reads the same state.
+The SDK reads it with `connectivity_plus`; rebuild the native app after adding
+the SDK.
+
+**Note:** Only the operating system's connection state counts. When the device
+is online and Level Moment can't be reached, nothing is blocked: the break or
+check fails and the game carries on.
 
 ## Test real pairing against a local stack
 

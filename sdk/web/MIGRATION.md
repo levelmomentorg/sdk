@@ -6,10 +6,10 @@
 
 ## 1. Replace the dependency
 
-Install version 0.3.2 from npm. It brings the matching `@levelmoment/sdk-core`:
+Install version 0.4.0 from npm. It brings the matching `@levelmoment/sdk-core`:
 
 ```bash
-npm install @levelmoment/sdk-web@0.3.2
+npm install @levelmoment/sdk-web@0.4.0
 ```
 
 ## 2. Replace initialization
@@ -123,6 +123,13 @@ const client = LevelMomentWebClient.initialize({
 **Warning:** A production build must contain no `eply_sbx_` token. A build
 that carries one serves every player sandbox breaks that earn nothing.
 
+## 6. Optional: require an internet connection
+
+Pass `requireInternet: true` to `initialize()` to block play with a
+full-screen "No internet connection" message while the browser is offline.
+Pause the game loop from `onConnectionChange`. See
+[Require an internet connection](README.md#require-an-internet-connection).
+
 ## Verify the migration
 
 1. Run the game's TypeScript check and production build.
@@ -130,5 +137,8 @@ that carries one serves every player sandbox breaks that earn nothing.
 3. Confirm `ensureAccess()` opens the hosted flow when action is required.
 4. Complete a break and confirm the game resumes exactly once.
 5. Confirm a multi-question break grants its game reward at most once.
+6. Turn off the network and confirm a break fails at once and the game
+   resumes. With `requireInternet: true`, confirm the message appears and goes
+   away when the network returns.
 
 Compare the result with the [web example](example/main.ts).

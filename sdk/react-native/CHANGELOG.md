@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0 — 2026-10-25
+
+- No changes. Released with the web and Flutter packages so every SDK shares one version. Require-internet mode isn't in React Native yet.
+
 ## 0.3.2 — 2026-10-20
 
 - No changes. Released with the Unity package so every SDK shares one version.

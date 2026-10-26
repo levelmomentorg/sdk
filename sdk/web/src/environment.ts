@@ -10,3 +10,16 @@ export function webEnvironment(): HostEnvironment {
     pageUrl: typeof window === "undefined" ? "" : window.location?.href ?? "",
   };
 }
+
+/**
+ * True only when the browser itself says it has no network connection.
+ *
+ * `navigator.onLine === false` is a claim about the device (Wi-Fi and mobile
+ * data both off, airplane mode), never about Level Moment's servers. A server
+ * outage leaves this false-negative on purpose: an outage on our side must
+ * never lock a game. Anything other than an explicit `false`, including no `navigator` at all,
+ * reads as online.
+ */
+export function browserReportsOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator?.onLine === false;
+}

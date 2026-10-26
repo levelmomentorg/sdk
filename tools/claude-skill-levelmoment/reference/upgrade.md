@@ -11,7 +11,7 @@ what the step is.
    answers the slots, the reward authority and the game name already.
 2. [Port from a rewarded ad SDK, "Upgrade from an earlier Level Moment SDK"](https://levelmoment.com/docs/porting#upgrade):
    read the changelog and the migration guide for the game's SDK, install
-   0.3.2 exactly (the `sdk-v0.3.2` tag for Flutter and Unity), then remove the
+   0.4.0 exactly (the `sdk-v0.4.0` tag for Flutter and Unity), then remove the
    mock or placeholder break and its fallback, `apiUrl`/`breakUrl`/hardcoded
    tokens, old formats (`flashcard`, `quiz`, `deep_dive`) and per-answer reward
    code.

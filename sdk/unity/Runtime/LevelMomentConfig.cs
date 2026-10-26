@@ -290,7 +290,7 @@ namespace LevelMoment
         public const string BreakUrl = "https://levelmoment.com/break";
         public const string AccessUrl = "https://levelmoment.com/access";
         public const string ApiUrl = "https://levelmoment.com/api";
-        public const string SdkVersion = "0.3.2";
+        public const string SdkVersion = "0.4.0";
         public const int ProtocolVersion = 1;
     }
 }

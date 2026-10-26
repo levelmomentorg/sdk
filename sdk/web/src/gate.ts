@@ -92,8 +92,11 @@ function deliverGateCredential(frame: BreakFrame | null, spec: GateSpec): void {
 }
 
 /**
- * Open the hosted gate and resolve once. `ready` on `signedIn`, `canceled` on
- * `dismissed`, `technicalFailure` on `error` or on the pre-`ready` watchdog.
+ * Open the hosted gate and resolve once. `ready` on `signedIn`; `canceled` on
+ * `dismissed` or when the player closes the loading layer, which is a person
+ * saying "not now" just as closing the page's own card is; `technicalFailure`
+ * on `error`, on the pre-`ready` watchdog, or at once when the browser is
+ * offline.
  *
  * In mock mode there is nothing to link, so it resolves `ready` without
  * mounting anything.
@@ -127,7 +130,8 @@ export function runEnsureSignedIn(
           else if (msg.type === "dismissed") settle("canceled");
           else if (msg.type === "error") settle("technicalFailure");
         },
-        onLoadTimeout: () => settle("technicalFailure"),
+        onLoadTimeout: (reason) =>
+          settle(reason === "closed" ? "canceled" : "technicalFailure"),
       });
     } catch {
       // A malformed breakUrl or a DOM that will not take the frame is a
@@ -212,11 +216,13 @@ export function runIsSignedIn(spec: GateSpec): Promise<boolean> {
             );
           }
         },
-        onLoadTimeout: () =>
+        onLoadTimeout: (reason) =>
           settle(() =>
             reject(
               new Error(
-                `Level Moment sign-in check timed out after ${timeoutMs}ms.`,
+                reason === "offline"
+                  ? "Level Moment could not check this device: the browser is offline."
+                  : `Level Moment sign-in check timed out after ${timeoutMs}ms.`,
               ),
             ),
           ),

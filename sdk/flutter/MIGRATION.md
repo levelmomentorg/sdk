@@ -5,7 +5,7 @@
 - Flutter 3.22 or later
 
 The Flutter package is not published on pub.dev. Install it from the public
-SDK repository at the `sdk-v0.3.2` tag.
+SDK repository at the `sdk-v0.4.0` tag.
 
 ## 1. Replace the dependency
 
@@ -16,7 +16,7 @@ dependencies:
   levelmoment_ads:
     git:
       url: https://github.com/levelmomentorg/sdk.git
-      ref: sdk-v0.3.2
+      ref: sdk-v0.4.0
       path: sdk/flutter
 ```
 
@@ -142,6 +142,13 @@ serves every player sandbox breaks that earn nothing. See
 [Testing and sandbox](https://levelmoment.com/docs/testing#production-build)
 for the check that a release build has no token.
 
+## 6. Optional: require an internet connection
+
+Wrap your app in `LevelMomentConnectionGate` from `MaterialApp.builder` to
+block play with a full-screen "No internet connection" message while the
+device is offline. Pause the game loop from `onConnectionChange`. See
+[Require an internet connection](README.md#require-an-internet-connection).
+
 ## Verify the migration
 
 1. Run `flutter analyze` and build every target you ship.
@@ -149,3 +156,6 @@ for the check that a release build has no token.
 3. Confirm `ensureAccess()` opens pairing when action is required.
 4. Complete a break and confirm the game resumes on dismissal or failure.
 5. Confirm a multi-question break grants its game reward at most once.
+6. Turn on airplane mode and confirm a break fails at once and the game
+   resumes. With `LevelMomentConnectionGate`, confirm the message appears and
+   goes away when the connection returns.

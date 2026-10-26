@@ -11,6 +11,8 @@ export 'src/levelmoment_ads.dart';
 export 'src/levelmoment_ads.dart' show UnsafeTesting;
 export 'src/rewarded_ad.dart';
 export 'src/models.dart';
+export 'src/connection.dart'
+    show LevelMomentConnection, LevelMomentConnectionGate;
 export 'src/gate.dart'
     show EnsureSignedInResult, LevelMomentSignInCheckError, kSignInCheckTimeout;
 export 'src/widgets/level_moment_web_view.dart' show kBreakLoadTimeout;
