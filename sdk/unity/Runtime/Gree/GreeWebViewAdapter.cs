@@ -30,7 +30,7 @@ using Gree.UnityWebView;
 
 namespace LevelMoment
 {
-    internal class GreeWebViewAdapter : ILevelMomentHeadlessWebView, ILevelMomentScriptableWebView
+    internal class GreeWebViewAdapter : ILevelMomentRevealableWebView, ILevelMomentScriptableWebView
     {
         // OnClosed is required by the interface. gree surfaces no native "closed"
         // callback (the hosted page posts `dismissed` itself), so it is unused.
@@ -56,6 +56,13 @@ namespace LevelMoment
         public void OpenHidden(string url)
         {
             Load(url, false);
+        }
+
+        /// <summary>Show a page loaded hidden, once it has posted `ready`.</summary>
+        public void Reveal()
+        {
+            if (_webView != null)
+                _webView.SetVisibility(true);
         }
 
         private void Load(string url, bool visible)

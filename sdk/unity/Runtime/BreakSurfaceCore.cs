@@ -125,6 +125,10 @@ namespace LevelMoment
         private string _hostedUrl;
         private LoadWatchdog _watchdog;
         private Ticker _ticker;
+        // The spinner and Close control over the page until it posts `ready`.
+        private LevelMomentChrome.Layer _loading;
+        // Opened hidden: reveal it when the page posts `ready`.
+        private ILevelMomentRevealableWebView _revealable;
 
         public BreakSurfaceCore(
             string placementId,
@@ -209,6 +213,16 @@ namespace LevelMoment
             _inPublisherCallback = false;
             _callbacks = callbacks;
 
+            // No connection: the page can't load, so fail now rather than open
+            // a WebView that shows an error page until the watchdog fires.
+            if (!LevelMomentConnection.CheckOnline())
+            {
+                var offline = new LevelMomentAdError(
+                    "network_error", "This device has no internet connection.");
+                Terminate(delegate { FireFailedToShow(offline); });
+                return;
+            }
+
             var url = BreakUrl.Build(LevelMomentAds.Config.Resolve(), _placementId, _format, _kind, _slot);
             _hostedUrl = url;
 
@@ -225,9 +239,15 @@ namespace LevelMoment
                 _ticker = new Ticker(this);
                 LevelMomentRuntime.Track(_ticker);
 
+                _loading = LevelMomentChrome.ShowLoading(HandleLoadingClosed);
+
                 // Open last: the NoWebViewFallback posts its error synchronously
                 // here, and the handlers/watchdog are already wired to receive it.
-                _webView.Open(url);
+                _revealable = _webView as ILevelMomentRevealableWebView;
+                if (_revealable != null)
+                    _revealable.OpenHidden(url);
+                else
+                    _webView.Open(url);
             }
             catch (Exception err)
             {
@@ -306,8 +326,25 @@ namespace LevelMoment
                     ExternalBrowser.Open(msg.Url, _hostedUrl);
                     break;
                 case HostMessageType.Ready:
+                    // Reveal first: a provider that can't show the page must
+                    // not leave the player behind an invisible one with the
+                    // loading layer and the watchdog already gone.
+                    if (_revealable != null)
+                    {
+                        try
+                        {
+                            _revealable.Reveal();
+                        }
+                        catch (Exception err)
+                        {
+                            var revealError = new LevelMomentAdError("webview_error", err.Message);
+                            Terminate(delegate { FireFailedToShow(revealError); });
+                            break;
+                        }
+                    }
                     if (_watchdog != null)
                         _watchdog.NotifyReady();
+                    RemoveLoading();
                     FireShowed();
                     break;
                 case HostMessageType.EarnedReward:
@@ -330,6 +367,21 @@ namespace LevelMoment
                     Terminate(delegate { FireFailedToShow(error); });
                     break;
             }
+        }
+
+        private void HandleLoadingClosed()
+        {
+            // The player closed the loading layer: the same clean resume the
+            // load watchdog gives, mirroring sdk/web.
+            Terminate(FireDismissed);
+        }
+
+        private void RemoveLoading()
+        {
+            if (_loading == null)
+                return;
+            LevelMomentChrome.Remove(_loading);
+            _loading = null;
         }
 
         private void HandleClosed()
@@ -355,6 +407,8 @@ namespace LevelMoment
         {
             if (_watchdog != null)
                 _watchdog.Cancel();
+            RemoveLoading();
+            _revealable = null;
             if (_webView != null)
             {
                 _webView.OnMessage -= HandleRawMessage;

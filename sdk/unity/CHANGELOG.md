@@ -4,6 +4,33 @@ All notable changes to `com.levelmoment.sdk` (Unity UPM package) are documented
 here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
+## [0.4.1] — 2026-10-26
+
+### Added
+
+- `LevelMomentConfig.RequireInternet` blocks play with a full-screen "No
+  internet connection" message, with Try again, while
+  `Application.internetReachability` reports no connection. `GameName` names
+  the game in it, and `OnConnectionChange(online)` runs on the main thread so
+  the game can pause. The SDK reads reachability every 2 seconds and when the
+  app regains focus or resumes. Off by default.
+- `LevelMomentAds.IsOnline` and `LevelMomentAds.Dispose()`. Call `Dispose()`
+  when the game tears down.
+- `ILevelMomentRevealableWebView`: a provider that implements it loads a
+  visible surface hidden and shows it when the page posts `ready`. The gree
+  adapter and the macOS view implement it.
+
+### Changed
+
+- While the device reports no connection, `Show()` calls `OnAdFailedToShow`
+  with `network_error`, `EnsureSignedIn` and `EnsureAccess` return
+  `TechnicalFailure`, and `IsSignedIn` and `CheckAccess` call `onError`, all
+  without opening a WebView. Before, each waited for the 15-second load
+  watchdog.
+- While a hosted page loads, the SDK shows a spinner and a close button inside
+  the safe area. Closing ends a break with `OnAdDismissed` and makes
+  `EnsureSignedIn` and `EnsureAccess` return `Canceled`.
+
 ## [0.4.0] — 2026-10-25
 
 No changes. Released with the web and Flutter packages so every SDK shares one

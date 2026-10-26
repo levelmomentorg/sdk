@@ -59,6 +59,31 @@ namespace LevelMoment
             _active.Remove(tickable);
         }
 
+        /// <summary>
+        /// Create the driver if it is not running yet, so the chrome it paints
+        /// has an OnGUI to paint from. Respects <see cref="SkipDriver"/>.
+        /// </summary>
+        internal static void EnsureDriver()
+        {
+            if (!SkipDriver)
+                EnsureInstance();
+        }
+
+        /// <summary>
+        /// Raised when the application regains focus or resumes from pause:
+        /// the moments the device's connection is most likely to have changed
+        /// behind the game's back.
+        /// </summary>
+        internal static event System.Action ApplicationResumed;
+
+        /// <summary>Raise <see cref="ApplicationResumed"/>. The driver and tests call it.</summary>
+        internal static void NotifyApplicationResumed()
+        {
+            var handler = ApplicationResumed;
+            if (handler != null)
+                handler();
+        }
+
         internal static bool IsTracked(ITickable tickable)
         {
             return _active.Contains(tickable);
@@ -113,6 +138,7 @@ namespace LevelMoment
             _active.Clear();
             _tickScratch.Clear();
             _ticking = false;
+            ApplicationResumed = null;
         }
 
         private static void EnsureInstance()
@@ -134,13 +160,42 @@ namespace LevelMoment
         private static void ResetStaticStateOnSubsystemRegistration()
         {
             ResetRegistry();
+            LevelMomentConnection.ResetStatic();
+            LevelMomentChrome.ResetStatic();
             _instance = null;
         }
 #endif
 
+        private void Awake()
+        {
+            // The chrome paints with GUI.* only, never GUILayout, so skip the
+            // Layout pass Unity would otherwise send every frame.
+            useGUILayout = false;
+        }
+
         private void Update()
         {
+            LevelMomentChrome.RunPendingPress();
             TickAll();
+        }
+
+        private void OnGUI()
+        {
+            // Lower is nearer the front: the chrome covers any IMGUI the game draws.
+            GUI.depth = -10000;
+            LevelMomentChromePainter.Paint();
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus)
+                NotifyApplicationResumed();
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (!paused)
+                NotifyApplicationResumed();
         }
     }
 }

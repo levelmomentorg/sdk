@@ -1,6 +1,6 @@
 # LevelMoment Unity SDK (`com.levelmoment.sdk`)
 
-Version `0.4.0` installs from the public repository's `sdk-v0.4.0` tag.
+Version `0.4.1` installs from the public repository's `sdk-v0.4.1` tag.
 
 Give a coding agent the placement ID, immutable SDK source, target slot, reward
 action, and generated port plan. Require it to load the current
@@ -16,11 +16,6 @@ does not preload question content.
 **Note:** Credentials travel through the bridge and never in the hosted URL.
 Unity sends `custody: false`; use `UnsafeTesting` for sandbox credentials.
 
-**Note:** Require-internet mode, which the web and Flutter SDKs have from
-0.4.0, isn't in Unity yet. Offline, a break fails after the 15-second load
-watchdog rather than at once, and the SDK shows no "No internet connection"
-message.
-
 **Parent approval opens in the device's browser.** When a parent chooses to approve the game in a browser rather than scan the pairing code, the SDK opens the approval link outside the WebView. Parent sign-in stays outside the game surface. Never collect a Level Moment email code or other parent credential inside it. After approval, return to the game; the break resumes polling and completes the connection automatically. Only links on the loaded Level Moment origin are passed to the OS. Break and gate URLs announce browser support with `caps=openExternal`.
 
 ---
@@ -35,7 +30,7 @@ Add both lines to the `dependencies` in `Packages/manifest.json`. Pin the SDK
 tag, not a branch:
 
 ```json
-"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.4.0",
+"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.4.1",
 "net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment#20f14061ca4b45e8490c1e89e00684a5d3ed6be0"
 ```
 
@@ -200,6 +195,55 @@ For level transitions, register an integer `afterLevel` range once and send
 the current level number. You do not need a key or catalog option per level.
 Unknown reporting codes are omitted from reports without blocking the break.
 
+## Require an internet connection
+
+A break, `EnsureSignedIn`, `EnsureAccess`, `IsSignedIn`, or `CheckAccess`
+called while `Application.internetReachability` reports no connection fails at
+once without opening a WebView. A break calls `OnAdFailedToShow` with
+`network_error`, the gates return `TechnicalFailure`, and the checks call
+`onError`. While a hosted page loads, the SDK shows a spinner and a close
+button. Closing it ends a break with `OnAdDismissed` and makes the gates return
+`Canceled`.
+
+To block play until the connection returns, set `RequireInternet`. The SDK
+then shows a full-screen "No internet connection" message with a **Try again**
+button whenever the device reports no connection, and removes it when the
+connection returns:
+
+```csharp
+LevelMomentAds.Initialize(new LevelMomentConfig
+{
+    RequireInternet = true,
+    GameName = "YOUR_GAME_NAME",
+    // Pause gameplay and input while the message shows.
+    OnConnectionChange = online => { if (online) ResumeGame(); else PauseGame(); },
+});
+```
+
+`OnConnectionChange` runs on the main thread with `false` when the message
+appears and `true` when it goes away. When the device is offline at
+`Initialize()`, the first call arrives on the next frame.
+`LevelMomentAds.IsOnline` reads the same state. The SDK reads reachability every
+2 seconds and whenever the app regains focus or resumes. Call
+`LevelMomentAds.Dispose()` when the game tears down.
+
+The message is drawn with IMGUI over everything Unity renders, inside the safe
+area. It doesn't stop your game reading input itself, so pause input from
+`OnConnectionChange`. A break that is already open stays on screen above the
+message until it ends.
+
+A break can end while the device is offline. If `LevelMomentAds.IsOnline` is
+false when a break's dismiss or failure callback fires, leave the game paused;
+`OnConnectionChange(true)` resumes it. While a break is open, ignore
+`OnConnectionChange(true)`. A call made offline reports its failure first,
+while `IsOnline` can still read true, and `OnConnectionChange(false)` on the
+next frame, so a game that resumes from the failure pauses again a frame
+later.
+
+**Note:** Only the device's own connection state counts. When the device is
+online and Level Moment can't be reached, nothing is blocked: the break or
+check fails and the game carries on.
+
 ---
 
 ## API
@@ -208,6 +252,8 @@ Unknown reporting codes are omitted from reports without blocking the break.
 | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `LevelMomentAds.Initialize(LevelMomentConfig)`                              | One-time setup. Production uses canonical endpoints. Set `Mock` for the offline preview and `UnsafeTesting` for sandbox URLs and credentials.                                                                                                                                |
 | `LevelMomentAds.IsInitialized`                                              | True once initialized.                                                                                                                                                                                                                                                       |
+| `LevelMomentAds.IsOnline`                                                   | With `RequireInternet`, false while the no-connection message shows; it follows the watcher, so it can lag the device by up to 2 seconds. Without it, a fresh read of the device.                                                                                            |
+| `LevelMomentAds.Dispose()`                                                  | Removes the no-connection message and stops watching the connection. Loaded breaks keep working.                                                                                                                                                                             |
 | `LevelMomentAds.EnsureSignedIn(placementId, callback, studentToken?)`       | Optional identity gate. Opens the hosted `?mode=gate` surface and reports `EnsureSignedInResult.Ready` / `Canceled` / `TechnicalFailure` exactly once. Enable learning breaks on `Ready`; normal gameplay can continue after the other outcomes.                             |
 | `LevelMomentAds.IsSignedIn(placementId, onResult, onError, studentToken?)`  | Authoritative credential check through a hidden `?mode=check` surface. Calls `onError`, not `onResult(false)`, when it cannot get an answer.                                                                                                                                 |
 | `LevelMomentAds.EnsureAccess(placementId, callback, studentToken?)`         | Optional access gate on `/access?mode=gate`; reports the same `EnsureSignedInResult` values and callback semantics as `EnsureSignedIn`.                                                                                                                                      |
@@ -220,6 +266,7 @@ Unknown reporting codes are omitted from reports without blocking the break.
 | `ad.Destroy()`                                                              | Release the ad + tear down the WebView (no callbacks fired).                                                                                                                                                                                                                 |
 | `ILevelMomentWebView` / `LevelMomentWebViewRegistry`                        | WebView provider seam for custom plugins.                                                                                                                                                                                                                                    |
 | `ILevelMomentHeadlessWebView`                                               | Optional provider extension: `OpenHidden(url)` keeps the credential check off screen. The bundled gree adapter implements it; providers that do not still work, with the check briefly visible.                                                                              |
+| `ILevelMomentRevealableWebView`                                             | Optional provider extension: `Reveal()` shows a surface opened with `OpenHidden(url)`. The SDK opens visible surfaces hidden and reveals them on `ready`, so its loading layer isn't covered by a blank native view. The bundled gree adapter and macOS view implement it.   |
 | `ILevelMomentScriptableWebView`                                             | Optional provider extension: `EvaluateJS(js)` delivers a credential to the hosted page when the page asks for one. Required only if you pass an explicit `studentToken` — a paired device with no explicit token needs nothing here. The bundled gree adapter implements it. |
 
 Every `studentToken?` parameter is deprecated compatibility surface. It accepts
@@ -230,8 +277,8 @@ credentials stay in the hosted bridge and are never supplied in game config.
 
 - `OnUserEarnedReward(item)` — fires once for a server-confirmed passed graded break. `item.RewardId` equals the break ID; dedupe game grants by it. The game owns the item or currency amount.
 - `OnUserEarnedRewardItem(item)` — optional alias with the same terminal reward item and earned time.
-- `OnAdDismissed` — fires **exactly once** when the break ends. Always resume the game here.
-- `OnAdFailedToShow(error)` — fires instead of `OnAdDismissed` when the break can't be shown (not loaded, no WebView provider, page error, or the ad was already shown — see below).
+- `OnAdDismissed` — fires **exactly once** when the break ends. Resume the game here, unless `RequireInternet` is on and `LevelMomentAds.IsOnline` is false (see [Require an internet connection](#require-an-internet-connection)).
+- `OnAdFailedToShow(error)` — fires instead of `OnAdDismissed` when the break can't be shown (not loaded, no connection, no WebView provider, page error, or the ad was already shown — see below).
 - `format` — `quick_question` (default), `practice_set`, `mastery_round`, or `intro_lesson`. The first two fill a rewarded slot (one question, then a set); the last two fill an interstitial slot (a longer set, and the same set opening on an instruction panel). Declare the slot and Level Moment picks the format inside it, since which one suits the learner is not something a game can see. A format you pass is a floor: the break is never smaller than the one you sized the slot against.
 - One `Show()` per handle: once a `RewardedAd`/`InterstitialAd` has been shown, `IsLoaded` is false and a second `Show()` reports `OnAdFailedToShow` with `not_loaded` rather than reopening it — get a fresh handle from `Load()` for each break.
 
@@ -247,7 +294,7 @@ by the Unity SDK's `EnsureSignedInResult`):
 
 - `Ready` — enable learning breaks. Normal gameplay can start independently.
 - `Canceled` — a person closed the gate, or a parent denied the connection. Show your own "learning breaks are off" state or a retry action; do not retry automatically.
-- `TechnicalFailure` — the gate could not run (no `Initialize()`, a bad config string, no WebView provider, or the surface never came up). Retry later.
+- `TechnicalFailure` — the gate could not run (no `Initialize()`, a bad config string, no connection, no WebView provider, or the surface never came up). Retry later.
 - `IsSignedIn` is authoritative, not a cached flag — it re-validates the credential against the server every call, because a credential can be revoked between launches. An error means _unknown_, never _signed out_: treat it as "try again", and leave the current state alone.
 - Both methods allow the hosted page 15 seconds to load. `EnsureSignedIn` then waits without a deadline for approval, so pairing takes as long as a parent takes. `IsSignedIn` has no approval step and is bounded end to end: it calls `onError` if the page does not load in 15 seconds, if the page's credential check runs longer than 10 seconds (the page reports `check_timeout`), or if 30 seconds pass with no answer at all.
 - `EnsureAccess` and `CheckAccess` use the same outcome and deadline rules on `/access`; use them when access enablement is a separate publisher flow from identity sign-in.
@@ -464,7 +511,10 @@ il2cpp build, and each target device. Before release:
 3. **On-device smoke** (real WebView): build to iOS/Android with the canonical
    hosted service, trigger a break, and confirm a server-confirmed passed graded
    break fires `OnUserEarnedReward` with `RewardId`, while closing it fires `OnAdDismissed`
-   exactly once. Try `Mock = true` for an offline pass.
+   exactly once.
+4. **Offline**: turn on airplane mode and confirm a break fails at once and the
+   game resumes. With `RequireInternet`, confirm the message appears within 2
+   seconds, blocks the game, and goes away when the connection returns.
 
 ---
 

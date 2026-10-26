@@ -12,7 +12,7 @@ Add the pinned SDK and WebView packages to `Packages/manifest.json`:
 ```json
 {
   "dependencies": {
-    "com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.4.0",
+    "com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.4.1",
     "net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment#20f14061ca4b45e8490c1e89e00684a5d3ed6be0"
   }
 }
@@ -158,6 +158,13 @@ LevelMomentAds.Initialize(config);
 **Warning:** A release build must contain no `eply_sbx_` token. A build that
 carries one serves every player sandbox breaks that earn nothing.
 
+## 7. Optional: require an internet connection
+
+Set `RequireInternet = true` and `GameName` in `LevelMomentConfig` to block
+play with a full-screen "No internet connection" message while the device is
+offline. Pause gameplay and input from `OnConnectionChange`. See
+[Require an internet connection](README.md#require-an-internet-connection).
+
 ## Verify the migration
 
 1. Compile in the editor and make an il2cpp build.
@@ -166,6 +173,9 @@ carries one serves every player sandbox breaks that earn nothing.
 4. Complete a break and confirm dismissal resumes the game once.
 5. Remove the provider define in a test branch and confirm the failure callback
    reports the missing provider.
+6. Turn on airplane mode and confirm a break fails at once and the game
+   resumes. With `RequireInternet`, confirm the message appears and goes away
+   when the connection returns.
 
 Compare the loading flow with the
 [Unity example](Samples~/BasicIntegration/AdBreakExample.cs).

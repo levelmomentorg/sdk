@@ -26,7 +26,7 @@ using UnityEngine.Scripting;
 namespace LevelMoment
 {
     internal sealed class MacNativeWebView :
-        ILevelMomentHeadlessWebView, ILevelMomentScriptableWebView, ITickable
+        ILevelMomentRevealableWebView, ILevelMomentScriptableWebView, ITickable
     {
         private const string Lib = "LevelMomentWebView";
 
@@ -86,6 +86,12 @@ namespace LevelMoment
         public void OpenHidden(string url)
         {
             Load(url, false);
+        }
+
+        public void Reveal()
+        {
+            if (_instance != IntPtr.Zero)
+                LevelMomentWebView_SetVisible(_instance, 1);
         }
 
         private void Load(string url, bool visible)

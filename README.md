@@ -2,7 +2,7 @@
 
 Client SDKs for [Level Moment](https://levelmoment.com). Add a break to your
 game, connect it to a placement, and show a short educational activity when
-play reaches a natural pause. The current release is 0.4.0.
+play reaches a natural pause. The current release is 0.4.1.
 
 ## Install
 
@@ -11,13 +11,13 @@ Pin the exact version and commit your lockfile so every build runs the one you t
 ### Web
 
 ```sh
-npm install --save-exact @levelmoment/sdk-web@0.4.0
+npm install --save-exact @levelmoment/sdk-web@0.4.1
 ```
 
 ### React Native
 
 ```sh
-npm install --save-exact @levelmoment/sdk-react-native@0.4.0 react-native-webview
+npm install --save-exact @levelmoment/sdk-react-native@0.4.1 react-native-webview
 ```
 
 ### Flutter
@@ -29,7 +29,7 @@ dependencies:
   levelmoment_ads:
     git:
       url: https://github.com/levelmomentorg/sdk.git
-      ref: sdk-v0.4.0
+      ref: sdk-v0.4.1
       path: sdk/flutter
 ```
 
@@ -38,7 +38,7 @@ dependencies:
 In `Packages/manifest.json`, add:
 
 ```json
-"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.4.0"
+"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.4.1"
 ```
 
 Unity also needs a WebView provider. The

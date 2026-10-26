@@ -58,6 +58,22 @@ namespace LevelMoment
     }
 
     /// <summary>
+    /// A WebView host that can load a page hidden and show it later. The SDK
+    /// opens every visible surface hidden, draws its own loading layer (a
+    /// spinner and a Close control) while the page loads, and calls
+    /// <see cref="Reveal"/> when the page posts <c>ready</c>. A native WebView
+    /// draws above anything Unity draws, so without this the loading layer
+    /// would sit behind a blank page. Providers that do not implement it still
+    /// work: they open visible, as before. The bundled gree adapter and macOS
+    /// view implement it.
+    /// </summary>
+    public interface ILevelMomentRevealableWebView : ILevelMomentHeadlessWebView
+    {
+        /// <summary>Show a page loaded with <see cref="ILevelMomentHeadlessWebView.OpenHidden"/>. Idempotent.</summary>
+        void Reveal();
+    }
+
+    /// <summary>
     /// A WebView host that can run script inside the loaded page. This is how
     /// the credential reaches the hosted surface now that it no longer rides on
     /// the URL: the page posts <c>needCredential</c> and the SDK answers by

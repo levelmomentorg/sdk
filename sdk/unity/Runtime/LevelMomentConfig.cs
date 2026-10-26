@@ -85,6 +85,37 @@ namespace LevelMoment
         /// </summary>
         public bool UseSandboxTokenFile = true;
 
+        /// <summary>
+        /// Block play with a full-screen "No internet connection" message
+        /// whenever the device reports no connection, and remove it when the
+        /// connection returns or the player presses Try again and the device
+        /// reports one. Off by default.
+        ///
+        /// Only the device's own connection state counts
+        /// (<c>Application.internetReachability</c>). When the device is online
+        /// and Level Moment's servers fail, nothing is blocked: the break ends
+        /// and the game carries on.
+        /// </summary>
+        public bool RequireInternet;
+
+        /// <summary>
+        /// The game's name as players know it, used in the no-connection
+        /// message: "{GameName} needs an internet connection." Defaults to
+        /// "This game".
+        /// </summary>
+        public string GameName;
+
+        /// <summary>
+        /// Called on the main thread with <c>false</c> when the no-connection
+        /// message appears and <c>true</c> when it goes away. Pause your game
+        /// loop and input on <c>false</c>: the message covers the screen but
+        /// cannot stop your game reading input. Only called when
+        /// <see cref="RequireInternet"/> is true; if the device is offline at
+        /// Initialize(), the first call arrives on the next frame.
+        /// </summary>
+        [NonSerialized]
+        public Action<bool> OnConnectionChange;
+
         public LevelMomentConfig() { }
 
         public LevelMomentConfig(string apiUrl, string breakUrl, bool mock = false, string customData = null)
@@ -290,7 +321,7 @@ namespace LevelMoment
         public const string BreakUrl = "https://levelmoment.com/break";
         public const string AccessUrl = "https://levelmoment.com/access";
         public const string ApiUrl = "https://levelmoment.com/api";
-        public const string SdkVersion = "0.4.0";
+        public const string SdkVersion = "0.4.1";
         public const int ProtocolVersion = 1;
     }
 }

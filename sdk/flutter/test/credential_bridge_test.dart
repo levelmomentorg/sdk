@@ -63,7 +63,7 @@ void main() {
         'platform': 'android',
         'storefront': null,
         'protocolVersion': 1,
-        'sdkVersion': '0.4.0',
+        'sdkVersion': '0.4.1',
       });
     });
 
@@ -116,7 +116,7 @@ void main() {
         'platform': 'android',
         'storefront': null,
         'protocolVersion': 1,
-        'sdkVersion': '0.4.0',
+        'sdkVersion': '0.4.1',
       });
     });
 

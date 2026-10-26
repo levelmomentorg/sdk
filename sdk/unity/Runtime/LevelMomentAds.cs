@@ -114,6 +114,32 @@ namespace LevelMoment
             Storefront = string.Equals(Platform, "ios", StringComparison.Ordinal)
                 ? StorefrontProvider.ReadStorefront()
                 : null;
+
+            // A second Initialize() replaces the watcher rather than adding one.
+            if (config.RequireInternet)
+                LevelMomentConnection.StartWatching(config.GameName, config.OnConnectionChange);
+            else
+                LevelMomentConnection.StopWatching();
+        }
+
+        /// <summary>
+        /// Whether the device reports a network connection. With
+        /// <see cref="LevelMomentConfig.RequireInternet"/> this is false exactly
+        /// while the no-connection message is showing.
+        /// </summary>
+        public static bool IsOnline
+        {
+            get { return LevelMomentConnection.IsOnline; }
+        }
+
+        /// <summary>
+        /// Remove the no-connection message, if any, and stop watching the
+        /// connection. Call it when the game tears down. Breaks already loaded
+        /// keep working, and the configuration stays in place.
+        /// </summary>
+        public static void Dispose()
+        {
+            LevelMomentConnection.StopWatching();
         }
 
         /// <summary>
@@ -312,7 +338,7 @@ namespace LevelMoment
                 delegate(string code)
                 {
                     if (onError != null)
-                        onError("Level Moment could not check this device: " + code);
+                        onError("Level Moment could not check this device: " + Describe(code));
                 },
                 resolvedToken);
         }
@@ -359,9 +385,15 @@ namespace LevelMoment
                 delegate(string code)
                 {
                     if (onError != null)
-                        onError("Level Moment could not check access: " + code);
+                        onError("Level Moment could not check access: " + Describe(code));
                 },
                 resolvedToken);
+        }
+
+        // A failure code as a check's onError reports it.
+        private static string Describe(string code)
+        {
+            return code == "offline" ? "this device has no internet connection." : code;
         }
 
         private static string BuildGateUrl(string placementId, string mode)
@@ -449,6 +481,10 @@ namespace LevelMoment
             CheckTimeoutSeconds = DefaultCheckTimeoutSeconds;
             StorefrontProvider = new DeviceStorefrontProvider();
             LevelMomentRuntime.SkipDriver = false;
+            LevelMomentConnection.ResetStatic();
+            // Tests run online unless they say otherwise, whatever the machine's network.
+            LevelMomentConnection.ReportsOffline = () => false;
+            LevelMomentChrome.ResetStatic();
             LevelMomentConfig.DevelopmentBuildOverrideForTests = null;
             RealPairingUrl.ResetWarningsForTests();
             // Tests never read the developer's own sandbox token file.

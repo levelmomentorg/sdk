@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1 — 2026-10-26
+
+- No changes. Released with the Unity package so every SDK shares one version.
+
 ## 0.4.0 — 2026-10-25
 
 - A break, `ensureAccess()`, `checkAccess()`, `ensureSignedIn()` or `isSignedIn()` called while the browser reports no network connection fails at once without mounting the hosted frame. A break calls `onAdFailedToShow` with `network_error` (or `onAdDismissed` when there is no `onAdFailedToShow`); the gates resolve `technicalFailure`; the checks reject.

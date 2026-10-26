@@ -61,6 +61,10 @@ namespace LevelMoment
         // The headless check's total deadline. Never notified of `ready` — that
         // is what separates it from _watchdog, which stops there.
         private LoadWatchdog _checkDeadline;
+        // The spinner and Close control over the visible gate until `ready`.
+        private LevelMomentChrome.Layer _loading;
+        // Opened hidden: reveal it when the page posts `ready`.
+        private ILevelMomentRevealableWebView _revealable;
         private bool _terminal;
 
         private SignInGate(
@@ -92,6 +96,16 @@ namespace LevelMoment
             var gate = new SignInGate(onReady, onCanceled, onFailure, studentToken);
             gate._hostedUrl = url;
 
+            // No connection: the page can't load, and a check can't learn
+            // anything. Fail now rather than after the load watchdog. "Offline"
+            // is never a claim about the household, so IsSignedIn reports it
+            // through onError, not onResult(false).
+            if (!LevelMomentConnection.CheckOnline())
+            {
+                gate.Terminate(delegate { Fire(gate._onFailure, "offline"); });
+                return gate;
+            }
+
             try
             {
                 gate._webView = LevelMomentWebViewRegistry.Create();
@@ -118,9 +132,22 @@ namespace LevelMoment
                 // here, and the handlers/watchdog are already wired to receive it.
                 var headlessView = gate._webView as ILevelMomentHeadlessWebView;
                 if (headless && headlessView != null)
+                {
                     headlessView.OpenHidden(url);
-                else
+                }
+                else if (headless)
+                {
                     gate._webView.Open(url);
+                }
+                else
+                {
+                    gate._loading = LevelMomentChrome.ShowLoading(gate.HandleLoadingClosed);
+                    gate._revealable = gate._webView as ILevelMomentRevealableWebView;
+                    if (gate._revealable != null)
+                        gate._revealable.OpenHidden(url);
+                    else
+                        gate._webView.Open(url);
+                }
             }
             catch (Exception)
             {
@@ -197,8 +224,24 @@ namespace LevelMoment
                     // `ready` stops the load watchdog for good. It deliberately
                     // does NOT stop _checkDeadline: the headless check has no
                     // parent to wait on, and its whole run stays bounded.
+                    // Reveal first, as in BreakSurfaceCore: a provider that
+                    // can't show the page fails the gate rather than stranding
+                    // the player behind an invisible one.
+                    if (_revealable != null)
+                    {
+                        try
+                        {
+                            _revealable.Reveal();
+                        }
+                        catch (Exception)
+                        {
+                            Terminate(delegate { Fire(_onFailure, "webview_error"); });
+                            break;
+                        }
+                    }
                     if (_watchdog != null)
                         _watchdog.NotifyReady();
+                    RemoveLoading();
                     break;
                 case HostMessageType.SignedIn:
                     Terminate(_onReady);
@@ -211,6 +254,21 @@ namespace LevelMoment
                     Terminate(delegate { Fire(_onFailure, code); });
                     break;
             }
+        }
+
+        private void HandleLoadingClosed()
+        {
+            // A person closed the gate while it loaded: the same answer as
+            // closing it afterwards. Mirrors sdk/web and sdk/flutter.
+            Terminate(_onCanceled);
+        }
+
+        private void RemoveLoading()
+        {
+            if (_loading == null)
+                return;
+            LevelMomentChrome.Remove(_loading);
+            _loading = null;
         }
 
         private void HandleClosed()
@@ -239,6 +297,8 @@ namespace LevelMoment
                 _watchdog.Cancel();
             if (_checkDeadline != null)
                 _checkDeadline.Cancel();
+            RemoveLoading();
+            _revealable = null;
             if (_webView != null)
             {
                 _webView.OnMessage -= HandleRawMessage;
