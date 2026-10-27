@@ -27,7 +27,7 @@ Choose the path first:
   checks in AGENT-INSTRUCTIONS.md.
 - **The game already shows Level Moment breaks through an SDK older than
   0.3.0** (an old commit pin, a mock mode, a `format` choice instead of slot
-  declarations): follow `reference/upgrade.md`, which moves it to 0.4.1 and
+  declarations): follow `reference/upgrade.md`, which moves it to 0.4.2 and
   through the same sandbox checks.
 - **The integration already passes its sandbox checks and the developer wants
   to ship it:** follow `reference/deploy.md`, which removes the sandbox token

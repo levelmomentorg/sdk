@@ -14,7 +14,7 @@ for the target slot.
    definition that uses SDK types, test assemblies included.
 3. Initialize once with `new LevelMomentConfig()`, from a bootstrap object or
    a `[RuntimeInitializeOnLoadMethod]` (the
-   [Unity README](https://github.com/levelmomentorg/sdk/tree/sdk-v0.4.1/sdk/unity#quickstart)
+   [Unity README](https://github.com/levelmomentorg/sdk/tree/sdk-v0.4.2/sdk/unity#quickstart)
    shows both). Call `EnsureAccess` from the player's tap, then load one
    `RewardedAd` per show, passing a `LevelMomentAdSlot` and
    `format: "practice_set"`. Call `Show()` only for the supplied slot. Do not

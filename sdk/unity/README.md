@@ -1,6 +1,6 @@
 # LevelMoment Unity SDK (`com.levelmoment.sdk`)
 
-Version `0.4.1` installs from the public repository's `sdk-v0.4.1` tag.
+Version `0.4.2` installs from the public repository's `sdk-v0.4.2` tag.
 
 Give a coding agent the placement ID, immutable SDK source, target slot, reward
 action, and generated port plan. Require it to load the current
@@ -39,7 +39,7 @@ Add both lines to the `dependencies` in `Packages/manifest.json`. Pin the SDK
 tag, not a branch:
 
 ```json
-"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.4.1",
+"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.4.2",
 "net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment#20f14061ca4b45e8490c1e89e00684a5d3ed6be0"
 ```
 
@@ -339,7 +339,7 @@ check fails and the game carries on.
 | `LevelMomentAds.CheckAccess(placementId, onResult, onError, studentToken?)` | Optional access check on `/access?mode=check`; `onResult(false)` means the access flow is needed, while technical failures call `onError`.                                                                                                                                   |
 | `RewardedAd.Load(placementId, callbacks, format?, slot?)`                   | Synchronous mark-ready (no network). `callbacks`: `OnAdLoaded`, `OnAdFailedToLoad`. `slot`: a `LevelMomentAdSlot` declaring the moment.                                                                                                                                      |
 | `RewardedAd.Load(placementId, studentToken, callbacks, format?)`            | Deprecated compatibility overload. The token is accepted only with an `eply_sbx_` credential in `UnsafeTesting`.                                                                                                                                                             |
-| `InterstitialAd.Load(placementId, callbacks, format?, slot?)`               | Same as `RewardedAd.Load`, for a moment that grants nothing. Pass a `slot`: in 0.4.1, a call without one serves a rewarded question.                                                                                                                                         |
+| `InterstitialAd.Load(placementId, callbacks, format?, slot?)`               | Same as `RewardedAd.Load`, for a moment that grants nothing. Pass a `slot`. With no `slot` and no `format`, it declares an 18-second interstitial slot and asks for `mastery_round`.                                                                                         |
 | `ad.Show(callbacks)`                                                        | Opens the hosted break in a WebView. `OnUserEarnedReward(item)` fires once for a server-confirmed passed graded break; dismiss and failure callbacks remain terminal.                                                                                                        |
 | `callbacks.OnUserEarnedRewardItem`                                          | Optional alias for the same item (`RewardId`, `EarnedAt`), with no game-currency amount.                                                                                                                                                                                     |
 | `ad.IsLoaded`                                                               | True when loaded and not yet shown/destroyed.                                                                                                                                                                                                                                |
@@ -403,10 +403,11 @@ InterstitialAd.Load("YOUR_PLACEMENT_ID", new InterstitialAdLoadCallbacks
 }, slot: slot);
 ```
 
-Always pass the slot, at 18 seconds or more. In 0.4.1, a `Load()` with no slot
-serves a single rewarded question; from the next release, one with no slot and
-no `format` declares an 18-second interstitial slot. An interstitial break serves a round of 2 to 10 questions
-and asks each missed question again, with hints and then the worked answer.
+Always pass the slot, at 18 seconds or more. A `Load()` with no slot and no
+`format` declares an 18-second interstitial slot and asks for `mastery_round`.
+In 0.4.1 and earlier, that call served a single rewarded question. An
+interstitial break serves a round of 2 to 10 questions and asks each missed
+question again, with hints and then the worked answer.
 
 The game gets no result from an interstitial break: every ending reaches
 `OnAdDismissed` or `OnAdFailedToShow`, and both mean "carry on". Map either one

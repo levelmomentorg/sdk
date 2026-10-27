@@ -95,7 +95,7 @@ void main() {
       expect(uri.origin + uri.path, 'https://levelmoment.com/access');
       expect(uri.queryParameters['mode'], 'check');
       expect(uri.queryParameters['protocolVersion'], '1');
-      expect(uri.queryParameters['sdkVersion'], '0.4.1');
+      expect(uri.queryParameters['sdkVersion'], '0.4.2');
       expect(uri.queryParameters.containsKey('sandbox'), isFalse);
     });
 

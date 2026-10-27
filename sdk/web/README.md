@@ -6,10 +6,10 @@ placement events.
 
 ## Install
 
-Install version `0.4.1` from npm:
+Install version `0.4.2` from npm:
 
 ```bash
-npm install @levelmoment/sdk-web@0.4.1
+npm install @levelmoment/sdk-web@0.4.2
 ```
 
 Earlier npm releases predate slot declarations, the current break format

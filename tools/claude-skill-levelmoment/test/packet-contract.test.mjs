@@ -423,7 +423,7 @@ test("React Native template resumes once for load failure and dismissal", () => 
 test("handoff uses supplied immutable inputs without a fabricated source", () => {
   const handoff = JSON.parse(read("handoff.example.json"));
 
-  assert.equal(handoff.sdk.version, "0.4.1");
+  assert.equal(handoff.sdk.version, "0.4.2");
   assert.equal(handoff.sdk.platformArtifact.artifactPath, "");
   assert.equal(handoff.sdk.platformArtifact.sha256, "");
   assert.equal(handoff.placement.placementId, "");

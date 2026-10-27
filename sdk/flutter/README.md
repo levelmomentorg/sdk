@@ -1,7 +1,7 @@
 # levelmoment_ads (Flutter)
 
-Version `0.4.1` is not published to `pub.dev`. Install it from the public
-repository's `sdk-v0.4.1` tag.
+Version `0.4.2` is not published to `pub.dev`. Install it from the public
+repository's `sdk-v0.4.2` tag.
 
 Give a coding agent the placement ID, immutable SDK source, target slot, reward
 action, and verification commands. Require it to load the current
@@ -45,7 +45,7 @@ failure callbacks.
 ## What's Not Done
 
 - [ ] No example app in `sdk/flutter/example/`
-- [ ] Not published to `pub.dev`; install from the `sdk-v0.4.1` Git tag
+- [ ] Not published to `pub.dev`; install from the `sdk-v0.4.2` Git tag
 - [ ] No native pre-warm — `load()` resolves immediately; `show()` triggers the WebView fetch, adding a small visible delay when the ad slot opens
 
 ---
@@ -60,7 +60,7 @@ flutter analyze
 flutter test
 ```
 
-Install `0.4.1` from the Git tag below. Do not use
+Install `0.4.2` from the Git tag below. Do not use
 `flutter pub add levelmoment_ads`, because the package is not on `pub.dev`.
 
 ```yaml
@@ -68,7 +68,7 @@ dependencies:
   levelmoment_ads:
     git:
       url: https://github.com/levelmomentorg/sdk.git
-      ref: sdk-v0.4.1
+      ref: sdk-v0.4.2
       path: sdk/flutter
 ```
 
