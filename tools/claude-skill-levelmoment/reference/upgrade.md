@@ -2,9 +2,9 @@
 
 Use this path when the game already shows Level Moment breaks through an SDK
 older than 0.3.0, such as one pinned to an old commit or still carrying a mock
-mode. The public docs are the guide; open each page as page text through a
-browser (see SKILL.md). Without web access, the summary beside each link says
-what the step is.
+mode. The public docs are the guide; open each page and read its full text
+through a browser tool (see SKILL.md). Without web access, the summary beside each link says which step comes next, not how to do it.
+Ask the developer to open or paste the page before you run that step.
 
 1. Ask only the questions in `self-serve.md`, step 1, that the existing code
    and the developer's brief don't already answer. An integrated game usually
@@ -26,7 +26,8 @@ what the step is.
 5. [Testing and sandbox](https://levelmoment.com/docs/testing): set up the
    sandbox token for the platform (Flutter reads it behind `kReleaseMode`),
    check each slot's pass, fail and load failure, and search a release build
-   for `eply_sbx_` with a positive control.
+   for the token's value, read from the sandbox-only file, with a positive
+   control.
 
 Apply the lifecycle and checks in AGENT-INSTRUCTIONS.md and the "Agent-only
 notes" section of `self-serve.md`. Report as `self-serve.md`, step 3,

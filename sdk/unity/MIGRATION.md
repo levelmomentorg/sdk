@@ -184,7 +184,10 @@ offline. Pause gameplay and input from `OnConnectionChange`. See
 
 ## Verify the migration
 
-1. Compile in the editor and make an il2cpp build.
+1. Compile in the editor and make an il2cpp build. For iOS, build the exported
+   Xcode project once for a device, without signing, as
+   [Going live](https://levelmoment.com/docs/going-live#token) shows. A batch
+   build passes `-buildTarget iOS`.
 2. Confirm `CheckAccess()` stays hidden.
 3. Confirm `EnsureAccess()` opens pairing when action is required.
 4. Complete a break and confirm dismissal resumes the game once.

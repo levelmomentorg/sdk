@@ -173,6 +173,22 @@ test("deploy links every going-live step and hands human steps back", () => {
   assert.match(read("SKILL.md"), /reference\/deploy\.md/);
 });
 
+test("deploy gives Unity a release build method and a value-based token check", () => {
+  const deploy = read("reference/deploy.md");
+  assert.match(deploy, /templates\/unity-ReleaseBuild\.cs\.tmpl/);
+  assert.match(deploy, /-buildTarget iOS/);
+  assert.match(deploy, /-sdk iphoneos/);
+  // The SDKs' own messages contain the bare prefix, so the check must search
+  // for the token's value.
+  assert.doesNotMatch(deploy, /grep -rl eply_sbx_/);
+  assert.match(deploy, /grep -rlaF -f -/);
+  const build = read("templates/unity-ReleaseBuild.cs.tmpl");
+  assert.match(build, /options = BuildOptions\.None/);
+  assert.doesNotMatch(build, /BuildOptions\.Development/);
+  assert.match(build, /EditorApplication\.Exit\(1\)/);
+  assert.match(build, /-output/);
+});
+
 test("native templates pass the terminal reward ID to game-owned grants", () => {
   const flutter = read("templates/flutter-ad-break.dart.tmpl");
   const unity = read("templates/unity-AdsManager.cs.tmpl");

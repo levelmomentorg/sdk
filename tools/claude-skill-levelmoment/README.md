@@ -33,7 +33,8 @@ picked from a registry.
   Level Moment SDK to 0.4.2) and `deploy.md` (sandbox to production).
 - `templates/` contains examples with a fresh handle per break, one bonus for
   one game-owned bonus per server-confirmed passed break, and one game resume
-  per terminal result.
+  per terminal result, and `unity-ReleaseBuild.cs.tmpl`, a batch release
+  build method for Unity.
 - `handoff.example.json` describes the required partner inputs.
 
 ## Verify the packet

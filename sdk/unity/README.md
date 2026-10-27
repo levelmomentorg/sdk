@@ -59,6 +59,10 @@ The package handles the rest of the gree setup:
   takes effect when the editor next starts, and it changes
   `ProjectSettings/ProjectSettings.asset`, so commit that change with the SDK.
   A project on **New** or **Both** is left alone.
+  An editor build script that sets Active Input Handling back to **Input
+  Manager (Old)** undoes this: the build ships with **Old**, and the SDK sets
+  **Both** again the next time the editor starts. Remove that line from the
+  script, or have it set **Both**.
 
 ### 2. Reference the SDK from assembly definitions
 
@@ -452,6 +456,19 @@ missing the page's 500ms reply window, so the read happens once, at
 `Initialize()`, on a device iOS player only. `Runtime/Plugins/iOS/LevelMomentStorefront.m`
 holds the native call; nothing here needs App Store Connect access or a
 sandbox tester account to build.
+
+The SDK's post-build step links `StoreKit.framework` into the exported Xcode
+project for that call. Pass `-buildTarget iOS` to a batch build anyway, so the
+project's own editor scripts compile for iOS:
+
+```bash
+Unity -batchmode -quit -projectPath . -buildTarget iOS -executeMethod YOUR_BUILD_METHOD -logFile -
+```
+
+SDK releases up to 0.4.2 run the StoreKit step only when the editor's active
+build target is iOS. A batch build from a fresh checkout without
+`-buildTarget iOS` then skips it, and the Xcode link fails on
+`SKPaymentQueue`.
 
 ---
 

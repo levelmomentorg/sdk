@@ -4,6 +4,18 @@ All notable changes to `com.levelmoment.sdk` (Unity UPM package) are documented
 here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semver](https://semver.org).
 
+## [Unreleased]
+
+### Fixed
+
+- An iOS build now links `StoreKit.framework` whatever the editor's active
+  build target. The post-build step compiled only when the active target was
+  iOS, so a batch build that set iOS in `BuildPlayerOptions` but started
+  without `-buildTarget iOS`, such as one from a fresh checkout, skipped it,
+  and the Xcode link failed on `SKPaymentQueue`. The step now checks the build
+  target when it runs, and fails the build with a message if it can't load
+  Unity's Xcode project API.
+
 ## [0.4.2] — 2026-10-26
 
 ### Fixed

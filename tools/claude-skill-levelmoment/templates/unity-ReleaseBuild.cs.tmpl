@@ -1,0 +1,54 @@
+// A release build from the command line, as
+// https://levelmoment.com/docs/going-live#token shows it. Save as
+// Assets/Editor/LevelMomentReleaseBuild.cs and run, from the Unity project
+// folder:
+//
+//   Unity -batchmode -quit -projectPath . -buildTarget iOS \
+//     -executeMethod LevelMomentReleaseBuild.Build -output ../builds/ios -logFile -
+//
+// -buildTarget picks the platform and compiles editor scripts for it. Keep
+// -output outside the repository. For Android, end the path in .aab for a
+// Play bundle or .apk for an installable file.
+using System;
+using System.Linq;
+using UnityEditor;
+using UnityEditor.Build.Reporting;
+using UnityEngine;
+
+public static class LevelMomentReleaseBuild
+{
+    public static void Build()
+    {
+        var args = Environment.GetCommandLineArgs();
+        var index = Array.IndexOf(args, "-output");
+        if (index < 0 || index + 1 >= args.Length)
+        {
+            Fail("Pass -output with a folder or file outside the repository.");
+            return;
+        }
+
+        var target = EditorUserBuildSettings.activeBuildTarget;
+        var output = args[index + 1];
+        if (target == BuildTarget.Android)
+            EditorUserBuildSettings.buildAppBundle = output.EndsWith(".aab", StringComparison.OrdinalIgnoreCase);
+
+        var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+        {
+            scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray(),
+            locationPathName = output,
+            target = target,
+            targetGroup = BuildPipeline.GetBuildTargetGroup(target),
+            // Development Build off: a release build never carries the sandbox token.
+            options = BuildOptions.None,
+        });
+
+        if (report.summary.result != BuildResult.Succeeded)
+            Fail("The " + target + " build ended with " + report.summary.result + ".");
+    }
+
+    static void Fail(string message)
+    {
+        Debug.LogError("[LevelMomentReleaseBuild] " + message);
+        EditorApplication.Exit(1);
+    }
+}

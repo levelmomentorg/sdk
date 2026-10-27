@@ -34,8 +34,8 @@ Choose the path first:
   from release builds, checks them, and prepares the review email. The
   developer sends that email, runs the device test and uploads the build.
 
-Read a docs page as page text through a browser, such as the browser tool's
-page-text read. A fetch tool that summarizes pages, such as WebFetch, drops the
+Read each docs page with a browser tool that returns the page's full text. A
+fetch tool that summarizes pages, such as WebFetch, drops the
 code samples the steps depend on.
 
 Every path in this packet is relative to this file's folder, wherever it sits.

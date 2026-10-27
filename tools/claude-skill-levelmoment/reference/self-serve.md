@@ -5,9 +5,9 @@ handoff manifest. It takes the game from no Level Moment code to verified
 sandbox breaks. Going live is a later step the developer approves.
 
 The public docs are the guide; this page adds only what an agent needs on top.
-Open each page before its step and follow it, reading it as page text through a browser (see SKILL.md). Without web access, the one-line
-summary beside each link says what the step is; ask the developer to open the
-page if you need its detail.
+Open each page before its step and follow it, reading the full page text
+through a browser tool (see SKILL.md). Without web access, the summary beside each link says which step comes next, not how to do it.
+Ask the developer to open or paste the page before you run that step.
 
 ## 1. Ask the developer first
 
@@ -68,12 +68,13 @@ has one right answer in the docs; don't ask about it.
    game writes no token code and no guard. Check each slot's pass, fail and
    load failure. A load failure reaches the same not-granted path as a failed
    break, so the player copy covers both, such as "No reward this time"; the
-   testing page shows how to produce one in a native game. Then grep a
-   production build for `eply_sbx_`, searching only Capacitor folders that
-   exist and treating only grep's exit 1 as clean; for Flutter, follow the
-   page's release-build search and its positive control; for Unity, search the
-   iOS Xcode export or the unpacked Android APK or AAB of an il2cpp release
-   build, as the page shows.
+   testing page shows how to produce one in a native game. Then run the
+   page's token check on a production build: it searches for the token's
+   value, read from the sandbox-only file, not the `eply_sbx_` prefix the
+   SDKs' own messages contain, lists only folders that exist, treats only
+   grep's exit 1 as clean, and needs its positive control first. For Unity,
+   search the iOS Xcode export or the unpacked Android APK or AAB of an
+   il2cpp release build, as the page shows.
 3. [Your own break interface](https://levelmoment.com/docs/own-break-interface):
    when the game already has a promise-based break function, keep it and its
    call sites and implement it with `templates/web-promise-seam.ts.tmpl`,
