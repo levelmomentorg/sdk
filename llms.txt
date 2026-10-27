@@ -3,7 +3,7 @@
 Read [AGENTS.md](./AGENTS.md), then the complete integration packet in
 [tools/claude-skill-levelmoment](./tools/claude-skill-levelmoment/).
 
-Use SDK 0.4.2. The README has the exact install line for each platform.
+Use SDK 0.4.3. The README has the exact install line for each platform.
 
 Package guides:
 

@@ -37,7 +37,7 @@ Fix anything here before step 3.
   now in a sandbox build before continuing.
 - The SDK is pinned to the exact version tested, with no range, in the
   manifest and the lockfile (for Flutter and Unity, a release tag such as
-  `sdk-v0.4.2`). Any tested 0.4.x is accepted for review; don't upgrade it
+  `sdk-v0.4.3`). Any tested 0.4.x is accepted for review; don't upgrade it
   unasked. Before a newer patch release, read the
   [changelog](https://levelmoment.com/docs/changelog) and rerun the sandbox
   checks if a change touches a call the game makes.
@@ -154,9 +154,9 @@ frame ([Web views](https://levelmoment.com/docs/web-views)).
   a file the developer chooses, filled with the game name, placement ID,
   channels, and SDK package and version, with `TEST_BUILD_LINK` left for the
   developer when they upload the test build. For `SDK`, write the package
-  and the pinned version: `@levelmoment/sdk-web 0.4.2`,
-  `@levelmoment/sdk-react-native 0.4.2`, `levelmoment_ads sdk-v0.4.2` for
-  Flutter, or `com.levelmoment.sdk sdk-v0.4.2` for Unity. Leave out the token.
+  and the pinned version: `@levelmoment/sdk-web 0.4.3`,
+  `@levelmoment/sdk-react-native 0.4.3`, `levelmoment_ads sdk-v0.4.3` for
+  Flutter, or `com.levelmoment.sdk sdk-v0.4.3` for Unity. Leave out the token.
 
 ## Stop conditions
 

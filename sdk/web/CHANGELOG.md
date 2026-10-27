@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3 — 2026-10-26
+
+- No changes. Released with the Unity package so every SDK shares one version.
+
 ## 0.4.2 — 2026-10-26
 
 - No changes. Released with the Unity package so every SDK shares one version.

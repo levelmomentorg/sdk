@@ -6,10 +6,10 @@
 
 ## 1. Replace the dependency
 
-Install version 0.4.2 from npm with the native peers:
+Install version 0.4.3 from npm with the native peers:
 
 ```bash
-npm install @levelmoment/sdk-react-native@0.4.2 react-native-webview react-native-keychain
+npm install @levelmoment/sdk-react-native@0.4.3 react-native-webview react-native-keychain
 ```
 
 ## 2. Mount the modal

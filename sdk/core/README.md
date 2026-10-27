@@ -2,7 +2,7 @@
 
 Public TypeScript contracts shared by the Level Moment platform SDKs.
 
-**Note:** Version `0.4.2` is on npm. Install `@levelmoment/sdk-web` or
+**Note:** Version `0.4.3` is on npm. Install `@levelmoment/sdk-web` or
 `@levelmoment/sdk-react-native` instead of this package; each depends on the
 matching `sdk-core`.
 

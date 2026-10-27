@@ -6,10 +6,10 @@
 
 ## 1. Replace the dependency
 
-Install version 0.4.2 from npm. It brings the matching `@levelmoment/sdk-core`:
+Install version 0.4.3 from npm. It brings the matching `@levelmoment/sdk-core`:
 
 ```bash
-npm install @levelmoment/sdk-web@0.4.2
+npm install @levelmoment/sdk-web@0.4.3
 ```
 
 ## 2. Replace initialization

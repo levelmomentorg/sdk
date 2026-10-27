@@ -34,7 +34,7 @@ has one right answer in the docs; don't ask about it.
    game on the Games page at https://levelmoment.com/games ("Register
    game", webhook URL optional), commit the public placement ID as a source
    constant such as `PLACEMENT_ID` in `src/levelmoment.ts` with no mock
-   fallback, install the SDK at exactly 0.4.2 (Unity: the two manifest lines
+   fallback, install the SDK at exactly 0.4.3 (Unity: the two manifest lines
    for the SDK and gree, and `LevelMomentSDK.Runtime` in the
    references of any assembly definition that uses it; the SDK switches Active
    Input Handling from Old to Both on the next editor start, which changes
@@ -99,7 +99,7 @@ has one right answer in the docs; don't ask about it.
    approval; when they approve, follow `reference/deploy.md`.
 
 For Unity, also read the package
-[README](https://github.com/levelmomentorg/sdk/tree/sdk-v0.4.2/sdk/unity) and
+[README](https://github.com/levelmomentorg/sdk/tree/sdk-v0.4.3/sdk/unity) and
 use `templates/unity-AdsManager.cs.tmpl` for each rewarded slot. A game on
 AppLovin MAX can keep its MAX-shaped calls through the README's MAX
 compatibility facade, or swap them for `RewardedAd` and `InterstitialAd` as

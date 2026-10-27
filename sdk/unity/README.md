@@ -1,6 +1,6 @@
 # LevelMoment Unity SDK (`com.levelmoment.sdk`)
 
-Version `0.4.2` installs from the public repository's `sdk-v0.4.2` tag.
+Version `0.4.3` installs from the public repository's `sdk-v0.4.3` tag.
 
 Give a coding agent the placement ID, immutable SDK source, target slot, reward
 action, and generated port plan. Require it to load the current
@@ -39,7 +39,7 @@ Add both lines to the `dependencies` in `Packages/manifest.json`. Pin the SDK
 tag, not a branch:
 
 ```json
-"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.4.2",
+"com.levelmoment.sdk": "https://github.com/levelmomentorg/sdk.git?path=/sdk/unity#sdk-v0.4.3",
 "net.gree.unity-webview": "https://github.com/gree/unity-webview.git?path=/dist/package-nofragment#20f14061ca4b45e8490c1e89e00684a5d3ed6be0"
 ```
 
